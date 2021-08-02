@@ -1,0 +1,2929 @@
+{
+  "@context": "http://iiif.io/api/presentation/2/context.json",
+  "@id": "https://iiif.wellcomecollection.org/presentation/v2/b18035723",
+  "@type": "sc:Manifest",
+  "label": "Wunder der Vererbung / von Fritz Bolle.",
+  "metadata": [
+    {
+      "label": "Publication/creation",
+      "value": "Murnau ; München : Sebastian Lux, [1951]"
+    },
+    {
+      "label": "Physical description",
+      "value": "31 pages : illustrations ; 15 cm."
+    },
+    {
+      "label": "Contributors",
+      "value": "Bolle, Fritz."
+    },
+    {
+      "label": "Type/technique",
+      "value": "Pamphlets"
+    },
+    {
+      "label": "Subjects",
+      "value": "Genetics - history"
+    },
+    {
+      "label": "Attribution",
+      "value": "Wellcome Collection"
+    },
+    {
+      "label": "Full conditions of use",
+      "value": "<span>You have permission to make copies of this work under a <a target=\"_top\" href=\"http://creativecommons.org/licenses/by-nc/4.0/\">Creative Commons, Attribution, Non-commercial license</a>.<br/><br/>Non-commercial use includes private study, academic research, teaching, and other activities that are not primarily intended for, or directed towards, commercial advantage or private monetary compensation. See the <a target=\"_top\" href=\"http://creativecommons.org/licenses/by-nc/4.0/legalcode\">Legal Code</a> for further information.<br/><br/>Image source should be attributed as specified in the full catalogue record. If no source is given the image should be attributed to Wellcome Collection.</span>"
+    }
+  ],
+  "thumbnail": {
+  "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0004.JP2/full/72,100/0/default.jpg",
+  "@type": "dctypes:Image",
+  "service": {
+    "@context": "http://iiif.io/api/image/2/context.json",
+    "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0004.JP2",
+    "profile": "http://iiif.io/api/image/2/level0.json",
+    "protocol": "http://iiif.io/api/image",
+    "width": 732,
+    "height": 1024,
+    "sizes": [
+      {
+        "width": 72,
+        "height": 100
+      },
+      {
+        "width": 143,
+        "height": 200
+      },
+      {
+        "width": 286,
+        "height": 400
+      },
+      {
+        "width": 732,
+        "height": 1024
+      }
+    ]
+  }
+},
+  "license": "http://creativecommons.org/licenses/by-nc/4.0/",
+  "logo": "https://iiif.wellcomecollection.org/logos/wellcome-collection-black.png",
+  "related": {
+    "@id": "https://wellcomecollection.org/works/krqp99r9",
+    "format": "text/html",
+    "label": "Wunder der Vererbung / von Fritz Bolle."
+  },
+  "seeAlso": {
+    "@id": "https://api.wellcomecollection.org/catalogue/v2/works/krqp99r9",
+    "profile": "https://api.wellcomecollection.org/catalogue/v2/context.json",
+    "format": "application/json",
+    "label": "Wellcome Collection Catalogue API"
+  },
+  "service": [
+    {
+      "@context": "http://iiif.io/api/search/0/context.json",
+      "@id": "https://iiif.wellcomecollection.org/search/v0/b18035723",
+      "profile": "http://iiif.io/api/search/0/search",
+      "label": "Search within this manifest",
+      "service": {
+        "@id": "https://iiif.wellcomecollection.org/search/autocomplete/v1/b18035723",
+        "profile": "http://iiif.io/api/search/0/autocomplete",
+        "label": "Autocomplete words in this manifest"
+      }
+    },
+    {
+      "@context": "http://universalviewer.io/context.json",
+      "@id": "http://wellcomelibrary.org/service/trackingLabels/b18035723",
+      "profile": "http://universalviewer.io/tracking-extensions-profile",
+      "trackingLabel": "Format: Monograph, Institution: n/a, Identifier: b18035723, Digicode: diggenetics, Collection code: n/a"
+    },
+    {
+      "@context": "http://wellcomelibrary.org/ld/iiif-ext/0/context.json",
+      "@id": "https://wellcomelibrary.org/iiif/b18035723/access-control-hints-service",
+      "profile": "http://wellcomelibrary.org/ld/iiif-ext/access-control-hints",
+      "accessHint": "open"
+    }
+  ],
+  "sequences": [
+    {
+      "@id": "https://iiif.wellcomecollection.org/presentation/v2/b18035723/sequences/s0",
+      "@type": "sc:Sequence",
+      "label": "Sequence s0",
+      "rendering": [
+        {
+          "@id": "https://iiif.wellcomecollection.org/pdf/b18035723",
+          "label": "View as PDF",
+          "format": "application/pdf"
+        },
+        {
+          "@id": "https://api.wellcomecollection.org/text/v1/b18035723",
+          "label": "View raw text",
+          "format": "text/plain"
+        }
+      ],
+      "viewingHint": "paged",
+      "canvases": [
+        {
+          "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0001.JP2",
+          "@type": "sc:Canvas",
+          "label": "-",
+          "thumbnail": {
+  "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0001.JP2/full/73,100/0/default.jpg",
+  "@type": "dctypes:Image",
+  "service": {
+    "@context": "http://iiif.io/api/image/2/context.json",
+    "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0001.JP2",
+    "profile": "http://iiif.io/api/image/2/level0.json",
+    "protocol": "http://iiif.io/api/image",
+    "width": 742,
+    "height": 1024,
+    "sizes": [
+      {
+        "width": 73,
+        "height": 100
+      },
+      {
+        "width": 145,
+        "height": 200
+      },
+      {
+        "width": 290,
+        "height": 400
+      },
+      {
+        "width": 742,
+        "height": 1024
+      }
+    ]
+  }
+},
+          "seeAlso": {
+            "@id": "https://api.wellcomecollection.org/text/alto/b18035723/b18035723_0001.JP2",
+            "profile": "http://www.loc.gov/standards/alto/v3/alto.xsd",
+            "format": "text/xml",
+            "label": "METS-ALTO XML"
+          },
+          "height": 3543,
+          "width": 2569,
+          "images": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0001.JP2/painting/anno",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "resource": {
+                "@id": "https://iiif.wellcomecollection.org/image/b18035723_0001.JP2/full/742,1024/0/default.jpg",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "height": 1024,
+                "width": 742,
+                "service": {
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "@id": "https://iiif.wellcomecollection.org/image/b18035723_0001.JP2",
+                  "profile": "http://iiif.io/api/image/2/level1.json",
+                  "protocol": "http://iiif.io/api/image",
+                  "width": 2569,
+                  "height": 3543
+                }
+              },
+              "on": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0001.JP2"
+            }
+          ],
+          "otherContent": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/annotations/v2/b18035723/b18035723_0001.JP2/line",
+              "@type": "sc:AnnotationList",
+              "label": "Text of page  -"
+            }
+          ],
+          "within": ""
+        },
+        {
+          "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0003.JP2",
+          "@type": "sc:Canvas",
+          "label": "-",
+          "thumbnail": {
+  "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0003.JP2/full/72,100/0/default.jpg",
+  "@type": "dctypes:Image",
+  "service": {
+    "@context": "http://iiif.io/api/image/2/context.json",
+    "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0003.JP2",
+    "profile": "http://iiif.io/api/image/2/level0.json",
+    "protocol": "http://iiif.io/api/image",
+    "width": 732,
+    "height": 1024,
+    "sizes": [
+      {
+        "width": 72,
+        "height": 100
+      },
+      {
+        "width": 143,
+        "height": 200
+      },
+      {
+        "width": 286,
+        "height": 400
+      },
+      {
+        "width": 732,
+        "height": 1024
+      }
+    ]
+  }
+},
+          "seeAlso": {
+            "@id": "https://api.wellcomecollection.org/text/alto/b18035723/b18035723_0003.JP2",
+            "profile": "http://www.loc.gov/standards/alto/v3/alto.xsd",
+            "format": "text/xml",
+            "label": "METS-ALTO XML"
+          },
+          "height": 3372,
+          "width": 2411,
+          "images": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0003.JP2/painting/anno",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "resource": {
+                "@id": "https://iiif.wellcomecollection.org/image/b18035723_0003.JP2/full/732,1024/0/default.jpg",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "height": 1024,
+                "width": 732,
+                "service": {
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "@id": "https://iiif.wellcomecollection.org/image/b18035723_0003.JP2",
+                  "profile": "http://iiif.io/api/image/2/level1.json",
+                  "protocol": "http://iiif.io/api/image",
+                  "width": 2411,
+                  "height": 3372
+                }
+              },
+              "on": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0003.JP2"
+            }
+          ],
+          "otherContent": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/annotations/v2/b18035723/b18035723_0003.JP2/line",
+              "@type": "sc:AnnotationList",
+              "label": "Text of page  -"
+            }
+          ],
+          "within": ""
+        },
+        {
+          "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0004.JP2",
+          "@type": "sc:Canvas",
+          "label": "-",
+          "thumbnail": {
+  "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0004.JP2/full/72,100/0/default.jpg",
+  "@type": "dctypes:Image",
+  "service": {
+    "@context": "http://iiif.io/api/image/2/context.json",
+    "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0004.JP2",
+    "profile": "http://iiif.io/api/image/2/level0.json",
+    "protocol": "http://iiif.io/api/image",
+    "width": 732,
+    "height": 1024,
+    "sizes": [
+      {
+        "width": 72,
+        "height": 100
+      },
+      {
+        "width": 143,
+        "height": 200
+      },
+      {
+        "width": 286,
+        "height": 400
+      },
+      {
+        "width": 732,
+        "height": 1024
+      }
+    ]
+  }
+},
+          "seeAlso": {
+            "@id": "https://api.wellcomecollection.org/text/alto/b18035723/b18035723_0004.JP2",
+            "profile": "http://www.loc.gov/standards/alto/v3/alto.xsd",
+            "format": "text/xml",
+            "label": "METS-ALTO XML"
+          },
+          "height": 3372,
+          "width": 2411,
+          "images": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0004.JP2/painting/anno",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "resource": {
+                "@id": "https://iiif.wellcomecollection.org/image/b18035723_0004.JP2/full/732,1024/0/default.jpg",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "height": 1024,
+                "width": 732,
+                "service": {
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "@id": "https://iiif.wellcomecollection.org/image/b18035723_0004.JP2",
+                  "profile": "http://iiif.io/api/image/2/level1.json",
+                  "protocol": "http://iiif.io/api/image",
+                  "width": 2411,
+                  "height": 3372
+                }
+              },
+              "on": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0004.JP2"
+            }
+          ],
+          "otherContent": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/annotations/v2/b18035723/b18035723_0004.JP2/line",
+              "@type": "sc:AnnotationList",
+              "label": "Text of page  -"
+            }
+          ],
+          "within": ""
+        },
+        {
+          "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0005.JP2",
+          "@type": "sc:Canvas",
+          "label": "2",
+          "thumbnail": {
+  "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0005.JP2/full/72,100/0/default.jpg",
+  "@type": "dctypes:Image",
+  "service": {
+    "@context": "http://iiif.io/api/image/2/context.json",
+    "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0005.JP2",
+    "profile": "http://iiif.io/api/image/2/level0.json",
+    "protocol": "http://iiif.io/api/image",
+    "width": 732,
+    "height": 1024,
+    "sizes": [
+      {
+        "width": 72,
+        "height": 100
+      },
+      {
+        "width": 143,
+        "height": 200
+      },
+      {
+        "width": 286,
+        "height": 400
+      },
+      {
+        "width": 732,
+        "height": 1024
+      }
+    ]
+  }
+},
+          "seeAlso": {
+            "@id": "https://api.wellcomecollection.org/text/alto/b18035723/b18035723_0005.JP2",
+            "profile": "http://www.loc.gov/standards/alto/v3/alto.xsd",
+            "format": "text/xml",
+            "label": "METS-ALTO XML"
+          },
+          "height": 3372,
+          "width": 2411,
+          "images": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0005.JP2/painting/anno",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "resource": {
+                "@id": "https://iiif.wellcomecollection.org/image/b18035723_0005.JP2/full/732,1024/0/default.jpg",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "height": 1024,
+                "width": 732,
+                "service": {
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "@id": "https://iiif.wellcomecollection.org/image/b18035723_0005.JP2",
+                  "profile": "http://iiif.io/api/image/2/level1.json",
+                  "protocol": "http://iiif.io/api/image",
+                  "width": 2411,
+                  "height": 3372
+                }
+              },
+              "on": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0005.JP2"
+            }
+          ],
+          "otherContent": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/annotations/v2/b18035723/b18035723_0005.JP2/line",
+              "@type": "sc:AnnotationList",
+              "label": "Text of page 2"
+            }
+          ],
+          "within": ""
+        },
+        {
+          "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0006.JP2",
+          "@type": "sc:Canvas",
+          "label": "3",
+          "thumbnail": {
+  "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0006.JP2/full/72,100/0/default.jpg",
+  "@type": "dctypes:Image",
+  "service": {
+    "@context": "http://iiif.io/api/image/2/context.json",
+    "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0006.JP2",
+    "profile": "http://iiif.io/api/image/2/level0.json",
+    "protocol": "http://iiif.io/api/image",
+    "width": 732,
+    "height": 1024,
+    "sizes": [
+      {
+        "width": 72,
+        "height": 100
+      },
+      {
+        "width": 143,
+        "height": 200
+      },
+      {
+        "width": 286,
+        "height": 400
+      },
+      {
+        "width": 732,
+        "height": 1024
+      }
+    ]
+  }
+},
+          "seeAlso": {
+            "@id": "https://api.wellcomecollection.org/text/alto/b18035723/b18035723_0006.JP2",
+            "profile": "http://www.loc.gov/standards/alto/v3/alto.xsd",
+            "format": "text/xml",
+            "label": "METS-ALTO XML"
+          },
+          "height": 3372,
+          "width": 2411,
+          "images": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0006.JP2/painting/anno",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "resource": {
+                "@id": "https://iiif.wellcomecollection.org/image/b18035723_0006.JP2/full/732,1024/0/default.jpg",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "height": 1024,
+                "width": 732,
+                "service": {
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "@id": "https://iiif.wellcomecollection.org/image/b18035723_0006.JP2",
+                  "profile": "http://iiif.io/api/image/2/level1.json",
+                  "protocol": "http://iiif.io/api/image",
+                  "width": 2411,
+                  "height": 3372
+                }
+              },
+              "on": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0006.JP2"
+            }
+          ],
+          "otherContent": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/annotations/v2/b18035723/b18035723_0006.JP2/line",
+              "@type": "sc:AnnotationList",
+              "label": "Text of page 3"
+            }
+          ],
+          "within": ""
+        },
+        {
+          "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0007.JP2",
+          "@type": "sc:Canvas",
+          "label": "4",
+          "thumbnail": {
+  "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0007.JP2/full/73,100/0/default.jpg",
+  "@type": "dctypes:Image",
+  "service": {
+    "@context": "http://iiif.io/api/image/2/context.json",
+    "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0007.JP2",
+    "profile": "http://iiif.io/api/image/2/level0.json",
+    "protocol": "http://iiif.io/api/image",
+    "width": 752,
+    "height": 1024,
+    "sizes": [
+      {
+        "width": 73,
+        "height": 100
+      },
+      {
+        "width": 147,
+        "height": 200
+      },
+      {
+        "width": 294,
+        "height": 400
+      },
+      {
+        "width": 752,
+        "height": 1024
+      }
+    ]
+  }
+},
+          "seeAlso": {
+            "@id": "https://api.wellcomecollection.org/text/alto/b18035723/b18035723_0007.JP2",
+            "profile": "http://www.loc.gov/standards/alto/v3/alto.xsd",
+            "format": "text/xml",
+            "label": "METS-ALTO XML"
+          },
+          "height": 2736,
+          "width": 2008,
+          "images": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0007.JP2/painting/anno",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "resource": {
+                "@id": "https://iiif.wellcomecollection.org/image/b18035723_0007.JP2/full/752,1024/0/default.jpg",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "height": 1024,
+                "width": 752,
+                "service": {
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "@id": "https://iiif.wellcomecollection.org/image/b18035723_0007.JP2",
+                  "profile": "http://iiif.io/api/image/2/level1.json",
+                  "protocol": "http://iiif.io/api/image",
+                  "width": 2008,
+                  "height": 2736
+                }
+              },
+              "on": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0007.JP2"
+            }
+          ],
+          "otherContent": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/annotations/v2/b18035723/b18035723_0007.JP2/line",
+              "@type": "sc:AnnotationList",
+              "label": "Text of page 4"
+            }
+          ],
+          "within": ""
+        },
+        {
+          "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0008.JP2",
+          "@type": "sc:Canvas",
+          "label": "5",
+          "thumbnail": {
+  "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0008.JP2/full/73,100/0/default.jpg",
+  "@type": "dctypes:Image",
+  "service": {
+    "@context": "http://iiif.io/api/image/2/context.json",
+    "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0008.JP2",
+    "profile": "http://iiif.io/api/image/2/level0.json",
+    "protocol": "http://iiif.io/api/image",
+    "width": 750,
+    "height": 1024,
+    "sizes": [
+      {
+        "width": 73,
+        "height": 100
+      },
+      {
+        "width": 147,
+        "height": 200
+      },
+      {
+        "width": 293,
+        "height": 400
+      },
+      {
+        "width": 750,
+        "height": 1024
+      }
+    ]
+  }
+},
+          "seeAlso": {
+            "@id": "https://api.wellcomecollection.org/text/alto/b18035723/b18035723_0008.JP2",
+            "profile": "http://www.loc.gov/standards/alto/v3/alto.xsd",
+            "format": "text/xml",
+            "label": "METS-ALTO XML"
+          },
+          "height": 2740,
+          "width": 2008,
+          "images": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0008.JP2/painting/anno",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "resource": {
+                "@id": "https://iiif.wellcomecollection.org/image/b18035723_0008.JP2/full/750,1024/0/default.jpg",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "height": 1024,
+                "width": 750,
+                "service": {
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "@id": "https://iiif.wellcomecollection.org/image/b18035723_0008.JP2",
+                  "profile": "http://iiif.io/api/image/2/level1.json",
+                  "protocol": "http://iiif.io/api/image",
+                  "width": 2008,
+                  "height": 2740
+                }
+              },
+              "on": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0008.JP2"
+            }
+          ],
+          "otherContent": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/annotations/v2/b18035723/b18035723_0008.JP2/line",
+              "@type": "sc:AnnotationList",
+              "label": "Text of page 5"
+            }
+          ],
+          "within": ""
+        },
+        {
+          "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0009.JP2",
+          "@type": "sc:Canvas",
+          "label": "6",
+          "thumbnail": {
+  "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0009.JP2/full/72,100/0/default.jpg",
+  "@type": "dctypes:Image",
+  "service": {
+    "@context": "http://iiif.io/api/image/2/context.json",
+    "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0009.JP2",
+    "profile": "http://iiif.io/api/image/2/level0.json",
+    "protocol": "http://iiif.io/api/image",
+    "width": 732,
+    "height": 1024,
+    "sizes": [
+      {
+        "width": 72,
+        "height": 100
+      },
+      {
+        "width": 143,
+        "height": 200
+      },
+      {
+        "width": 286,
+        "height": 400
+      },
+      {
+        "width": 732,
+        "height": 1024
+      }
+    ]
+  }
+},
+          "seeAlso": {
+            "@id": "https://api.wellcomecollection.org/text/alto/b18035723/b18035723_0009.JP2",
+            "profile": "http://www.loc.gov/standards/alto/v3/alto.xsd",
+            "format": "text/xml",
+            "label": "METS-ALTO XML"
+          },
+          "height": 3372,
+          "width": 2411,
+          "images": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0009.JP2/painting/anno",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "resource": {
+                "@id": "https://iiif.wellcomecollection.org/image/b18035723_0009.JP2/full/732,1024/0/default.jpg",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "height": 1024,
+                "width": 732,
+                "service": {
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "@id": "https://iiif.wellcomecollection.org/image/b18035723_0009.JP2",
+                  "profile": "http://iiif.io/api/image/2/level1.json",
+                  "protocol": "http://iiif.io/api/image",
+                  "width": 2411,
+                  "height": 3372
+                }
+              },
+              "on": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0009.JP2"
+            }
+          ],
+          "otherContent": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/annotations/v2/b18035723/b18035723_0009.JP2/line",
+              "@type": "sc:AnnotationList",
+              "label": "Text of page 6"
+            }
+          ],
+          "within": ""
+        },
+        {
+          "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0010.JP2",
+          "@type": "sc:Canvas",
+          "label": "7",
+          "thumbnail": {
+  "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0010.JP2/full/72,100/0/default.jpg",
+  "@type": "dctypes:Image",
+  "service": {
+    "@context": "http://iiif.io/api/image/2/context.json",
+    "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0010.JP2",
+    "profile": "http://iiif.io/api/image/2/level0.json",
+    "protocol": "http://iiif.io/api/image",
+    "width": 732,
+    "height": 1024,
+    "sizes": [
+      {
+        "width": 72,
+        "height": 100
+      },
+      {
+        "width": 143,
+        "height": 200
+      },
+      {
+        "width": 286,
+        "height": 400
+      },
+      {
+        "width": 732,
+        "height": 1024
+      }
+    ]
+  }
+},
+          "seeAlso": {
+            "@id": "https://api.wellcomecollection.org/text/alto/b18035723/b18035723_0010.JP2",
+            "profile": "http://www.loc.gov/standards/alto/v3/alto.xsd",
+            "format": "text/xml",
+            "label": "METS-ALTO XML"
+          },
+          "height": 3372,
+          "width": 2411,
+          "images": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0010.JP2/painting/anno",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "resource": {
+                "@id": "https://iiif.wellcomecollection.org/image/b18035723_0010.JP2/full/732,1024/0/default.jpg",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "height": 1024,
+                "width": 732,
+                "service": {
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "@id": "https://iiif.wellcomecollection.org/image/b18035723_0010.JP2",
+                  "profile": "http://iiif.io/api/image/2/level1.json",
+                  "protocol": "http://iiif.io/api/image",
+                  "width": 2411,
+                  "height": 3372
+                }
+              },
+              "on": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0010.JP2"
+            }
+          ],
+          "otherContent": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/annotations/v2/b18035723/b18035723_0010.JP2/line",
+              "@type": "sc:AnnotationList",
+              "label": "Text of page 7"
+            }
+          ],
+          "within": ""
+        },
+        {
+          "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0011.JP2",
+          "@type": "sc:Canvas",
+          "label": "8",
+          "thumbnail": {
+  "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0011.JP2/full/72,100/0/default.jpg",
+  "@type": "dctypes:Image",
+  "service": {
+    "@context": "http://iiif.io/api/image/2/context.json",
+    "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0011.JP2",
+    "profile": "http://iiif.io/api/image/2/level0.json",
+    "protocol": "http://iiif.io/api/image",
+    "width": 732,
+    "height": 1024,
+    "sizes": [
+      {
+        "width": 72,
+        "height": 100
+      },
+      {
+        "width": 143,
+        "height": 200
+      },
+      {
+        "width": 286,
+        "height": 400
+      },
+      {
+        "width": 732,
+        "height": 1024
+      }
+    ]
+  }
+},
+          "seeAlso": {
+            "@id": "https://api.wellcomecollection.org/text/alto/b18035723/b18035723_0011.JP2",
+            "profile": "http://www.loc.gov/standards/alto/v3/alto.xsd",
+            "format": "text/xml",
+            "label": "METS-ALTO XML"
+          },
+          "height": 3372,
+          "width": 2411,
+          "images": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0011.JP2/painting/anno",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "resource": {
+                "@id": "https://iiif.wellcomecollection.org/image/b18035723_0011.JP2/full/732,1024/0/default.jpg",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "height": 1024,
+                "width": 732,
+                "service": {
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "@id": "https://iiif.wellcomecollection.org/image/b18035723_0011.JP2",
+                  "profile": "http://iiif.io/api/image/2/level1.json",
+                  "protocol": "http://iiif.io/api/image",
+                  "width": 2411,
+                  "height": 3372
+                }
+              },
+              "on": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0011.JP2"
+            }
+          ],
+          "otherContent": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/annotations/v2/b18035723/b18035723_0011.JP2/line",
+              "@type": "sc:AnnotationList",
+              "label": "Text of page 8"
+            }
+          ],
+          "within": ""
+        },
+        {
+          "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0012.JP2",
+          "@type": "sc:Canvas",
+          "label": "9",
+          "thumbnail": {
+  "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0012.JP2/full/72,100/0/default.jpg",
+  "@type": "dctypes:Image",
+  "service": {
+    "@context": "http://iiif.io/api/image/2/context.json",
+    "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0012.JP2",
+    "profile": "http://iiif.io/api/image/2/level0.json",
+    "protocol": "http://iiif.io/api/image",
+    "width": 732,
+    "height": 1024,
+    "sizes": [
+      {
+        "width": 72,
+        "height": 100
+      },
+      {
+        "width": 143,
+        "height": 200
+      },
+      {
+        "width": 286,
+        "height": 400
+      },
+      {
+        "width": 732,
+        "height": 1024
+      }
+    ]
+  }
+},
+          "seeAlso": {
+            "@id": "https://api.wellcomecollection.org/text/alto/b18035723/b18035723_0012.JP2",
+            "profile": "http://www.loc.gov/standards/alto/v3/alto.xsd",
+            "format": "text/xml",
+            "label": "METS-ALTO XML"
+          },
+          "height": 3372,
+          "width": 2411,
+          "images": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0012.JP2/painting/anno",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "resource": {
+                "@id": "https://iiif.wellcomecollection.org/image/b18035723_0012.JP2/full/732,1024/0/default.jpg",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "height": 1024,
+                "width": 732,
+                "service": {
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "@id": "https://iiif.wellcomecollection.org/image/b18035723_0012.JP2",
+                  "profile": "http://iiif.io/api/image/2/level1.json",
+                  "protocol": "http://iiif.io/api/image",
+                  "width": 2411,
+                  "height": 3372
+                }
+              },
+              "on": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0012.JP2"
+            }
+          ],
+          "otherContent": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/annotations/v2/b18035723/b18035723_0012.JP2/line",
+              "@type": "sc:AnnotationList",
+              "label": "Text of page 9"
+            }
+          ],
+          "within": ""
+        },
+        {
+          "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0013.JP2",
+          "@type": "sc:Canvas",
+          "label": "10",
+          "thumbnail": {
+  "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0013.JP2/full/72,100/0/default.jpg",
+  "@type": "dctypes:Image",
+  "service": {
+    "@context": "http://iiif.io/api/image/2/context.json",
+    "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0013.JP2",
+    "profile": "http://iiif.io/api/image/2/level0.json",
+    "protocol": "http://iiif.io/api/image",
+    "width": 732,
+    "height": 1024,
+    "sizes": [
+      {
+        "width": 72,
+        "height": 100
+      },
+      {
+        "width": 143,
+        "height": 200
+      },
+      {
+        "width": 286,
+        "height": 400
+      },
+      {
+        "width": 732,
+        "height": 1024
+      }
+    ]
+  }
+},
+          "seeAlso": {
+            "@id": "https://api.wellcomecollection.org/text/alto/b18035723/b18035723_0013.JP2",
+            "profile": "http://www.loc.gov/standards/alto/v3/alto.xsd",
+            "format": "text/xml",
+            "label": "METS-ALTO XML"
+          },
+          "height": 3372,
+          "width": 2411,
+          "images": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0013.JP2/painting/anno",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "resource": {
+                "@id": "https://iiif.wellcomecollection.org/image/b18035723_0013.JP2/full/732,1024/0/default.jpg",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "height": 1024,
+                "width": 732,
+                "service": {
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "@id": "https://iiif.wellcomecollection.org/image/b18035723_0013.JP2",
+                  "profile": "http://iiif.io/api/image/2/level1.json",
+                  "protocol": "http://iiif.io/api/image",
+                  "width": 2411,
+                  "height": 3372
+                }
+              },
+              "on": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0013.JP2"
+            }
+          ],
+          "otherContent": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/annotations/v2/b18035723/b18035723_0013.JP2/line",
+              "@type": "sc:AnnotationList",
+              "label": "Text of page 10"
+            }
+          ],
+          "within": ""
+        },
+        {
+          "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0014.JP2",
+          "@type": "sc:Canvas",
+          "label": "11",
+          "thumbnail": {
+  "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0014.JP2/full/72,100/0/default.jpg",
+  "@type": "dctypes:Image",
+  "service": {
+    "@context": "http://iiif.io/api/image/2/context.json",
+    "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0014.JP2",
+    "profile": "http://iiif.io/api/image/2/level0.json",
+    "protocol": "http://iiif.io/api/image",
+    "width": 732,
+    "height": 1024,
+    "sizes": [
+      {
+        "width": 72,
+        "height": 100
+      },
+      {
+        "width": 143,
+        "height": 200
+      },
+      {
+        "width": 286,
+        "height": 400
+      },
+      {
+        "width": 732,
+        "height": 1024
+      }
+    ]
+  }
+},
+          "seeAlso": {
+            "@id": "https://api.wellcomecollection.org/text/alto/b18035723/b18035723_0014.JP2",
+            "profile": "http://www.loc.gov/standards/alto/v3/alto.xsd",
+            "format": "text/xml",
+            "label": "METS-ALTO XML"
+          },
+          "height": 3372,
+          "width": 2411,
+          "images": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0014.JP2/painting/anno",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "resource": {
+                "@id": "https://iiif.wellcomecollection.org/image/b18035723_0014.JP2/full/732,1024/0/default.jpg",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "height": 1024,
+                "width": 732,
+                "service": {
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "@id": "https://iiif.wellcomecollection.org/image/b18035723_0014.JP2",
+                  "profile": "http://iiif.io/api/image/2/level1.json",
+                  "protocol": "http://iiif.io/api/image",
+                  "width": 2411,
+                  "height": 3372
+                }
+              },
+              "on": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0014.JP2"
+            }
+          ],
+          "otherContent": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/annotations/v2/b18035723/b18035723_0014.JP2/line",
+              "@type": "sc:AnnotationList",
+              "label": "Text of page 11"
+            }
+          ],
+          "within": ""
+        },
+        {
+          "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0015.JP2",
+          "@type": "sc:Canvas",
+          "label": "12",
+          "thumbnail": {
+  "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0015.JP2/full/72,100/0/default.jpg",
+  "@type": "dctypes:Image",
+  "service": {
+    "@context": "http://iiif.io/api/image/2/context.json",
+    "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0015.JP2",
+    "profile": "http://iiif.io/api/image/2/level0.json",
+    "protocol": "http://iiif.io/api/image",
+    "width": 732,
+    "height": 1024,
+    "sizes": [
+      {
+        "width": 72,
+        "height": 100
+      },
+      {
+        "width": 143,
+        "height": 200
+      },
+      {
+        "width": 286,
+        "height": 400
+      },
+      {
+        "width": 732,
+        "height": 1024
+      }
+    ]
+  }
+},
+          "seeAlso": {
+            "@id": "https://api.wellcomecollection.org/text/alto/b18035723/b18035723_0015.JP2",
+            "profile": "http://www.loc.gov/standards/alto/v3/alto.xsd",
+            "format": "text/xml",
+            "label": "METS-ALTO XML"
+          },
+          "height": 3372,
+          "width": 2411,
+          "images": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0015.JP2/painting/anno",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "resource": {
+                "@id": "https://iiif.wellcomecollection.org/image/b18035723_0015.JP2/full/732,1024/0/default.jpg",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "height": 1024,
+                "width": 732,
+                "service": {
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "@id": "https://iiif.wellcomecollection.org/image/b18035723_0015.JP2",
+                  "profile": "http://iiif.io/api/image/2/level1.json",
+                  "protocol": "http://iiif.io/api/image",
+                  "width": 2411,
+                  "height": 3372
+                }
+              },
+              "on": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0015.JP2"
+            }
+          ],
+          "otherContent": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/annotations/v2/b18035723/b18035723_0015.JP2/line",
+              "@type": "sc:AnnotationList",
+              "label": "Text of page 12"
+            }
+          ],
+          "within": ""
+        },
+        {
+          "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0016.JP2",
+          "@type": "sc:Canvas",
+          "label": "13",
+          "thumbnail": {
+  "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0016.JP2/full/72,100/0/default.jpg",
+  "@type": "dctypes:Image",
+  "service": {
+    "@context": "http://iiif.io/api/image/2/context.json",
+    "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0016.JP2",
+    "profile": "http://iiif.io/api/image/2/level0.json",
+    "protocol": "http://iiif.io/api/image",
+    "width": 732,
+    "height": 1024,
+    "sizes": [
+      {
+        "width": 72,
+        "height": 100
+      },
+      {
+        "width": 143,
+        "height": 200
+      },
+      {
+        "width": 286,
+        "height": 400
+      },
+      {
+        "width": 732,
+        "height": 1024
+      }
+    ]
+  }
+},
+          "seeAlso": {
+            "@id": "https://api.wellcomecollection.org/text/alto/b18035723/b18035723_0016.JP2",
+            "profile": "http://www.loc.gov/standards/alto/v3/alto.xsd",
+            "format": "text/xml",
+            "label": "METS-ALTO XML"
+          },
+          "height": 3372,
+          "width": 2411,
+          "images": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0016.JP2/painting/anno",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "resource": {
+                "@id": "https://iiif.wellcomecollection.org/image/b18035723_0016.JP2/full/732,1024/0/default.jpg",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "height": 1024,
+                "width": 732,
+                "service": {
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "@id": "https://iiif.wellcomecollection.org/image/b18035723_0016.JP2",
+                  "profile": "http://iiif.io/api/image/2/level1.json",
+                  "protocol": "http://iiif.io/api/image",
+                  "width": 2411,
+                  "height": 3372
+                }
+              },
+              "on": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0016.JP2"
+            }
+          ],
+          "otherContent": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/annotations/v2/b18035723/b18035723_0016.JP2/line",
+              "@type": "sc:AnnotationList",
+              "label": "Text of page 13"
+            }
+          ],
+          "within": ""
+        },
+        {
+          "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0017.JP2",
+          "@type": "sc:Canvas",
+          "label": "14",
+          "thumbnail": {
+  "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0017.JP2/full/72,100/0/default.jpg",
+  "@type": "dctypes:Image",
+  "service": {
+    "@context": "http://iiif.io/api/image/2/context.json",
+    "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0017.JP2",
+    "profile": "http://iiif.io/api/image/2/level0.json",
+    "protocol": "http://iiif.io/api/image",
+    "width": 732,
+    "height": 1024,
+    "sizes": [
+      {
+        "width": 72,
+        "height": 100
+      },
+      {
+        "width": 143,
+        "height": 200
+      },
+      {
+        "width": 286,
+        "height": 400
+      },
+      {
+        "width": 732,
+        "height": 1024
+      }
+    ]
+  }
+},
+          "seeAlso": {
+            "@id": "https://api.wellcomecollection.org/text/alto/b18035723/b18035723_0017.JP2",
+            "profile": "http://www.loc.gov/standards/alto/v3/alto.xsd",
+            "format": "text/xml",
+            "label": "METS-ALTO XML"
+          },
+          "height": 3372,
+          "width": 2411,
+          "images": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0017.JP2/painting/anno",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "resource": {
+                "@id": "https://iiif.wellcomecollection.org/image/b18035723_0017.JP2/full/732,1024/0/default.jpg",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "height": 1024,
+                "width": 732,
+                "service": {
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "@id": "https://iiif.wellcomecollection.org/image/b18035723_0017.JP2",
+                  "profile": "http://iiif.io/api/image/2/level1.json",
+                  "protocol": "http://iiif.io/api/image",
+                  "width": 2411,
+                  "height": 3372
+                }
+              },
+              "on": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0017.JP2"
+            }
+          ],
+          "otherContent": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/annotations/v2/b18035723/b18035723_0017.JP2/line",
+              "@type": "sc:AnnotationList",
+              "label": "Text of page 14"
+            }
+          ],
+          "within": ""
+        },
+        {
+          "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0018.JP2",
+          "@type": "sc:Canvas",
+          "label": "15",
+          "thumbnail": {
+  "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0018.JP2/full/72,100/0/default.jpg",
+  "@type": "dctypes:Image",
+  "service": {
+    "@context": "http://iiif.io/api/image/2/context.json",
+    "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0018.JP2",
+    "profile": "http://iiif.io/api/image/2/level0.json",
+    "protocol": "http://iiif.io/api/image",
+    "width": 732,
+    "height": 1024,
+    "sizes": [
+      {
+        "width": 72,
+        "height": 100
+      },
+      {
+        "width": 143,
+        "height": 200
+      },
+      {
+        "width": 286,
+        "height": 400
+      },
+      {
+        "width": 732,
+        "height": 1024
+      }
+    ]
+  }
+},
+          "seeAlso": {
+            "@id": "https://api.wellcomecollection.org/text/alto/b18035723/b18035723_0018.JP2",
+            "profile": "http://www.loc.gov/standards/alto/v3/alto.xsd",
+            "format": "text/xml",
+            "label": "METS-ALTO XML"
+          },
+          "height": 3372,
+          "width": 2411,
+          "images": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0018.JP2/painting/anno",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "resource": {
+                "@id": "https://iiif.wellcomecollection.org/image/b18035723_0018.JP2/full/732,1024/0/default.jpg",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "height": 1024,
+                "width": 732,
+                "service": {
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "@id": "https://iiif.wellcomecollection.org/image/b18035723_0018.JP2",
+                  "profile": "http://iiif.io/api/image/2/level1.json",
+                  "protocol": "http://iiif.io/api/image",
+                  "width": 2411,
+                  "height": 3372
+                }
+              },
+              "on": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0018.JP2"
+            }
+          ],
+          "otherContent": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/annotations/v2/b18035723/b18035723_0018.JP2/line",
+              "@type": "sc:AnnotationList",
+              "label": "Text of page 15"
+            }
+          ],
+          "within": ""
+        },
+        {
+          "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0019.JP2",
+          "@type": "sc:Canvas",
+          "label": "16",
+          "thumbnail": {
+  "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0019.JP2/full/72,100/0/default.jpg",
+  "@type": "dctypes:Image",
+  "service": {
+    "@context": "http://iiif.io/api/image/2/context.json",
+    "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0019.JP2",
+    "profile": "http://iiif.io/api/image/2/level0.json",
+    "protocol": "http://iiif.io/api/image",
+    "width": 732,
+    "height": 1024,
+    "sizes": [
+      {
+        "width": 72,
+        "height": 100
+      },
+      {
+        "width": 143,
+        "height": 200
+      },
+      {
+        "width": 286,
+        "height": 400
+      },
+      {
+        "width": 732,
+        "height": 1024
+      }
+    ]
+  }
+},
+          "seeAlso": {
+            "@id": "https://api.wellcomecollection.org/text/alto/b18035723/b18035723_0019.JP2",
+            "profile": "http://www.loc.gov/standards/alto/v3/alto.xsd",
+            "format": "text/xml",
+            "label": "METS-ALTO XML"
+          },
+          "height": 3372,
+          "width": 2411,
+          "images": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0019.JP2/painting/anno",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "resource": {
+                "@id": "https://iiif.wellcomecollection.org/image/b18035723_0019.JP2/full/732,1024/0/default.jpg",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "height": 1024,
+                "width": 732,
+                "service": {
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "@id": "https://iiif.wellcomecollection.org/image/b18035723_0019.JP2",
+                  "profile": "http://iiif.io/api/image/2/level1.json",
+                  "protocol": "http://iiif.io/api/image",
+                  "width": 2411,
+                  "height": 3372
+                }
+              },
+              "on": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0019.JP2"
+            }
+          ],
+          "otherContent": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/annotations/v2/b18035723/b18035723_0019.JP2/line",
+              "@type": "sc:AnnotationList",
+              "label": "Text of page 16"
+            }
+          ],
+          "within": ""
+        },
+        {
+          "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0020.JP2",
+          "@type": "sc:Canvas",
+          "label": "17",
+          "thumbnail": {
+  "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0020.JP2/full/72,100/0/default.jpg",
+  "@type": "dctypes:Image",
+  "service": {
+    "@context": "http://iiif.io/api/image/2/context.json",
+    "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0020.JP2",
+    "profile": "http://iiif.io/api/image/2/level0.json",
+    "protocol": "http://iiif.io/api/image",
+    "width": 732,
+    "height": 1024,
+    "sizes": [
+      {
+        "width": 72,
+        "height": 100
+      },
+      {
+        "width": 143,
+        "height": 200
+      },
+      {
+        "width": 286,
+        "height": 400
+      },
+      {
+        "width": 732,
+        "height": 1024
+      }
+    ]
+  }
+},
+          "seeAlso": {
+            "@id": "https://api.wellcomecollection.org/text/alto/b18035723/b18035723_0020.JP2",
+            "profile": "http://www.loc.gov/standards/alto/v3/alto.xsd",
+            "format": "text/xml",
+            "label": "METS-ALTO XML"
+          },
+          "height": 3372,
+          "width": 2411,
+          "images": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0020.JP2/painting/anno",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "resource": {
+                "@id": "https://iiif.wellcomecollection.org/image/b18035723_0020.JP2/full/732,1024/0/default.jpg",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "height": 1024,
+                "width": 732,
+                "service": {
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "@id": "https://iiif.wellcomecollection.org/image/b18035723_0020.JP2",
+                  "profile": "http://iiif.io/api/image/2/level1.json",
+                  "protocol": "http://iiif.io/api/image",
+                  "width": 2411,
+                  "height": 3372
+                }
+              },
+              "on": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0020.JP2"
+            }
+          ],
+          "otherContent": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/annotations/v2/b18035723/b18035723_0020.JP2/line",
+              "@type": "sc:AnnotationList",
+              "label": "Text of page 17"
+            }
+          ],
+          "within": ""
+        },
+        {
+          "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0021.JP2",
+          "@type": "sc:Canvas",
+          "label": "18",
+          "thumbnail": {
+  "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0021.JP2/full/72,100/0/default.jpg",
+  "@type": "dctypes:Image",
+  "service": {
+    "@context": "http://iiif.io/api/image/2/context.json",
+    "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0021.JP2",
+    "profile": "http://iiif.io/api/image/2/level0.json",
+    "protocol": "http://iiif.io/api/image",
+    "width": 732,
+    "height": 1024,
+    "sizes": [
+      {
+        "width": 72,
+        "height": 100
+      },
+      {
+        "width": 143,
+        "height": 200
+      },
+      {
+        "width": 286,
+        "height": 400
+      },
+      {
+        "width": 732,
+        "height": 1024
+      }
+    ]
+  }
+},
+          "seeAlso": {
+            "@id": "https://api.wellcomecollection.org/text/alto/b18035723/b18035723_0021.JP2",
+            "profile": "http://www.loc.gov/standards/alto/v3/alto.xsd",
+            "format": "text/xml",
+            "label": "METS-ALTO XML"
+          },
+          "height": 3372,
+          "width": 2411,
+          "images": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0021.JP2/painting/anno",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "resource": {
+                "@id": "https://iiif.wellcomecollection.org/image/b18035723_0021.JP2/full/732,1024/0/default.jpg",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "height": 1024,
+                "width": 732,
+                "service": {
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "@id": "https://iiif.wellcomecollection.org/image/b18035723_0021.JP2",
+                  "profile": "http://iiif.io/api/image/2/level1.json",
+                  "protocol": "http://iiif.io/api/image",
+                  "width": 2411,
+                  "height": 3372
+                }
+              },
+              "on": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0021.JP2"
+            }
+          ],
+          "otherContent": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/annotations/v2/b18035723/b18035723_0021.JP2/line",
+              "@type": "sc:AnnotationList",
+              "label": "Text of page 18"
+            }
+          ],
+          "within": ""
+        },
+        {
+          "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0022.JP2",
+          "@type": "sc:Canvas",
+          "label": "19",
+          "thumbnail": {
+  "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0022.JP2/full/72,100/0/default.jpg",
+  "@type": "dctypes:Image",
+  "service": {
+    "@context": "http://iiif.io/api/image/2/context.json",
+    "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0022.JP2",
+    "profile": "http://iiif.io/api/image/2/level0.json",
+    "protocol": "http://iiif.io/api/image",
+    "width": 732,
+    "height": 1024,
+    "sizes": [
+      {
+        "width": 72,
+        "height": 100
+      },
+      {
+        "width": 143,
+        "height": 200
+      },
+      {
+        "width": 286,
+        "height": 400
+      },
+      {
+        "width": 732,
+        "height": 1024
+      }
+    ]
+  }
+},
+          "seeAlso": {
+            "@id": "https://api.wellcomecollection.org/text/alto/b18035723/b18035723_0022.JP2",
+            "profile": "http://www.loc.gov/standards/alto/v3/alto.xsd",
+            "format": "text/xml",
+            "label": "METS-ALTO XML"
+          },
+          "height": 3372,
+          "width": 2411,
+          "images": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0022.JP2/painting/anno",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "resource": {
+                "@id": "https://iiif.wellcomecollection.org/image/b18035723_0022.JP2/full/732,1024/0/default.jpg",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "height": 1024,
+                "width": 732,
+                "service": {
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "@id": "https://iiif.wellcomecollection.org/image/b18035723_0022.JP2",
+                  "profile": "http://iiif.io/api/image/2/level1.json",
+                  "protocol": "http://iiif.io/api/image",
+                  "width": 2411,
+                  "height": 3372
+                }
+              },
+              "on": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0022.JP2"
+            }
+          ],
+          "otherContent": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/annotations/v2/b18035723/b18035723_0022.JP2/line",
+              "@type": "sc:AnnotationList",
+              "label": "Text of page 19"
+            }
+          ],
+          "within": ""
+        },
+        {
+          "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0023.JP2",
+          "@type": "sc:Canvas",
+          "label": "20",
+          "thumbnail": {
+  "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0023.JP2/full/72,100/0/default.jpg",
+  "@type": "dctypes:Image",
+  "service": {
+    "@context": "http://iiif.io/api/image/2/context.json",
+    "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0023.JP2",
+    "profile": "http://iiif.io/api/image/2/level0.json",
+    "protocol": "http://iiif.io/api/image",
+    "width": 732,
+    "height": 1024,
+    "sizes": [
+      {
+        "width": 72,
+        "height": 100
+      },
+      {
+        "width": 143,
+        "height": 200
+      },
+      {
+        "width": 286,
+        "height": 400
+      },
+      {
+        "width": 732,
+        "height": 1024
+      }
+    ]
+  }
+},
+          "seeAlso": {
+            "@id": "https://api.wellcomecollection.org/text/alto/b18035723/b18035723_0023.JP2",
+            "profile": "http://www.loc.gov/standards/alto/v3/alto.xsd",
+            "format": "text/xml",
+            "label": "METS-ALTO XML"
+          },
+          "height": 3372,
+          "width": 2411,
+          "images": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0023.JP2/painting/anno",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "resource": {
+                "@id": "https://iiif.wellcomecollection.org/image/b18035723_0023.JP2/full/732,1024/0/default.jpg",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "height": 1024,
+                "width": 732,
+                "service": {
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "@id": "https://iiif.wellcomecollection.org/image/b18035723_0023.JP2",
+                  "profile": "http://iiif.io/api/image/2/level1.json",
+                  "protocol": "http://iiif.io/api/image",
+                  "width": 2411,
+                  "height": 3372
+                }
+              },
+              "on": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0023.JP2"
+            }
+          ],
+          "otherContent": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/annotations/v2/b18035723/b18035723_0023.JP2/line",
+              "@type": "sc:AnnotationList",
+              "label": "Text of page 20"
+            }
+          ],
+          "within": ""
+        },
+        {
+          "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0024.JP2",
+          "@type": "sc:Canvas",
+          "label": "21",
+          "thumbnail": {
+  "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0024.JP2/full/72,100/0/default.jpg",
+  "@type": "dctypes:Image",
+  "service": {
+    "@context": "http://iiif.io/api/image/2/context.json",
+    "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0024.JP2",
+    "profile": "http://iiif.io/api/image/2/level0.json",
+    "protocol": "http://iiif.io/api/image",
+    "width": 732,
+    "height": 1024,
+    "sizes": [
+      {
+        "width": 72,
+        "height": 100
+      },
+      {
+        "width": 143,
+        "height": 200
+      },
+      {
+        "width": 286,
+        "height": 400
+      },
+      {
+        "width": 732,
+        "height": 1024
+      }
+    ]
+  }
+},
+          "seeAlso": {
+            "@id": "https://api.wellcomecollection.org/text/alto/b18035723/b18035723_0024.JP2",
+            "profile": "http://www.loc.gov/standards/alto/v3/alto.xsd",
+            "format": "text/xml",
+            "label": "METS-ALTO XML"
+          },
+          "height": 3372,
+          "width": 2411,
+          "images": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0024.JP2/painting/anno",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "resource": {
+                "@id": "https://iiif.wellcomecollection.org/image/b18035723_0024.JP2/full/732,1024/0/default.jpg",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "height": 1024,
+                "width": 732,
+                "service": {
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "@id": "https://iiif.wellcomecollection.org/image/b18035723_0024.JP2",
+                  "profile": "http://iiif.io/api/image/2/level1.json",
+                  "protocol": "http://iiif.io/api/image",
+                  "width": 2411,
+                  "height": 3372
+                }
+              },
+              "on": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0024.JP2"
+            }
+          ],
+          "otherContent": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/annotations/v2/b18035723/b18035723_0024.JP2/line",
+              "@type": "sc:AnnotationList",
+              "label": "Text of page 21"
+            }
+          ],
+          "within": ""
+        },
+        {
+          "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0025.JP2",
+          "@type": "sc:Canvas",
+          "label": "22",
+          "thumbnail": {
+  "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0025.JP2/full/72,100/0/default.jpg",
+  "@type": "dctypes:Image",
+  "service": {
+    "@context": "http://iiif.io/api/image/2/context.json",
+    "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0025.JP2",
+    "profile": "http://iiif.io/api/image/2/level0.json",
+    "protocol": "http://iiif.io/api/image",
+    "width": 732,
+    "height": 1024,
+    "sizes": [
+      {
+        "width": 72,
+        "height": 100
+      },
+      {
+        "width": 143,
+        "height": 200
+      },
+      {
+        "width": 286,
+        "height": 400
+      },
+      {
+        "width": 732,
+        "height": 1024
+      }
+    ]
+  }
+},
+          "seeAlso": {
+            "@id": "https://api.wellcomecollection.org/text/alto/b18035723/b18035723_0025.JP2",
+            "profile": "http://www.loc.gov/standards/alto/v3/alto.xsd",
+            "format": "text/xml",
+            "label": "METS-ALTO XML"
+          },
+          "height": 3372,
+          "width": 2411,
+          "images": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0025.JP2/painting/anno",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "resource": {
+                "@id": "https://iiif.wellcomecollection.org/image/b18035723_0025.JP2/full/732,1024/0/default.jpg",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "height": 1024,
+                "width": 732,
+                "service": {
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "@id": "https://iiif.wellcomecollection.org/image/b18035723_0025.JP2",
+                  "profile": "http://iiif.io/api/image/2/level1.json",
+                  "protocol": "http://iiif.io/api/image",
+                  "width": 2411,
+                  "height": 3372
+                }
+              },
+              "on": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0025.JP2"
+            }
+          ],
+          "otherContent": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/annotations/v2/b18035723/b18035723_0025.JP2/line",
+              "@type": "sc:AnnotationList",
+              "label": "Text of page 22"
+            }
+          ],
+          "within": ""
+        },
+        {
+          "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0026.JP2",
+          "@type": "sc:Canvas",
+          "label": "23",
+          "thumbnail": {
+  "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0026.JP2/full/72,100/0/default.jpg",
+  "@type": "dctypes:Image",
+  "service": {
+    "@context": "http://iiif.io/api/image/2/context.json",
+    "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0026.JP2",
+    "profile": "http://iiif.io/api/image/2/level0.json",
+    "protocol": "http://iiif.io/api/image",
+    "width": 732,
+    "height": 1024,
+    "sizes": [
+      {
+        "width": 72,
+        "height": 100
+      },
+      {
+        "width": 143,
+        "height": 200
+      },
+      {
+        "width": 286,
+        "height": 400
+      },
+      {
+        "width": 732,
+        "height": 1024
+      }
+    ]
+  }
+},
+          "seeAlso": {
+            "@id": "https://api.wellcomecollection.org/text/alto/b18035723/b18035723_0026.JP2",
+            "profile": "http://www.loc.gov/standards/alto/v3/alto.xsd",
+            "format": "text/xml",
+            "label": "METS-ALTO XML"
+          },
+          "height": 3372,
+          "width": 2411,
+          "images": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0026.JP2/painting/anno",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "resource": {
+                "@id": "https://iiif.wellcomecollection.org/image/b18035723_0026.JP2/full/732,1024/0/default.jpg",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "height": 1024,
+                "width": 732,
+                "service": {
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "@id": "https://iiif.wellcomecollection.org/image/b18035723_0026.JP2",
+                  "profile": "http://iiif.io/api/image/2/level1.json",
+                  "protocol": "http://iiif.io/api/image",
+                  "width": 2411,
+                  "height": 3372
+                }
+              },
+              "on": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0026.JP2"
+            }
+          ],
+          "otherContent": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/annotations/v2/b18035723/b18035723_0026.JP2/line",
+              "@type": "sc:AnnotationList",
+              "label": "Text of page 23"
+            }
+          ],
+          "within": ""
+        },
+        {
+          "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0027.JP2",
+          "@type": "sc:Canvas",
+          "label": "24",
+          "thumbnail": {
+  "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0027.JP2/full/72,100/0/default.jpg",
+  "@type": "dctypes:Image",
+  "service": {
+    "@context": "http://iiif.io/api/image/2/context.json",
+    "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0027.JP2",
+    "profile": "http://iiif.io/api/image/2/level0.json",
+    "protocol": "http://iiif.io/api/image",
+    "width": 732,
+    "height": 1024,
+    "sizes": [
+      {
+        "width": 72,
+        "height": 100
+      },
+      {
+        "width": 143,
+        "height": 200
+      },
+      {
+        "width": 286,
+        "height": 400
+      },
+      {
+        "width": 732,
+        "height": 1024
+      }
+    ]
+  }
+},
+          "seeAlso": {
+            "@id": "https://api.wellcomecollection.org/text/alto/b18035723/b18035723_0027.JP2",
+            "profile": "http://www.loc.gov/standards/alto/v3/alto.xsd",
+            "format": "text/xml",
+            "label": "METS-ALTO XML"
+          },
+          "height": 3372,
+          "width": 2411,
+          "images": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0027.JP2/painting/anno",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "resource": {
+                "@id": "https://iiif.wellcomecollection.org/image/b18035723_0027.JP2/full/732,1024/0/default.jpg",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "height": 1024,
+                "width": 732,
+                "service": {
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "@id": "https://iiif.wellcomecollection.org/image/b18035723_0027.JP2",
+                  "profile": "http://iiif.io/api/image/2/level1.json",
+                  "protocol": "http://iiif.io/api/image",
+                  "width": 2411,
+                  "height": 3372
+                }
+              },
+              "on": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0027.JP2"
+            }
+          ],
+          "otherContent": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/annotations/v2/b18035723/b18035723_0027.JP2/line",
+              "@type": "sc:AnnotationList",
+              "label": "Text of page 24"
+            }
+          ],
+          "within": ""
+        },
+        {
+          "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0028.JP2",
+          "@type": "sc:Canvas",
+          "label": "25",
+          "thumbnail": {
+  "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0028.JP2/full/72,100/0/default.jpg",
+  "@type": "dctypes:Image",
+  "service": {
+    "@context": "http://iiif.io/api/image/2/context.json",
+    "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0028.JP2",
+    "profile": "http://iiif.io/api/image/2/level0.json",
+    "protocol": "http://iiif.io/api/image",
+    "width": 732,
+    "height": 1024,
+    "sizes": [
+      {
+        "width": 72,
+        "height": 100
+      },
+      {
+        "width": 143,
+        "height": 200
+      },
+      {
+        "width": 286,
+        "height": 400
+      },
+      {
+        "width": 732,
+        "height": 1024
+      }
+    ]
+  }
+},
+          "seeAlso": {
+            "@id": "https://api.wellcomecollection.org/text/alto/b18035723/b18035723_0028.JP2",
+            "profile": "http://www.loc.gov/standards/alto/v3/alto.xsd",
+            "format": "text/xml",
+            "label": "METS-ALTO XML"
+          },
+          "height": 3372,
+          "width": 2411,
+          "images": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0028.JP2/painting/anno",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "resource": {
+                "@id": "https://iiif.wellcomecollection.org/image/b18035723_0028.JP2/full/732,1024/0/default.jpg",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "height": 1024,
+                "width": 732,
+                "service": {
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "@id": "https://iiif.wellcomecollection.org/image/b18035723_0028.JP2",
+                  "profile": "http://iiif.io/api/image/2/level1.json",
+                  "protocol": "http://iiif.io/api/image",
+                  "width": 2411,
+                  "height": 3372
+                }
+              },
+              "on": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0028.JP2"
+            }
+          ],
+          "otherContent": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/annotations/v2/b18035723/b18035723_0028.JP2/line",
+              "@type": "sc:AnnotationList",
+              "label": "Text of page 25"
+            }
+          ],
+          "within": ""
+        },
+        {
+          "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0029.JP2",
+          "@type": "sc:Canvas",
+          "label": "26",
+          "thumbnail": {
+  "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0029.JP2/full/72,100/0/default.jpg",
+  "@type": "dctypes:Image",
+  "service": {
+    "@context": "http://iiif.io/api/image/2/context.json",
+    "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0029.JP2",
+    "profile": "http://iiif.io/api/image/2/level0.json",
+    "protocol": "http://iiif.io/api/image",
+    "width": 732,
+    "height": 1024,
+    "sizes": [
+      {
+        "width": 72,
+        "height": 100
+      },
+      {
+        "width": 143,
+        "height": 200
+      },
+      {
+        "width": 286,
+        "height": 400
+      },
+      {
+        "width": 732,
+        "height": 1024
+      }
+    ]
+  }
+},
+          "seeAlso": {
+            "@id": "https://api.wellcomecollection.org/text/alto/b18035723/b18035723_0029.JP2",
+            "profile": "http://www.loc.gov/standards/alto/v3/alto.xsd",
+            "format": "text/xml",
+            "label": "METS-ALTO XML"
+          },
+          "height": 3372,
+          "width": 2411,
+          "images": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0029.JP2/painting/anno",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "resource": {
+                "@id": "https://iiif.wellcomecollection.org/image/b18035723_0029.JP2/full/732,1024/0/default.jpg",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "height": 1024,
+                "width": 732,
+                "service": {
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "@id": "https://iiif.wellcomecollection.org/image/b18035723_0029.JP2",
+                  "profile": "http://iiif.io/api/image/2/level1.json",
+                  "protocol": "http://iiif.io/api/image",
+                  "width": 2411,
+                  "height": 3372
+                }
+              },
+              "on": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0029.JP2"
+            }
+          ],
+          "otherContent": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/annotations/v2/b18035723/b18035723_0029.JP2/line",
+              "@type": "sc:AnnotationList",
+              "label": "Text of page 26"
+            }
+          ],
+          "within": ""
+        },
+        {
+          "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0030.JP2",
+          "@type": "sc:Canvas",
+          "label": "27",
+          "thumbnail": {
+  "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0030.JP2/full/72,100/0/default.jpg",
+  "@type": "dctypes:Image",
+  "service": {
+    "@context": "http://iiif.io/api/image/2/context.json",
+    "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0030.JP2",
+    "profile": "http://iiif.io/api/image/2/level0.json",
+    "protocol": "http://iiif.io/api/image",
+    "width": 732,
+    "height": 1024,
+    "sizes": [
+      {
+        "width": 72,
+        "height": 100
+      },
+      {
+        "width": 143,
+        "height": 200
+      },
+      {
+        "width": 286,
+        "height": 400
+      },
+      {
+        "width": 732,
+        "height": 1024
+      }
+    ]
+  }
+},
+          "seeAlso": {
+            "@id": "https://api.wellcomecollection.org/text/alto/b18035723/b18035723_0030.JP2",
+            "profile": "http://www.loc.gov/standards/alto/v3/alto.xsd",
+            "format": "text/xml",
+            "label": "METS-ALTO XML"
+          },
+          "height": 3372,
+          "width": 2411,
+          "images": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0030.JP2/painting/anno",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "resource": {
+                "@id": "https://iiif.wellcomecollection.org/image/b18035723_0030.JP2/full/732,1024/0/default.jpg",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "height": 1024,
+                "width": 732,
+                "service": {
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "@id": "https://iiif.wellcomecollection.org/image/b18035723_0030.JP2",
+                  "profile": "http://iiif.io/api/image/2/level1.json",
+                  "protocol": "http://iiif.io/api/image",
+                  "width": 2411,
+                  "height": 3372
+                }
+              },
+              "on": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0030.JP2"
+            }
+          ],
+          "otherContent": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/annotations/v2/b18035723/b18035723_0030.JP2/line",
+              "@type": "sc:AnnotationList",
+              "label": "Text of page 27"
+            }
+          ],
+          "within": ""
+        },
+        {
+          "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0031.JP2",
+          "@type": "sc:Canvas",
+          "label": "28",
+          "thumbnail": {
+  "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0031.JP2/full/72,100/0/default.jpg",
+  "@type": "dctypes:Image",
+  "service": {
+    "@context": "http://iiif.io/api/image/2/context.json",
+    "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0031.JP2",
+    "profile": "http://iiif.io/api/image/2/level0.json",
+    "protocol": "http://iiif.io/api/image",
+    "width": 732,
+    "height": 1024,
+    "sizes": [
+      {
+        "width": 72,
+        "height": 100
+      },
+      {
+        "width": 143,
+        "height": 200
+      },
+      {
+        "width": 286,
+        "height": 400
+      },
+      {
+        "width": 732,
+        "height": 1024
+      }
+    ]
+  }
+},
+          "seeAlso": {
+            "@id": "https://api.wellcomecollection.org/text/alto/b18035723/b18035723_0031.JP2",
+            "profile": "http://www.loc.gov/standards/alto/v3/alto.xsd",
+            "format": "text/xml",
+            "label": "METS-ALTO XML"
+          },
+          "height": 3372,
+          "width": 2411,
+          "images": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0031.JP2/painting/anno",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "resource": {
+                "@id": "https://iiif.wellcomecollection.org/image/b18035723_0031.JP2/full/732,1024/0/default.jpg",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "height": 1024,
+                "width": 732,
+                "service": {
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "@id": "https://iiif.wellcomecollection.org/image/b18035723_0031.JP2",
+                  "profile": "http://iiif.io/api/image/2/level1.json",
+                  "protocol": "http://iiif.io/api/image",
+                  "width": 2411,
+                  "height": 3372
+                }
+              },
+              "on": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0031.JP2"
+            }
+          ],
+          "otherContent": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/annotations/v2/b18035723/b18035723_0031.JP2/line",
+              "@type": "sc:AnnotationList",
+              "label": "Text of page 28"
+            }
+          ],
+          "within": ""
+        },
+        {
+          "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0032.JP2",
+          "@type": "sc:Canvas",
+          "label": "29",
+          "thumbnail": {
+  "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0032.JP2/full/72,100/0/default.jpg",
+  "@type": "dctypes:Image",
+  "service": {
+    "@context": "http://iiif.io/api/image/2/context.json",
+    "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0032.JP2",
+    "profile": "http://iiif.io/api/image/2/level0.json",
+    "protocol": "http://iiif.io/api/image",
+    "width": 732,
+    "height": 1024,
+    "sizes": [
+      {
+        "width": 72,
+        "height": 100
+      },
+      {
+        "width": 143,
+        "height": 200
+      },
+      {
+        "width": 286,
+        "height": 400
+      },
+      {
+        "width": 732,
+        "height": 1024
+      }
+    ]
+  }
+},
+          "seeAlso": {
+            "@id": "https://api.wellcomecollection.org/text/alto/b18035723/b18035723_0032.JP2",
+            "profile": "http://www.loc.gov/standards/alto/v3/alto.xsd",
+            "format": "text/xml",
+            "label": "METS-ALTO XML"
+          },
+          "height": 3372,
+          "width": 2411,
+          "images": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0032.JP2/painting/anno",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "resource": {
+                "@id": "https://iiif.wellcomecollection.org/image/b18035723_0032.JP2/full/732,1024/0/default.jpg",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "height": 1024,
+                "width": 732,
+                "service": {
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "@id": "https://iiif.wellcomecollection.org/image/b18035723_0032.JP2",
+                  "profile": "http://iiif.io/api/image/2/level1.json",
+                  "protocol": "http://iiif.io/api/image",
+                  "width": 2411,
+                  "height": 3372
+                }
+              },
+              "on": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0032.JP2"
+            }
+          ],
+          "otherContent": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/annotations/v2/b18035723/b18035723_0032.JP2/line",
+              "@type": "sc:AnnotationList",
+              "label": "Text of page 29"
+            }
+          ],
+          "within": ""
+        },
+        {
+          "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0033.JP2",
+          "@type": "sc:Canvas",
+          "label": "30",
+          "thumbnail": {
+  "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0033.JP2/full/72,100/0/default.jpg",
+  "@type": "dctypes:Image",
+  "service": {
+    "@context": "http://iiif.io/api/image/2/context.json",
+    "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0033.JP2",
+    "profile": "http://iiif.io/api/image/2/level0.json",
+    "protocol": "http://iiif.io/api/image",
+    "width": 732,
+    "height": 1024,
+    "sizes": [
+      {
+        "width": 72,
+        "height": 100
+      },
+      {
+        "width": 143,
+        "height": 200
+      },
+      {
+        "width": 286,
+        "height": 400
+      },
+      {
+        "width": 732,
+        "height": 1024
+      }
+    ]
+  }
+},
+          "seeAlso": {
+            "@id": "https://api.wellcomecollection.org/text/alto/b18035723/b18035723_0033.JP2",
+            "profile": "http://www.loc.gov/standards/alto/v3/alto.xsd",
+            "format": "text/xml",
+            "label": "METS-ALTO XML"
+          },
+          "height": 3372,
+          "width": 2411,
+          "images": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0033.JP2/painting/anno",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "resource": {
+                "@id": "https://iiif.wellcomecollection.org/image/b18035723_0033.JP2/full/732,1024/0/default.jpg",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "height": 1024,
+                "width": 732,
+                "service": {
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "@id": "https://iiif.wellcomecollection.org/image/b18035723_0033.JP2",
+                  "profile": "http://iiif.io/api/image/2/level1.json",
+                  "protocol": "http://iiif.io/api/image",
+                  "width": 2411,
+                  "height": 3372
+                }
+              },
+              "on": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0033.JP2"
+            }
+          ],
+          "otherContent": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/annotations/v2/b18035723/b18035723_0033.JP2/line",
+              "@type": "sc:AnnotationList",
+              "label": "Text of page 30"
+            }
+          ],
+          "within": ""
+        },
+        {
+          "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0034.JP2",
+          "@type": "sc:Canvas",
+          "label": "31",
+          "thumbnail": {
+  "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0034.JP2/full/72,100/0/default.jpg",
+  "@type": "dctypes:Image",
+  "service": {
+    "@context": "http://iiif.io/api/image/2/context.json",
+    "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0034.JP2",
+    "profile": "http://iiif.io/api/image/2/level0.json",
+    "protocol": "http://iiif.io/api/image",
+    "width": 732,
+    "height": 1024,
+    "sizes": [
+      {
+        "width": 72,
+        "height": 100
+      },
+      {
+        "width": 143,
+        "height": 200
+      },
+      {
+        "width": 286,
+        "height": 400
+      },
+      {
+        "width": 732,
+        "height": 1024
+      }
+    ]
+  }
+},
+          "seeAlso": {
+            "@id": "https://api.wellcomecollection.org/text/alto/b18035723/b18035723_0034.JP2",
+            "profile": "http://www.loc.gov/standards/alto/v3/alto.xsd",
+            "format": "text/xml",
+            "label": "METS-ALTO XML"
+          },
+          "height": 3372,
+          "width": 2411,
+          "images": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0034.JP2/painting/anno",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "resource": {
+                "@id": "https://iiif.wellcomecollection.org/image/b18035723_0034.JP2/full/732,1024/0/default.jpg",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "height": 1024,
+                "width": 732,
+                "service": {
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "@id": "https://iiif.wellcomecollection.org/image/b18035723_0034.JP2",
+                  "profile": "http://iiif.io/api/image/2/level1.json",
+                  "protocol": "http://iiif.io/api/image",
+                  "width": 2411,
+                  "height": 3372
+                }
+              },
+              "on": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0034.JP2"
+            }
+          ],
+          "otherContent": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/annotations/v2/b18035723/b18035723_0034.JP2/line",
+              "@type": "sc:AnnotationList",
+              "label": "Text of page 31"
+            }
+          ],
+          "within": ""
+        },
+        {
+          "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0035.JP2",
+          "@type": "sc:Canvas",
+          "label": "-",
+          "thumbnail": {
+  "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0035.JP2/full/72,100/0/default.jpg",
+  "@type": "dctypes:Image",
+  "service": {
+    "@context": "http://iiif.io/api/image/2/context.json",
+    "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0035.JP2",
+    "profile": "http://iiif.io/api/image/2/level0.json",
+    "protocol": "http://iiif.io/api/image",
+    "width": 732,
+    "height": 1024,
+    "sizes": [
+      {
+        "width": 72,
+        "height": 100
+      },
+      {
+        "width": 143,
+        "height": 200
+      },
+      {
+        "width": 286,
+        "height": 400
+      },
+      {
+        "width": 732,
+        "height": 1024
+      }
+    ]
+  }
+},
+          "seeAlso": {
+            "@id": "https://api.wellcomecollection.org/text/alto/b18035723/b18035723_0035.JP2",
+            "profile": "http://www.loc.gov/standards/alto/v3/alto.xsd",
+            "format": "text/xml",
+            "label": "METS-ALTO XML"
+          },
+          "height": 3372,
+          "width": 2411,
+          "images": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0035.JP2/painting/anno",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "resource": {
+                "@id": "https://iiif.wellcomecollection.org/image/b18035723_0035.JP2/full/732,1024/0/default.jpg",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "height": 1024,
+                "width": 732,
+                "service": {
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "@id": "https://iiif.wellcomecollection.org/image/b18035723_0035.JP2",
+                  "profile": "http://iiif.io/api/image/2/level1.json",
+                  "protocol": "http://iiif.io/api/image",
+                  "width": 2411,
+                  "height": 3372
+                }
+              },
+              "on": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0035.JP2"
+            }
+          ],
+          "otherContent": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/annotations/v2/b18035723/b18035723_0035.JP2/line",
+              "@type": "sc:AnnotationList",
+              "label": "Text of page  -"
+            }
+          ],
+          "within": ""
+        },
+        {
+          "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0036.JP2",
+          "@type": "sc:Canvas",
+          "label": "-",
+          "thumbnail": {
+  "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0036.JP2/full/72,100/0/default.jpg",
+  "@type": "dctypes:Image",
+  "service": {
+    "@context": "http://iiif.io/api/image/2/context.json",
+    "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0036.JP2",
+    "profile": "http://iiif.io/api/image/2/level0.json",
+    "protocol": "http://iiif.io/api/image",
+    "width": 732,
+    "height": 1024,
+    "sizes": [
+      {
+        "width": 72,
+        "height": 100
+      },
+      {
+        "width": 143,
+        "height": 200
+      },
+      {
+        "width": 286,
+        "height": 400
+      },
+      {
+        "width": 732,
+        "height": 1024
+      }
+    ]
+  }
+},
+          "seeAlso": {
+            "@id": "https://api.wellcomecollection.org/text/alto/b18035723/b18035723_0036.JP2",
+            "profile": "http://www.loc.gov/standards/alto/v3/alto.xsd",
+            "format": "text/xml",
+            "label": "METS-ALTO XML"
+          },
+          "height": 3372,
+          "width": 2411,
+          "images": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0036.JP2/painting/anno",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "resource": {
+                "@id": "https://iiif.wellcomecollection.org/image/b18035723_0036.JP2/full/732,1024/0/default.jpg",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "height": 1024,
+                "width": 732,
+                "service": {
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "@id": "https://iiif.wellcomecollection.org/image/b18035723_0036.JP2",
+                  "profile": "http://iiif.io/api/image/2/level1.json",
+                  "protocol": "http://iiif.io/api/image",
+                  "width": 2411,
+                  "height": 3372
+                }
+              },
+              "on": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0036.JP2"
+            }
+          ],
+          "otherContent": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/annotations/v2/b18035723/b18035723_0036.JP2/line",
+              "@type": "sc:AnnotationList",
+              "label": "Text of page  -"
+            }
+          ],
+          "within": ""
+        },
+        {
+          "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0002.JP2",
+          "@type": "sc:Canvas",
+          "label": "-",
+          "thumbnail": {
+  "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0002.JP2/full/73,100/0/default.jpg",
+  "@type": "dctypes:Image",
+  "service": {
+    "@context": "http://iiif.io/api/image/2/context.json",
+    "@id": "https://iiif.wellcomecollection.org/thumbs/b18035723_0002.JP2",
+    "profile": "http://iiif.io/api/image/2/level0.json",
+    "protocol": "http://iiif.io/api/image",
+    "width": 751,
+    "height": 1024,
+    "sizes": [
+      {
+        "width": 73,
+        "height": 100
+      },
+      {
+        "width": 147,
+        "height": 200
+      },
+      {
+        "width": 294,
+        "height": 400
+      },
+      {
+        "width": 751,
+        "height": 1024
+      }
+    ]
+  }
+},
+          "seeAlso": {
+            "@id": "https://api.wellcomecollection.org/text/alto/b18035723/b18035723_0002.JP2",
+            "profile": "http://www.loc.gov/standards/alto/v3/alto.xsd",
+            "format": "text/xml",
+            "label": "METS-ALTO XML"
+          },
+          "height": 3040,
+          "width": 2231,
+          "images": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0002.JP2/painting/anno",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "resource": {
+                "@id": "https://iiif.wellcomecollection.org/image/b18035723_0002.JP2/full/751,1024/0/default.jpg",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg",
+                "height": 1024,
+                "width": 751,
+                "service": {
+                  "@context": "http://iiif.io/api/image/2/context.json",
+                  "@id": "https://iiif.wellcomecollection.org/image/b18035723_0002.JP2",
+                  "profile": "http://iiif.io/api/image/2/level1.json",
+                  "protocol": "http://iiif.io/api/image",
+                  "width": 2231,
+                  "height": 3040
+                }
+              },
+              "on": "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0002.JP2"
+            }
+          ],
+          "otherContent": [
+            {
+              "@id": "https://iiif.wellcomecollection.org/annotations/v2/b18035723/b18035723_0002.JP2/line",
+              "@type": "sc:AnnotationList",
+              "label": "Text of page  -"
+            }
+          ],
+          "within": ""
+        }
+      ]
+    }
+  ],
+  "structures": [
+    {
+      "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/ranges/LOG_0001",
+      "@type": "sc:Range",
+      "label": "Front Cover",
+      "canvases": [
+        "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0001.JP2"
+      ],
+      "ranges": ["https://iiif.wellcomecollection.org/presentation/b18035723/ranges/LOG_0003"],
+      "within": ""
+    },
+    {
+      "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/ranges/LOG_0003",
+      "@type": "sc:Range",
+      "label": "Title Page",
+      "canvases": [
+        "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0004.JP2"
+      ],
+      "ranges": ["https://iiif.wellcomecollection.org/presentation/b18035723/ranges/LOG_0004"],
+      "within": ""
+    },
+    {
+      "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/ranges/LOG_0004",
+      "@type": "sc:Range",
+      "label": "Rätsel um das Erbgut",
+      "canvases": [
+        "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0005.JP2"
+      ],
+      "ranges": ["https://iiif.wellcomecollection.org/presentation/b18035723/ranges/LOG_0005"],
+      "within": ""
+    },
+    {
+      "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/ranges/LOG_0005",
+      "@type": "sc:Range",
+      "label": "Von Meerschweinchen und schwarzen und weißen Kugeln",
+      "canvases": [
+        "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0008.JP2"
+      ],
+      "ranges": ["https://iiif.wellcomecollection.org/presentation/b18035723/ranges/LOG_0006"],
+      "within": ""
+    },
+    {
+      "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/ranges/LOG_0006",
+      "@type": "sc:Range",
+      "label": "Gregor Mendel findet die Erbgesetze",
+      "canvases": [
+        "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0012.JP2"
+      ],
+      "ranges": ["https://iiif.wellcomecollection.org/presentation/b18035723/ranges/LOG_0007"],
+      "within": ""
+    },
+    {
+      "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/ranges/LOG_0007",
+      "@type": "sc:Range",
+      "label": "Die Mendelschen Gesetze",
+      "canvases": [
+        "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0015.JP2"
+      ],
+      "ranges": ["https://iiif.wellcomecollection.org/presentation/b18035723/ranges/LOG_0008"],
+      "within": ""
+    },
+    {
+      "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/ranges/LOG_0008",
+      "@type": "sc:Range",
+      "label": "Vom doppelten Erbgut",
+      "canvases": [
+        "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0018.JP2"
+      ],
+      "ranges": ["https://iiif.wellcomecollection.org/presentation/b18035723/ranges/LOG_0009"],
+      "within": ""
+    },
+    {
+      "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/ranges/LOG_0009",
+      "@type": "sc:Range",
+      "label": "Vom Zellkern und seiner Teilung",
+      "canvases": [
+        "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0020.JP2"
+      ],
+      "ranges": ["https://iiif.wellcomecollection.org/presentation/b18035723/ranges/LOG_0010"],
+      "within": ""
+    },
+    {
+      "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/ranges/LOG_0010",
+      "@type": "sc:Range",
+      "label": "Was die Mendel-Gesetze für den Alltag bedeuten",
+      "canvases": [
+        "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0025.JP2"
+      ],
+      "ranges": ["https://iiif.wellcomecollection.org/presentation/b18035723/ranges/LOG_0011"],
+      "within": ""
+    },
+    {
+      "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/ranges/LOG_0011",
+      "@type": "sc:Range",
+      "label": "Gene sind gekoppelt und werden ausgetauscht",
+      "canvases": [
+        "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0028.JP2"
+      ],
+      "ranges": ["https://iiif.wellcomecollection.org/presentation/b18035723/ranges/LOG_0012"],
+      "within": ""
+    },
+    {
+      "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/ranges/LOG_0012",
+      "@type": "sc:Range",
+      "label": "Vom Wandel des Erbguts",
+      "canvases": [
+        "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0031.JP2"
+      ],
+      "ranges": ["https://iiif.wellcomecollection.org/presentation/b18035723/ranges/LOG_0013"],
+      "within": ""
+    },
+    {
+      "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/ranges/LOG_0013",
+      "@type": "sc:Range",
+      "label": "Wie die Gene wirken",
+      "canvases": [
+        "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0033.JP2"
+      ],
+      "ranges": ["https://iiif.wellcomecollection.org/presentation/b18035723/ranges/LOG_0002"],
+      "within": ""
+    },
+    {
+      "@id": "https://iiif.wellcomecollection.org/presentation/b18035723/ranges/LOG_0002",
+      "@type": "sc:Range",
+      "label": "Back Cover",
+      "canvases": [
+        "https://iiif.wellcomecollection.org/presentation/b18035723/canvases/b18035723_0002.JP2"
+      ],
+      "within": ""
+    }
+  ],
+  "otherContent": [
+    {
+      "@id": "https://iiif.wellcomecollection.org/annotations/v2/b18035723/images",
+      "@type": "sc:AnnotationList",
+      "label": "OCR-identified images and figures for b18035723"
+    }
+  ],
+  "within": "https://iiif.wellcomecollection.org/presentation/v2/collections/contributors/xtwzf3g5"
+}
