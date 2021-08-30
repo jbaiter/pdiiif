@@ -2,14 +2,16 @@
   "name": "pdiiif",
   "version": "0.1.0",
   "description": "Generate PDFs with page labels and a table of contents from IIIF manifests",
+  "sideEffects": false,
   "scripts": {
+    "build": "tsc --build",
+    "clean": "tsc --build --clean; rm -rf dist/*",
     "format": "prettier -w ./src",
     "lint": "eslint . --ext .ts && tsc --noemit",
     "pretest": "tsc --noemit",
     "posttest": "eslint . --ext .ts",
-    "prepack": "rm -rf lib && tsc -b",
-    "test": "jest",
-    "test:integration": "ts-node --log-error src/run.ts"
+    "prepack": "rm -rf lib dist && npm run build && cd web && npm run build && cd ..",
+    "test": "jest"
   },
   "repository": {
     "type": "git",
@@ -26,10 +28,11 @@
   },
   "homepage": "https://github.com/jbaiter/pdiiif-lib#readme",
   "dependencies": {
+    "@foliojs-fork/pdfkit": "^0.12.3",
     "cross-fetch": "^3.1.4",
     "lodash": "^4.17.20",
     "manifesto.js": "^4.1.0",
-    "pdfkit": "^0.11.0",
+    "p-queue": "6.6.2",
     "tslib": "^1.13.0"
   },
   "devDependencies": {
@@ -39,6 +42,7 @@
     "@types/node-fetch": "^2.5.12",
     "@types/pdfkit": "^0.10.6",
     "@types/tmp": "^0.2.1",
+    "@types/wicg-file-system-access": "^2020.9.2",
     "@typescript-eslint/eslint-plugin": "^4.28.5",
     "@typescript-eslint/parser": "^4.28.5",
     "eslint": "^7.31.0",
@@ -58,7 +62,11 @@
     "node": ">=8.0.0"
   },
   "files": [
-    "/lib"
+    "/lib/*.ts",
+    "/lib/*.ts.map",
+    "/lib/*.js",
+    "/dist",
+    "/web/package.json"
   ],
   "main": "lib/index.js",
   "types": "lib/index.d.ts",

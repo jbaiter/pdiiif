@@ -2,14 +2,14 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 
 /// PDF generation code
-import PDFDocument from 'pdfkit';
+import PDFDocument from '@foliojs-fork/pdfkit';
 import flatten from 'lodash/flatten';
 
 const PRODUCER = 'pdiiif v0.1.0';
 
-// TODO: Wouldn't this be better as a function?
 export default class PDFGenerator {
   doc?: PDFKit.PDFDocument;
+  _bytesWritten: number | undefined = undefined;
 
   constructor(
     stream: NodeJS.WritableStream,
@@ -22,7 +22,8 @@ export default class PDFGenerator {
       },
       pdfVersion: '1.7',
       autoFirstPage: false,
-    });
+      font: null,
+    } as any);
     this.doc.pipe(stream);
   }
 
@@ -75,6 +76,10 @@ export default class PDFGenerator {
     return this.doc!.outline.addItem(label);
   }
 
+  bytesWritten(): number {
+    return this.doc?._offset ?? this._bytesWritten ?? 0;
+  }
+
   _checkClosed(doc?: PDFKit.PDFDocument): void {
     if (doc === undefined || doc === null) {
       throw new Error('Cannot perform mutating operations on an already closed PDFGenerator.');
@@ -84,6 +89,7 @@ export default class PDFGenerator {
   close(): void {
     this._checkClosed(this.doc);
     this.doc!.end();
+    this._bytesWritten = this.doc!._offset;
     this.doc = undefined;
   }
 }

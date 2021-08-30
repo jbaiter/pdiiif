@@ -18,6 +18,7 @@ declare namespace PDFKit {
     outline: PDFOutline;
     // TODO: Should be `Font` from `fontkit`, how do you import in d.ts?
     _font: any;
+    _offset: number;
 
     _root: PDFKit.PDFKitReference;
   }

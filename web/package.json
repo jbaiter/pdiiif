@@ -1,0 +1,42 @@
+{
+  "internal": true,
+  "sideEffects": false,
+  "scripts": {
+    "build": "NODE_ENV=production webpack",
+    "postbuild": "sed -e 's/convert.d.ts.map/pdiiif-lib-web.d.ts.map/g' ../lib/convert.d.ts > ../dist/pdiiif-lib-web.d.ts; cp ../lib/convert.d.ts.map ../dist/pdiiif-lib-web.d.ts.map",
+    "build:dev": "webpack",
+    "stats": "NODE_ENV=production webpack --profile --json"
+  },
+  "main": "../dist/pdiiif-lib-web.js",
+  "types": "../dist/pdiiif-lib-web.d.ts",
+  "devDependencies": {
+    "clean-webpack-plugin": "^4.0.0-alpha.0",
+    "prettier": "^2.3.2",
+    "ts-loader": "^9.2.5",
+    "ts-node": "^10.2.0",
+    "tslib": "^2.3.1",
+    "typescript": "^4.3.5",
+    "webpack": "^5.50.0",
+    "webpack-cli": "^4.8.0"
+  },
+  "dependencies": {
+    "assert": "^2.0.0",
+    "brfs": "^2.0.2",
+    "browserify-zlib": "^0.2.0",
+    "buffer": "^6.0.3",
+    "events": "^3.3.0",
+    "process": "^0.11.10",
+    "readable-stream": "^3.6.0",
+    "transform-loader": "^0.2.4",
+    "util": "^0.12.4"
+  },
+  "prettier": {
+    "trailingComma": "es5",
+    "tabWidth": 2,
+    "semi": true,
+    "singleQuote": true
+  },
+  "browserslist": [
+    "supports native-filesystem-api"
+  ]
+}
