@@ -386,7 +386,7 @@ async function fetchImage(
     height = img.getHeight();
     infoJson = { width, height };
   }
-  const imgResp = await fetch(imgUrl, { method: sizeOnly ? 'HEAD' : 'GET' });
+  let imgResp = await fetch(imgUrl, { method: sizeOnly ? 'HEAD' : 'GET' });
   if (imgResp.status >= 400) {
     throw new Error(
       `Failed to fetch page image from ${imgUrl}, server returned status ${imgResp.status}`
@@ -397,12 +397,18 @@ async function fetchImage(
     return;
   }
   const imgData = sizeOnly ? undefined : await imgResp.arrayBuffer();
+  let imgSize = Number.parseInt(imgResp.headers.get('Content-Length') ?? '-1');
+  if (sizeOnly && imgSize < 0) {
+    // Server did not send content length for HEAD request gotta fetch image wholly
+    imgResp = await fetch(imgUrl);
+    imgSize = (await imgResp.arrayBuffer()).byteLength;
+  }
   return {
     data: imgData,
     width,
     height,
     ppi: getPointsPerInch(infoJson, canvas, width, ppiOverride),
-    numBytes: Number.parseInt(imgResp.headers.get('Content-Length') ?? '-1'),
+    numBytes: imgSize,
   };
 }
 
