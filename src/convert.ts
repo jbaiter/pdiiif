@@ -1,55 +1,19 @@
 /* eslint-disable no-await-in-loop */
 /// <reference types="wicg-file-system-access"/>
+import type { Writable } from 'stream';
 import { Canvas, Manifest, Range as IIIFRange, TreeNode } from 'manifesto.js';
 import fetch from 'cross-fetch';
 import minBy from 'lodash/minBy';
 import meanBy from 'lodash/meanBy';
 import sampleSize from 'lodash/sampleSize';
 import orderBy from 'lodash/orderBy';
-import { Writable, WritableOptions } from 'stream';
 import PQueue from 'p-queue';
 
-import PDFGenerator from './pdf';
-import { WritableAdapter } from './webstream-adapter';
+import PDFGenerator from './pdf/generator';
+import { CountingWriter, WebWriter, NodeWriter, Writer } from './writers';
+import { TocItem } from './pdf/util';
 
 const FALLBACK_PPI = 300;
-
-/** Wraps a writable and counts the bytes written to it. */
-class CountingWritable extends Writable {
-  _stream: Writable;
-  bytesWritten = 0;
-
-  constructor(stream: Writable, options?: WritableOptions) {
-    super(options);
-    this._stream = stream;
-  }
-
-  _write(chunk: any, enc: string, cb: (error?: Error | null) => void) {
-    this._stream.write(chunk, enc, cb);
-    if (chunk instanceof Buffer) {
-      this.bytesWritten += chunk.length;
-    } else if (
-      chunk instanceof Uint8Array ||
-      chunk instanceof Uint16Array ||
-      chunk instanceof Uint32Array
-    ) {
-      this.bytesWritten += chunk.byteLength;
-    } else {
-      console.warn(
-        `Unknown chunk type, can't track progress:: ${typeof chunk}`
-      );
-    }
-  }
-
-  _destroy(error: Error | null, callback: (error: Error | null) => void): void {
-    this._stream.destroy(error ?? undefined);
-    callback?.(error);
-  }
-
-  _final(cb: (error?: Error | null) => void): void {
-    this._stream.end(cb);
-  }
-}
 
 /** Progress information for rendering a progress bar or similar UI elements. */
 export interface ProgressStatus {
@@ -421,84 +385,75 @@ function now(): number {
   }
 }
 
-interface TocInfo {
-  rangeParents: { [rangeId: string]: string[] };
-  canvasRanges: { [canvasId: string]: { id: string; label: string } };
-}
-
-function buildPdfTocFromRanges(
+function buildOutlineFromRanges(
   manifest: Manifest,
   canvases: Canvas[],
   languagePreference: string[]
-): TocInfo {
+): Array<TocItem> {
   // ToC generation: IIIF's `Range` construct is so open, doing anything useful with it is a pain :-/
   // In our case, the pain comes from multiple directions:
   // - PDFs can only connect an outline node to a *single* page (IIIF connects ranges of pages)
-  // - PDFKit can only add an outline item for the *current* page
   // - IIIF doesn't prescribe an order for the ranges or the canvases contained in them
   // Our approach is to pre-generate the range associated with each canvas and a hierarchy
   // of parent-child relationships for ranges.
 
-  /// Parents for each IIIF Range
-  const rangeParents: { [rangeId: string]: string[] } = {};
   /// All canvas identifiers in the order they appear as in the sequence
   const canvasIds = canvases.map((canvas) => canvas.id);
-  /// Keep track of all ranges belonging to a canvas (i.e. ranges it's the "first" canvas of) and their outline parent, if present
-  const canvasRanges: { [canvasId: string]: { id: string; label: string } } =
-    {};
+
   let tocTree = manifest.getDefaultTree();
   if (!tocTree?.nodes?.length) {
     tocTree = manifest.getTopRanges()[0]?.getTree(new TreeNode('root'));
   }
 
   // We have to recurse, this small closure handles each node in the tree
-  const handleTocNode = (node: TreeNode, parentId?: string): void => {
-    let rangeId: string | undefined;
-    if (node.isRange()) {
-      const range = node.data as IIIFRange;
-      if (parentId) {
-        rangeParents[range.id] = [parentId, ...(rangeParents[parentId] ?? [])];
-      }
-      let firstCanvas;
-      if (range.__jsonld.canvases) {
-        firstCanvas = orderBy(range.__jsonld.canvases, (canvasId) =>
-          canvasIds.indexOf(canvasId)
-        )[0];
-      } else if (range.__jsonld.members) {
-        firstCanvas = orderBy(
-          range.__jsonld.members.filter((m: any) => m['@type'] === 'sc:Canvas'),
-          (canvas) => canvasIds.indexOf(canvas['@id'])
-        )[0];
-      } else if (range.__jsonld.items) {
-        firstCanvas = orderBy(
-          range.__jsonld.items.filter((m: any) => m.type === 'Canvas'),
-          (canvas) => canvasIds.indexOf(canvas.id)
-        )[0];
-      }
-      if (firstCanvas) {
-        const rangeLabel = range
-          .getLabel()
-          .getValue(languagePreference as string[]);
-        if (rangeLabel) {
-          canvasRanges[firstCanvas] = { id: range.id, label: rangeLabel };
-        }
-        rangeId = range.id;
-      }
+  const handleTocNode = (node: TreeNode): TocItem | undefined => {
+    if (!node.isRange()) {
+      return;
     }
-
-    for (const childNode of node.nodes) {
-      handleTocNode(childNode, rangeId);
+    const range = node.data as IIIFRange;
+    // FIXME: When this code was written, Manifesto didn't yet support IIIFv3 ranges,
+    //        check if this is still the case
+    let firstCanvas;
+    if (range.__jsonld.canvases) {
+      firstCanvas = orderBy(range.__jsonld.canvases, (canvasId) =>
+        canvasIds.indexOf(canvasId)
+      )[0];
+    } else if (range.__jsonld.members) {
+      firstCanvas = orderBy(
+        range.__jsonld.members.filter((m: any) => m['@type'] === 'sc:Canvas'),
+        (canvas) => canvasIds.indexOf(canvas['@id'])
+      )[0];
+    } else if (range.__jsonld.items) {
+      firstCanvas = orderBy(
+        range.__jsonld.items.filter((m: any) => m.type === 'Canvas'),
+        (canvas) => canvasIds.indexOf(canvas.id)
+      )[0];
+    }
+    if (!firstCanvas) {
+      return;
+    }
+    const rangeLabel = range
+      .getLabel()
+      .getValue(languagePreference as string[]);
+    if (!rangeLabel) {
+      return;
+    }
+    return {
+      label: rangeLabel,
+      startCanvasIdx: canvasIds.indexOf(firstCanvas),
+      children: node.nodes.map(handleTocNode).filter((n): n is TocItem => !!n),
     }
   };
 
   if (tocTree) {
     // Descend into the tree
-    handleTocNode(tocTree);
+    if (tocTree.isRange()) {
+      return handleTocNode(tocTree)?.children ?? [];
+    } else {
+      return tocTree.nodes.map(handleTocNode).filter((n): n is TocItem => !!n)
+    }
   }
-  return {
-    rangeParents,
-    canvasRanges,
-  };
+  return [];
 }
 
 /** Tracks PDF generation progress and various statistics related to that. */
@@ -512,10 +467,10 @@ class ProgressTracker {
   pdfGen: PDFGenerator;
   totalPages: number;
   totalCanvasPixels = 0;
-  countingStream: CountingWritable;
+  countingStream: CountingWriter;
   onProgress?: (status: ProgressStatus) => void;
 
-  constructor(canvases: Canvas[], countingStream: CountingWritable, pdfGen: PDFGenerator, onProgress?: (status: ProgressStatus) => void) {
+  constructor(canvases: Canvas[], countingStream: CountingWriter, pdfGen: PDFGenerator, onProgress?: (status: ProgressStatus) => void) {
     this.totalCanvasPixels = canvases.reduce(
       (sum, canvas) => sum + canvas.getWidth() * canvas.getHeight(),
       0
@@ -526,11 +481,15 @@ class ProgressTracker {
     this.onProgress = onProgress;
   }
 
+  get writeOutstanding(): boolean {
+    return this.pdfGen.bytesWritten > this.countingStream.bytesWritten;
+  }
+
   emitProgress(pagesWritten: number): void {
     if (!this.timeStart) {
       this.timeStart = now();
     }
-    const bytesPushed = this.pdfGen.bytesWritten();
+    const bytesPushed = this.pdfGen.bytesWritten;
     let estimatedFileSize;
     if (pagesWritten === this.totalPages) {
       estimatedFileSize = bytesPushed;
@@ -560,14 +519,14 @@ class ProgressTracker {
     this.pixelsWritten += pixelsWritten;
     this.canvasPixels += canvasPixels;
     this.pixelScaleFactor = this.pixelsWritten / this.canvasPixels;
-    this.pixelBytesFactor = this.pdfGen.bytesWritten() / this.pixelsWritten;
+    this.pixelBytesFactor = this.pdfGen.bytesWritten / this.pixelsWritten;
   }
 }
 
 export async function convertManifest(
   /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
   manifestJson: any,
-  outputStream: Writable | FileSystemWritableFileStream,
+  outputStream: Writable | WritableStream,
   {
     filterCanvases = () => true,
     languagePreference = [Intl.DateTimeFormat().resolvedOptions().locale],
@@ -580,20 +539,20 @@ export async function convertManifest(
     cancelToken = new CancelToken(),
   }: ConvertOptions
 ): Promise<void> {
-  // Wrap web streams in an adpater class that maps to the node Writable
-  // interface
+  let writer: Writer;
+  // Can't use `instanceof` since we don't have the Node class in the
+  // browser and vice versa, so examine the shape of the object
   if (typeof (outputStream as WritableStream).close === 'function') {
-    outputStream = new WritableAdapter(
-      outputStream as FileSystemWritableFileStream
-    );
+    writer = new WebWriter(outputStream as WritableStream);
   } else {
+    writer = new NodeWriter(outputStream as Writable);
     // Cancel further processing once the underlying stream has been closed
     // This will only have an effect if the PDF has not finished generating
     // yet (i.e. when the client terminates the connection prematurely),
     // otherwise all processing will long have stopped
     (outputStream as Writable).on('close', () => cancelToken.requestCancel());
   }
-  const countingStream = new CountingWritable(outputStream as Writable);
+  const countingWriter = new CountingWriter(writer);
 
   // Build a canvas predicate function from a list of identifiers, if needed
   let canvasPredicate: (canvasId: string) => boolean;
@@ -610,7 +569,6 @@ export async function convertManifest(
     pdfMetadata.Title =
       manifest.getLabel().getValue(languagePreference as string[]) ?? undefined;
   }
-  const pdfGen = new PDFGenerator(countingStream, pdfMetadata);
 
   const canvases = manifest
     .getSequenceByIndex(0)
@@ -619,18 +577,9 @@ export async function convertManifest(
   const labels = canvases.map(
     (canvas) => canvas.getLabel().getValue(languagePreference as string[]) ?? ''
   );
-  pdfGen.setPageLabels(labels);
-
-  /// PDF Outline nodes associated with each IIIF Range
-  const rangeOutlines: { [rangeId: string]: PDFKit.PDFOutline } = {};
-  const { rangeParents, canvasRanges } = buildPdfTocFromRanges(
-    manifest,
-    canvases,
-    languagePreference as string[]
-  );
-
-  const progress = new ProgressTracker(
-    canvases, countingStream, pdfGen, onProgress);
+  const outline = buildOutlineFromRanges(manifest, canvases, languagePreference as string[]);
+  const pdfGen = new PDFGenerator(countingWriter, metadata, canvases.length, labels, outline);
+  const progress = new ProgressTracker(canvases, countingWriter, pdfGen, onProgress);
   progress.emitProgress(0);
 
   // Fetch images concurrently, within limits specified by user
@@ -653,7 +602,7 @@ export async function convertManifest(
       if (imgData) {
         const { width, height, data, ppi } = imgData;
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        pdfGen.renderPage({ width, height }, data!, ppi);
+        await pdfGen.renderPage({ width, height }, data!, ppi);
         progress.updatePixels(width * height, canvas.getWidth() * canvas.getHeight());
       }
     } catch (err) {
@@ -663,33 +612,34 @@ export async function convertManifest(
       await cancelToken.requestCancel();
       throw err;
     }
-
-    const rangeInfo = canvasRanges[canvas.id];
-    if (rangeInfo) {
-      const { label: rangeLabel, id: rangeId } = rangeInfo;
-      const parentId = rangeParents[rangeId]?.[0];
-      let parentOutline;
-      if (parentId) {
-        parentOutline = rangeOutlines[parentId];
-      }
-      rangeOutlines[rangeId] = pdfGen.addTocItem(rangeLabel, parentOutline);
-    }
     progress.emitProgress(canvasIdx + 1);
   }
 
-  // Promise that allows us to wait for the underlying output stream to be closed
-  const closePromise: Promise<void> = new Promise((fullfill) =>
-    (outputStream as Writable).once('close', () => {
-      fullfill();
-    })
-  );
-  pdfGen.close();
+  // Finish writing PDF, resulting Promise is resolved once the writer is closed
+  const endPromise = pdfGen.end();
 
-  // All bytes have been pushed, we can set the estimated file size
-  // to the actual number of bytes that were pushed and wait for
-  // the close event on the output stream.
+  // At this point the PDF data might still be incomplete, so we wait for
+  // drain events on the writer and continue updating our progress tracker
+  // until the writer is actually closed
   if (!cancelToken.cancelled) {
-    (outputStream as Writable).on('drain', () => progress.emitProgress(canvases.length));
+    let closed = false;
+    endPromise.then(() => closed = true);
+    const progressOnDrain = () => {
+      if (closed) {
+        return;
+      }
+      progress.emitProgress(canvases.length);
+      if (!closed && progress.writeOutstanding) {
+        writer.waitForDrain().then(progressOnDrain);
+      }
+    };
+
+    // Wait for initial drainage event in case the writer isn't already closed
+    if (!closed) {
+      writer.waitForDrain().then(progressOnDrain);
+    }
   }
-  await closePromise;
+
+  // Wait for the writer to be closed
+  await endPromise;
 }
