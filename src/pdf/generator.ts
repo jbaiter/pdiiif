@@ -5,7 +5,7 @@
 import flatten from 'lodash/flatten';
 import range from 'lodash/range';
 import pad from 'lodash/padStart';
-import { stripIndent } from 'common-tags';
+import dedent from 'dedent-js';
 import Pako from 'pako';
 
 import {
@@ -223,7 +223,7 @@ export default class PDFGenerator {
     );
     (typeTwoFont.data as PdfDictionary).CIDToGIDMap = makeRef(cidToGidMap);
 
-    const cmapStream = stripIndent`
+    const cmapStream = dedent`
       /CIDInit /ProcSet findresource begin
         12 dict begin
         begincmap
@@ -355,7 +355,7 @@ export default class PDFGenerator {
     }
     const page = this._addObject(pageDict);
 
-    const contentStream = Pako.deflate(stripIndent`
+    const contentStream = Pako.deflate(dedent`
       q
       ${unitScale * canvasWidth} 0 0 ${unitScale * canvasHeight} 0 0 cm
       /Im1 Do

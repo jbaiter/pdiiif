@@ -1,25 +1,9 @@
 import sum from 'lodash/sum';
+import util from 'util';
 
-
-interface CrossTextEncoder {
-  encode(input?: string): Uint8Array;
-}
-interface CrossTextDecoder {
-  decode(input?: Uint8Array, options?: TextDecodeOptions): string;
-}
-
-export let textEncoder: CrossTextEncoder;
-export let textDecoder: CrossTextDecoder;
-
-if (typeof window === 'undefined') {
-  import(/* webpackIgnore: true */ 'util').then(({ TextEncoder, TextDecoder }) => {
-    textEncoder = new TextEncoder();
-    textDecoder = new TextDecoder();
-  });
-} else {
-  textEncoder = new TextEncoder();
-  textDecoder = new TextDecoder();
-}
+// Browsers have native encoders/decoders in the global namespace, use these
+export const textEncoder = new (TextEncoder ?? util.TextEncoder)();
+export const textDecoder= new (TextDecoder ?? util.TextEncoder)();
 
 export const IS_BIG_ENDIAN = (() => {
   const array = new Uint8Array(4);
