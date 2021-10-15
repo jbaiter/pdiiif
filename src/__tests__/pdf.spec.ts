@@ -3,9 +3,9 @@ import tmp from 'tmp';
 
 import fs from 'fs';
 import path from 'path';
-import { makeRef, serialize } from '../pdf/pdf';
+import { makeRef, serialize } from '../pdf/common';
 import PDFGenerator from '../pdf/generator';
-import { NodeWriter } from '../writers';
+import { NodeWriter } from '../io';
 
 describe('JavaScript->PDF value serialization', () => {
   it('should convert Unicode strings with braces to UTF16BE', () => {

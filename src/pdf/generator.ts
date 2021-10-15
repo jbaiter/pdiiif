@@ -16,9 +16,9 @@ import {
   PdfArray,
   PdfRef,
   serialize,
-} from './pdf';
+} from './common';
 import { TocItem, textEncoder, randomData } from './util';
-import { Writer } from '../writers';
+import { Writer } from '../io';
 import PdfImage from './image';
 import { sRGBIEC1966_21 as srgbColorspace } from '../res/srgbColorspace';
 

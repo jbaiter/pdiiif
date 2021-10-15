@@ -1,5 +1,11 @@
 /** Types for writing to an output stream, with support for Node and Browsers. */
 import type { Writable as NodeWritable } from 'stream';
+import type nodeFs from 'fs';
+
+export interface Reader {
+  read(dst: Uint8Array, offset: number, position: number, length: number): Promise<number>;
+  size(): Promise<number>;
+}
 
 export interface Writer {
   /** Write a chunk to the writer */
@@ -10,6 +16,25 @@ export interface Writer {
 
   /** Wait for the next drainage/flush event */
   waitForDrain(): Promise<void>;
+}
+
+export class WebReader implements Reader {
+  private file: File;
+
+  constructor(file: File) {
+    this.file = file;
+  }
+
+  async read(dst: Uint8Array, offset: number, position: number, length: number): Promise<number> {
+    const blob = this.file.slice(position, position + length);
+    const buf = await blob.arrayBuffer();
+    dst.set(new Uint8Array(buf), offset);
+    return buf.byteLength; 
+  }
+
+  size(): Promise<number> {
+    return new Promise(resolve => resolve(this.file.size));
+  }
 }
 
 /** Wraps a writer and counts the bytes written to it. */
@@ -58,6 +83,23 @@ export class WebWriter implements Writer {
   }
 }
 
+export class NodeReader implements Reader {
+  private fileHandle: nodeFs.promises.FileHandle;
+
+  constructor(handle: nodeFs.promises.FileHandle) {
+    this.fileHandle = handle;
+  }
+
+  async read(dst: Uint8Array, offset: number, position: number, length: number): Promise<number> {
+    const { bytesRead } = await this.fileHandle.read(dst, offset, length, position);
+    return bytesRead;
+  }
+
+  async size(): Promise<number> {
+    const stat = await this.fileHandle.stat();
+    return stat.size;
+  }
+}
 /** Adapter for Node.js writable streams. */
 export class NodeWriter implements Writer {
   _writable: NodeWritable;

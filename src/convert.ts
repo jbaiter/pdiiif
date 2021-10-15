@@ -10,7 +10,7 @@ import orderBy from 'lodash/orderBy';
 import PQueue from 'p-queue';
 
 import PDFGenerator from './pdf/generator';
-import { CountingWriter, WebWriter, NodeWriter, Writer } from './writers';
+import { CountingWriter, WebWriter, NodeWriter, Writer } from './io';
 import { TocItem } from './pdf/util';
 
 const FALLBACK_PPI = 300;

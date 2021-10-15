@@ -1,4 +1,5 @@
 import pad from 'lodash/padStart';
+
 import { IS_BIG_ENDIAN } from './util';
 
 const PDF_INDENTATION = 2;
@@ -26,12 +27,30 @@ export class PdfRef {
     this.refObj = num;
   }
 }
-export type PdfPrimitive = string | number | Uint8Array | Date | PdfRef;
+export type PdfPrimitive = string | number | boolean | Uint8Array | null | Date | PdfRef;
 export interface PdfDictionary {
   [member: string]: PdfPrimitive | PdfArray | PdfDictionary;
 }
 export type PdfArray = Array<PdfPrimitive | PdfArray | PdfDictionary>;
-export type PdfValue = PdfPrimitive | PdfDictionary | PdfArray;
+export type PdfValue = PdfPrimitive | PdfDictionary | PdfArray | null;
+
+export interface PdfAnnotation {
+  Type: 'Annot',
+  Subtype: string,
+  Rect: [number, number, number, number],
+  Contents: string | undefined,
+  P?: PdfRef,
+  NM?: string,
+  M?: Date,
+  F?: number,
+  AP?: PdfDictionary,
+  AS?: string,
+  Border?: [number, number, number] | [number, number, number, number],
+  C?: [] | [number] | [number, number, number] | [number, number, number, number],
+
+
+
+}
 
 export function makeRef(target: number | PdfObject): PdfRef {
   const num = typeof target === 'number' ? target : target.num;
@@ -103,8 +122,8 @@ export function serialize(value: PdfValue, dictIndent = 0): string {
   } else if ({}.toString.call(value) === '[object Object]') {
     const outsideIndent = ' '.repeat(PDF_INDENTATION * dictIndent);
     const insideIndent = outsideIndent + ' '.repeat(PDF_INDENTATION);
-    return `<<\n${Object.entries(value)
-      .map(([k, v]) => `${insideIndent}/${k} ${serialize(v, dictIndent + 1)}`)
+    return `<<\n${Object.entries(value as any)
+      .map(([k, v]) => `${insideIndent}/${k} ${serialize(v as any, dictIndent + 1)}`)
       .join('\n')}\n${outsideIndent}>>`;
   } else if (typeof value === 'number') {
     return safeNumber(value).toString(10);

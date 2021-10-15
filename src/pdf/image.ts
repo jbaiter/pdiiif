@@ -28,7 +28,7 @@ import {
   PdfDictionary,
   serialize,
   PdfObject,
-} from './pdf';
+} from './common';
 import {
   textDecoder,
   IS_BIG_ENDIAN,

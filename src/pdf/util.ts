@@ -2,8 +2,8 @@ import sum from 'lodash/sum';
 import util from 'util';
 
 // Browsers have native encoders/decoders in the global namespace, use these
-export const textEncoder = new (TextEncoder ?? util.TextEncoder)();
-export const textDecoder= new (TextDecoder ?? util.TextEncoder)();
+export const textEncoder = new (window?.TextEncoder ?? util.TextEncoder)();
+export const textDecoder= new (window?.TextDecoder ?? util.TextDecoder)();
 
 export const IS_BIG_ENDIAN = (() => {
   const array = new Uint8Array(4);
@@ -38,4 +38,15 @@ export function randomData(length: number): Uint8Array {
     }
   }
   return buf;
+}
+
+export function findLastIndex<T>(
+  array: Array<T>,
+  predicate: (value: T, index: number, obj: Array<T>) => boolean
+): number {
+  let l = array.length;
+  while (l--) {
+    if (predicate(array[l], l, array)) return l;
+  }
+  return -1;
 }
