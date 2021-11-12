@@ -1,7 +1,13 @@
 /* eslint-disable no-await-in-loop */
 /// <reference types="wicg-file-system-access"/>
 import type { Writable } from 'stream';
-import { Canvas, Manifest, Range as IIIFRange, TreeNode } from 'manifesto.js';
+import {
+  Canvas,
+  Manifest,
+  PropertyValue,
+  Range as IIIFRange,
+  TreeNode,
+} from 'manifesto.js';
 import fetch from 'cross-fetch';
 import minBy from 'lodash/minBy';
 import meanBy from 'lodash/meanBy';
@@ -12,6 +18,7 @@ import PQueue from 'p-queue';
 import PDFGenerator from './pdf/generator';
 import { CountingWriter, WebWriter, NodeWriter, Writer } from './io';
 import { TocItem } from './pdf/util';
+import { getLicenseInfo } from './res/licenses';
 
 const FALLBACK_PPI = 300;
 
@@ -69,6 +76,30 @@ export class CancelToken {
   }
 }
 
+interface CoverPageParams {
+  title: string;
+  manifestUrl: string;
+  thumbnail?: {
+    url: string;
+    iiifImageService?: string;
+  };
+  provider?: {
+    label: string;
+    homepage?: string;
+    logo?: string;
+  };
+  requiredStatement?: {
+    label: string;
+    value: string;
+  };
+  rights?: {
+    text: string;
+    url?: string;
+    logo?: string;
+  };
+  metadata?: Array<[string, string | Array<string>]>;
+}
+
 /** Options for converting a IIIF Manifest to a PDF. */
 export interface ConvertOptions {
   /// Pixels per inch to assume for the full resolution version of each canvas.
@@ -105,6 +136,12 @@ export interface ConvertOptions {
     Author?: string;
     Keywords?: string;
   };
+  // Endpoint to contact for retrieving PDF data with one or more cover pages
+  // to insert before the canvas pages
+  coverPageEndoint?: string;
+  // Callback to call for retrieving PDF data with one or more cover pages
+  // to insert before the canvas pages
+  coverPageCallback?: (params: CoverPageParams) => Promise<Uint8Array>;
 }
 
 /** Container for image size along with its corresponding IIIF Image API string. */
@@ -219,7 +256,7 @@ interface EstimationParams {
 }
 
 /** Estimate the final size of the PDF for a given manifest.
- * 
+ *
  * This will randomly sample a few representative canvases from the manifest,
  * check their size in bytes and extrapolate from that to all canvases.
  */
@@ -288,7 +325,7 @@ interface ImageData {
 interface FetchImageOptions {
   preferLossless: boolean;
   maxWidth?: number;
-  /// PPI override, will be fetched from physical dimensions serivce by default 
+  /// PPI override, will be fetched from physical dimensions serivce by default
   ppiOverride?: number;
   cancelToken?: CancelToken;
   /// Only obtain the size of the image, don't fetch any data
@@ -442,7 +479,7 @@ function buildOutlineFromRanges(
       label: rangeLabel,
       startCanvasIdx: canvasIds.indexOf(firstCanvas),
       children: node.nodes.map(handleTocNode).filter((n): n is TocItem => !!n),
-    }
+    };
   };
 
   if (tocTree) {
@@ -450,7 +487,7 @@ function buildOutlineFromRanges(
     if (tocTree.isRange()) {
       return handleTocNode(tocTree)?.children ?? [];
     } else {
-      return tocTree.nodes.map(handleTocNode).filter((n): n is TocItem => !!n)
+      return tocTree.nodes.map(handleTocNode).filter((n): n is TocItem => !!n);
     }
   }
   return [];
@@ -470,7 +507,12 @@ class ProgressTracker {
   countingStream: CountingWriter;
   onProgress?: (status: ProgressStatus) => void;
 
-  constructor(canvases: Canvas[], countingStream: CountingWriter, pdfGen: PDFGenerator, onProgress?: (status: ProgressStatus) => void) {
+  constructor(
+    canvases: Canvas[],
+    countingStream: CountingWriter,
+    pdfGen: PDFGenerator,
+    onProgress?: (status: ProgressStatus) => void
+  ) {
     this.totalCanvasPixels = canvases.reduce(
       (sum, canvas) => sum + canvas.getWidth() * canvas.getHeight(),
       0
@@ -523,6 +565,99 @@ class ProgressTracker {
   }
 }
 
+async function getCoverPagePdf(
+  manifest: Manifest,
+  languagePreference: Array<string>,
+  endpoint?: string,
+  callback?: (params: CoverPageParams) => Promise<Uint8Array>
+): Promise<Uint8Array> {
+  const params: CoverPageParams = {
+    // NOTE: Manifest label is mandatory, i.e. safe to assert non-null
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    title: manifest.getLabel().getValue(languagePreference)!,
+    manifestUrl: manifest.id,
+  };
+  const thumb = manifest.getThumbnail();
+  if (thumb != null) {
+    params.thumbnail = {
+      url: thumb.id,
+      iiifImageService: thumb
+        .getServices()
+        .find((s) => s.getProfile().indexOf('/image/') > 0)?.id,
+    };
+  } else {
+    const firstCanvas = manifest
+      .getSequenceByIndex(0)
+      .getCanvasByIndex(0) as Canvas;
+    const canvasImg = firstCanvas.getImages()[0].getResource();
+    params.thumbnail = {
+      url: canvasImg.id,
+      iiifImageService: canvasImg
+        .getServices()
+        .find((s) => s.getProfile().indexOf('/image/') > 0)?.id,
+    };
+  }
+  const provider = manifest.getProperty('provider');
+  const required = manifest.getRequiredStatement();
+  const logo = manifest.getLogo();
+  if (provider || (!required?.label && required?.value !== undefined)) {
+    params.provider = {
+      label: provider
+        ? (PropertyValue.parse(provider.label).getValue(
+            languagePreference
+          ) as string)
+        : required?.getValue(languagePreference) ?? '',
+      homepage: provider?.homepage?.[0]?.id,
+      logo: provider?.logo?.[0]?.id ?? logo,
+    };
+  }
+  if (required != null && required.label) {
+    params.requiredStatement = {
+      label: required.getLabel(languagePreference) ?? '',
+      value: required.getValues(languagePreference).join('\n'),
+    };
+  }
+  const license = manifest.getLicense() ?? manifest.getProperty('rights');
+  if (license != null) {
+    const licenseDef = getLicenseInfo(license);
+    params.rights = {
+      text: licenseDef?.text ?? license,
+      url: license,
+      logo: licenseDef?.logo,
+    };
+  }
+  params.metadata = manifest
+    .getMetadata()
+    .map((lvp) => {
+      const label = lvp.getLabel(languagePreference);
+      const values = lvp
+        .getValues(languagePreference)
+        .filter((v): v is string => v !== null);
+      if (!label || values.length === 0) {
+        return;
+      }
+      if (values.length === 1) {
+        return [label, values[0]];
+      } else {
+        return [label, values];
+      }
+    })
+    .filter((x): x is [string, string | string[]] => x !== undefined);
+  if (callback) {
+    return callback(params);
+  } else if (endpoint) {
+    const resp = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+    });
+    const buf = await resp.arrayBuffer();
+    return new Uint8Array(buf);
+  } else {
+    throw 'Either `endpoint` or `callback` must be specified!';
+  }
+}
+
 export async function convertManifest(
   /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
   manifestJson: any,
@@ -537,6 +672,8 @@ export async function convertManifest(
     preferLossless = false,
     concurrency = 1,
     cancelToken = new CancelToken(),
+    coverPageCallback,
+    coverPageEndoint,
   }: ConvertOptions
 ): Promise<void> {
   let writer: Writer;
@@ -577,10 +714,6 @@ export async function convertManifest(
   const labels = canvases.map(
     (canvas) => canvas.getLabel().getValue(languagePreference as string[]) ?? ''
   );
-  const outline = buildOutlineFromRanges(manifest, canvases, languagePreference as string[]);
-  const pdfGen = new PDFGenerator(countingWriter, metadata, canvases.length, labels, outline);
-  const progress = new ProgressTracker(canvases, countingWriter, pdfGen, onProgress);
-  progress.emitProgress(0);
 
   // Fetch images concurrently, within limits specified by user
   const queue = new PQueue({ concurrency });
@@ -590,6 +723,36 @@ export async function convertManifest(
       fetchImage(c, { preferLossless, maxWidth, ppiOverride: ppi, cancelToken })
     );
   });
+
+  const outline = buildOutlineFromRanges(
+    manifest,
+    canvases,
+    languagePreference as string[]
+  );
+  const pdfGen = new PDFGenerator(
+    countingWriter,
+    metadata,
+    canvases.length,
+    labels,
+    outline
+  );
+  const progress = new ProgressTracker(
+    canvases,
+    countingWriter,
+    pdfGen,
+    onProgress
+  );
+  progress.emitProgress(0);
+
+  if (coverPageCallback || coverPageEndoint) {
+    const coverPageData = await getCoverPagePdf(
+      manifest,
+      languagePreference as string[],
+      coverPageEndoint,
+      coverPageCallback
+    );
+    await pdfGen.insertCoverPages(coverPageData);
+  }
 
   for (let canvasIdx = 0; canvasIdx < canvases.length; canvasIdx++) {
     if (cancelToken.isCancellationConfirmed) {
@@ -603,7 +766,10 @@ export async function convertManifest(
         const { width, height, data, ppi } = imgData;
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         await pdfGen.renderPage({ width, height }, data!, ppi);
-        progress.updatePixels(width * height, canvas.getWidth() * canvas.getHeight());
+        progress.updatePixels(
+          width * height,
+          canvas.getWidth() * canvas.getHeight()
+        );
       }
     } catch (err) {
       // Clear queue, cancel all oingoing image fetching
@@ -623,7 +789,7 @@ export async function convertManifest(
   // until the writer is actually closed
   if (!cancelToken.cancelled) {
     let closed = false;
-    endPromise.then(() => closed = true);
+    endPromise.then(() => (closed = true));
     const progressOnDrain = () => {
       if (closed) {
         return;

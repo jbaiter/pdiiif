@@ -16,11 +16,13 @@ import {
   PdfArray,
   PdfRef,
   serialize,
+  PdfValue,
 } from './common';
 import { TocItem, textEncoder, randomData } from './util';
-import { Writer } from '../io';
+import { ArrayReader, Writer } from '../io';
 import PdfImage from './image';
 import { sRGBIEC1966_21 as srgbColorspace } from '../res/srgbColorspace';
+import { PdfParser } from './parser';
 
 const PRODUCER = 'pdiiif v0.1.0';
 /// If the font is 10 pts, nominal character width is 5 pts
@@ -63,6 +65,10 @@ export default class PDFGenerator {
   _objRefs: Record<string, PdfRef> = {};
   _offsets: number[] = [];
   _writer: Writer | undefined;
+  _pagesStarted = false;
+  _numCanvases: number;
+  _pageLabels?: string[];
+  _numCoverPages = 0;
 
   constructor(
     writer: Writer,
@@ -77,6 +83,8 @@ export default class PDFGenerator {
       Type: '/Catalog',
     };
     this._addObject(catalog, 'Catalog');
+    this._numCanvases = numCanvases;
+    this._pageLabels = pageLabels;
 
     const pagesObj = this._addObject(
       {
@@ -98,19 +106,6 @@ export default class PDFGenerator {
     };
     this._addObject(pdfMetadata, 'Info');
 
-    if (pageLabels) {
-      catalog.PageLabels = makeRef(
-        this._addObject({
-          Nums: flatten(
-            pageLabels
-              .map((label, idx) =>
-                label ? [idx, { P: `( ${label} )` }] : undefined
-              )
-              .filter((x) => x !== undefined) as PdfArray
-          ),
-        })
-      );
-    }
     if (outline.length > 0) {
       catalog.PageMode = 'UseOutlines';
       const outlines: PdfDictionary = {
@@ -122,7 +117,7 @@ export default class PDFGenerator {
       let prev: PdfObject | undefined;
       for (const [idx, itm] of outline.entries()) {
         const [childObj, numKids] = this._addOutline(itm, outlinesObj, prev);
-        (outlines.Count as number) += (1 + numKids);
+        (outlines.Count as number) += 1 + numKids;
         if (idx === 0) {
           outlines.First = makeRef(childObj);
         } else if (idx === outline.length - 1) {
@@ -163,23 +158,6 @@ export default class PDFGenerator {
         Info: '(sRGB IEC61966-2.1)',
       },
     ];
-
-    // Now that we know from which object number the pages start, we can set the
-    // /Kids entry in the Pages object and update the outline destinations.
-    (pagesObj.data as PdfDictionary).Kids = range(
-      this._nextObjNo,
-      this._nextObjNo + (numCanvases * this._objectsPerPage),
-      this._objectsPerPage
-    ).map(makeRef);
-    this._objects
-      .filter((obj) => (obj.data as PdfDictionary)?.Dest !== undefined)
-      .forEach((obj: PdfObject) => {
-        const dest = (obj.data as PdfDictionary).Dest as PdfArray;
-        if (typeof dest[0] !== 'number') {
-          return;
-        }
-        dest[0] = makeRef(this._nextObjNo + (dest[0] * this._objectsPerPage));
-      });
   }
 
   _setupHiddenTextFont(): void {
@@ -322,11 +300,86 @@ export default class PDFGenerator {
       stream,
     };
     this._nextObjNo++;
-    this._objects.push(obj);
+    this._objects[obj.num] = obj;
     if (refName) {
       this._objRefs[refName] = makeRef(obj);
     }
     return obj;
+  }
+
+  /** Clone an object from a foreign PDF into the current PDF, adjusting
+   *  the encountered indirect object references.
+   */
+  private async _transplantObject(
+    parser: PdfParser,
+    obj: PdfObject,
+    seenObjects: Record<number, PdfRef> = {}
+  ): Promise<PdfRef> {
+    const handleValue = async (value: PdfValue): Promise<PdfValue> => {
+      if (value instanceof PdfRef) {
+        const o = await parser.resolveRef(value);
+        if (o === undefined) {
+          throw `Could not resolve reference to object '${value.refObj}'`;
+        }
+        // Check if we've already transplanted the object
+        if (seenObjects[o.num]) {
+          return seenObjects[o.num];
+        }
+        const objDict = o.data as PdfDictionary;
+        const newObj = this._addObject(objDict, undefined, o.stream);
+        const ref = new PdfRef(newObj.num);
+        seenObjects[o.num] = ref;
+        newObj.data = await handleValue(objDict);
+        if (objDict.Type === '/Page') {
+          // Redirect to our own Pages object
+          (newObj.data as PdfDictionary).Parent = this._objRefs.Pages;
+        }
+        return ref;
+      } else if (typeof value === 'string' && value[0] != '/') {
+        return `(${value})`;
+      } else if (Array.isArray(value)) {
+        const out = [];
+        for (const val of value) {
+          out.push(await handleValue(val));
+        }
+        return out;
+      } else if (typeof value === 'object' && value !== null) {
+        const out: PdfDictionary = {};
+        for (const [key, val] of Object.entries(value)) {
+          // Ignore structure keys for now
+          if (key === 'StructParent' || key === 'StructParents') {
+            continue;
+          }
+          out[key] = await handleValue(val as PdfDictionary);
+        }
+        return out;
+      }
+      return value;
+    };
+    const ref = new PdfRef(obj.num);
+    return (await handleValue(ref)) as PdfRef;
+  }
+
+  async insertCoverPages(pdfData: ArrayBuffer): Promise<void> {
+    if (this._pagesStarted) {
+      throw 'Cover pages must be inserted before writing the first regular page';
+    }
+    const reader = new ArrayReader(new Uint8Array(pdfData));
+    const parser = await PdfParser.parse(reader);
+    const pagesDict = this._objects[this._objRefs.Pages.refObj]
+      .data as PdfDictionary;
+    pagesDict.Kids = [];
+    for await (const page of parser.pages()) {
+      const dict = page.data as PdfDictionary;
+      // Ignore associated structured content for now
+      delete dict.StructParents;
+      delete dict.Parent;
+      const newPageRef = await this._transplantObject(parser, page);
+      (pagesDict.Kids as PdfArray).push(newPageRef);
+      (pagesDict.Count as number) += 1;
+      this._numCoverPages += 1;
+    }
+    return;
   }
 
   renderPage(
@@ -337,6 +390,48 @@ export default class PDFGenerator {
     imgData: ArrayBuffer,
     ppi = 300
   ): Promise<void> {
+    if (!this._pagesStarted) {
+      if (this._pageLabels) {
+        const catalog = this._objects[this._objRefs.Catalog.refObj]
+          .data as PdfDictionary;
+        catalog.PageLabels = makeRef(
+          this._addObject({
+            Nums: flatten(
+              this._pageLabels
+                .map((label, idx) =>
+                  label
+                    ? [idx + this._numCoverPages, { P: `( ${label} )` }]
+                    : undefined
+                )
+                .filter((x) => x !== undefined) as PdfArray
+            ),
+          })
+        );
+      }
+      const pagesObj = this._objects[this._objRefs.Pages.refObj];
+      // Now that we know from which object number the pages start, we can set the
+      // /Kids entry in the Pages object and update the outline destinations.
+      const pageDict = pagesObj.data as PdfDictionary;
+      const pageRefs = pageDict.Kids as PdfArray;
+      pageDict.Kids = pageRefs.concat(
+        range(
+          this._nextObjNo,
+          this._nextObjNo + this._numCanvases * this._objectsPerPage,
+          this._objectsPerPage
+        ).map(makeRef)
+      );
+      this._objects
+        .filter((obj) => (obj.data as PdfDictionary)?.Dest !== undefined)
+        .forEach((obj: PdfObject) => {
+          const dest = (obj.data as PdfDictionary).Dest as PdfArray;
+          if (typeof dest[0] !== 'number') {
+            return;
+          }
+          dest[0] = makeRef(this._nextObjNo + dest[0] * this._objectsPerPage);
+        });
+
+      this._pagesStarted = true;
+    }
     // Factor to multiply pixels by to get equivalent PDF units (72 pdf units === 1 inch)
     const unitScale = 72 / ppi;
     const pageDict = {
@@ -392,6 +487,9 @@ export default class PDFGenerator {
       await this._write(`%PDF-1.5\n%\xde\xad\xbe\xef\n`);
     }
     for (const obj of this._objects) {
+      if (!obj) {
+        continue;
+      }
       await this._serializeObject(obj);
     }
     this._objects = [];

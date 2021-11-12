@@ -2,8 +2,8 @@ import sum from 'lodash/sum';
 import util from 'util';
 
 // Browsers have native encoders/decoders in the global namespace, use these
-export const textEncoder = new (window?.TextEncoder ?? util.TextEncoder)();
-export const textDecoder= new (window?.TextDecoder ?? util.TextDecoder)();
+export const textEncoder = new (util?.TextEncoder ?? window.TextEncoder)();
+export const textDecoder= new (util?.TextDecoder ?? window.TextEncoder)();
 
 export const IS_BIG_ENDIAN = (() => {
   const array = new Uint8Array(4);

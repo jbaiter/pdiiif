@@ -16,14 +16,16 @@ interface CrossRefSubSection {
 async function* parseCrossRefSection(
   reader: Reader,
   offset: number,
-  maxLength: number,
+  maxLength: number
 ): AsyncGenerator<CrossRefSubSection> {
   const buf = new Uint8Array(maxLength);
   offset += await reader.read(buf, 0, offset, buf.length);
   if (!testForString(buf, 0, 'xref')) {
     throw 'Invalid crossreference section, did not start with `xref` line.';
   }
-  const trailerIdx = findIndex(buf, (_x, idx) => testForString(buf, idx, 'trailer'));
+  const trailerIdx = findIndex(buf, (_x, idx) =>
+    testForString(buf, idx, 'trailer')
+  );
   /*
   const fileSize = await reader.size();
   while (trailerIdx < 0 && offset < fileSize) {
@@ -78,7 +80,9 @@ async function* parseCrossRefSection(
     yield currentSection;
   }
   const trailerBuf = buf.subarray(trailerIdx);
-  const trailerStartIdx = findIndex(trailerBuf, (_x, idx) => testForString(trailerBuf, idx, '<<'));
+  const trailerStartIdx = findIndex(trailerBuf, (_x, idx) =>
+    testForString(trailerBuf, idx, '<<')
+  );
   const trailerEndIdx = findIndex(trailerBuf, (_x, idx) =>
     testForString(trailerBuf, idx, '>>')
   );
@@ -100,7 +104,11 @@ async function* parseCrossRefSection(
   ).read() as PdfDictionary;
   if (trailerDict.Prev) {
     const previousXrefOffset = trailerDict.Prev as number;
-    yield* parseCrossRefSection(reader, previousXrefOffset, offset - previousXrefOffset);
+    yield* parseCrossRefSection(
+      reader,
+      previousXrefOffset,
+      offset - previousXrefOffset
+    );
   }
 }
 
@@ -270,9 +278,7 @@ export class ObjectParser {
     if (match === undefined) {
       throw new Error('Failed to read indirect object');
     }
-    return {
-      refObj: Number.parseInt(match.split(' ')[0]),
-    };
+    return new PdfRef(Number.parseInt(match.split(' ')[0]));
   }
 
   matchIndirectObject(resetAfter = true): string | undefined {
@@ -533,7 +539,8 @@ export class PdfParser {
     const pdfSize = await reader.size();
     const bufStart = pdfSize - trailerBuf.length;
     await reader.read(trailerBuf, 0, bufStart, trailerBuf.length);
-    const eofIdx = trailerBuf.length - 6;
+    const eofIdx =
+      trailerBuf.length - (trailerBuf[trailerBuf.length - 1] === 0x46 ? 5 : 6);
     if (!testForString(trailerBuf, eofIdx, '%%EOF')) {
       throw 'Invalid PDF, missing EOF comment at end of file';
     }
@@ -551,8 +558,9 @@ export class PdfParser {
       10
     );
     const dictEnd =
-      findLastIndex(trailerBuf, (_x, idx) => testForString(trailerBuf, idx, '>>')) +
-      2;
+      findLastIndex(trailerBuf, (_x, idx) =>
+        testForString(trailerBuf, idx, '>>')
+      ) + 2;
     const dictStart = findLastIndex(trailerBuf, (_x, idx) =>
       testForString(trailerBuf, idx, '<<')
     );
@@ -562,7 +570,7 @@ export class PdfParser {
     for await (const { startNum, entries } of parseCrossRefSection(
       reader,
       xrefStartOffset,
-      bufStart + dictEnd - xrefStartOffset,
+      bufStart + dictEnd - xrefStartOffset
     )) {
       for (const [idx, [offset, gen, inUse]] of entries.entries()) {
         const objNum = idx + startNum;
@@ -616,7 +624,9 @@ export class PdfParser {
     return obj.data as PdfDictionary;
   }
 
-  async *_pagesFromPagesObj(pagesObj: PdfDictionary): AsyncGenerator<PdfObject> {
+  async *_pagesFromPagesObj(
+    pagesObj: PdfDictionary
+  ): AsyncGenerator<PdfObject> {
     for (const pageRef of pagesObj.Kids as Array<PdfRef>) {
       const page = await this.getObject(pageRef.refObj, true);
       if (!page) {
@@ -656,6 +666,10 @@ export class PdfParser {
     }
   }
 
+  resolveRef(ref: PdfRef): Promise<PdfObject | undefined> {
+    return this.getObject(ref.refObj, true);
+  }
+
   async getObject(
     num: number,
     withStream = false
@@ -675,7 +689,9 @@ export class PdfParser {
     const objEndIdx = findIndex(buf, (_x, idx) =>
       testForString(buf, idx, 'endobj')
     );
-    let streamIdx = findIndex(buf, (_x, idx) => testForString(buf, idx, 'stream'));
+    let streamIdx = findIndex(buf, (_x, idx) =>
+      testForString(buf, idx, 'stream')
+    );
     if (streamIdx >= 0) {
       streamIdx += 'stream'.length;
       if (buf[streamIdx] === '\r'.charCodeAt(0)) {

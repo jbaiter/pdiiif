@@ -3,7 +3,12 @@ import type { Writable as NodeWritable } from 'stream';
 import type nodeFs from 'fs';
 
 export interface Reader {
-  read(dst: Uint8Array, offset: number, position: number, length: number): Promise<number>;
+  read(
+    dst: Uint8Array,
+    offset: number,
+    position: number,
+    length: number
+  ): Promise<number>;
   size(): Promise<number>;
 }
 
@@ -25,15 +30,20 @@ export class WebReader implements Reader {
     this.file = file;
   }
 
-  async read(dst: Uint8Array, offset: number, position: number, length: number): Promise<number> {
+  async read(
+    dst: Uint8Array,
+    offset: number,
+    position: number,
+    length: number
+  ): Promise<number> {
     const blob = this.file.slice(position, position + length);
     const buf = await blob.arrayBuffer();
     dst.set(new Uint8Array(buf), offset);
-    return buf.byteLength; 
+    return buf.byteLength;
   }
 
   size(): Promise<number> {
-    return new Promise(resolve => resolve(this.file.size));
+    return new Promise((resolve) => resolve(this.file.size));
   }
 }
 
@@ -90,8 +100,18 @@ export class NodeReader implements Reader {
     this.fileHandle = handle;
   }
 
-  async read(dst: Uint8Array, offset: number, position: number, length: number): Promise<number> {
-    const { bytesRead } = await this.fileHandle.read(dst, offset, length, position);
+  async read(
+    dst: Uint8Array,
+    offset: number,
+    position: number,
+    length: number
+  ): Promise<number> {
+    const { bytesRead } = await this.fileHandle.read(
+      dst,
+      offset,
+      length,
+      position
+    );
     return bytesRead;
   }
 
@@ -112,7 +132,7 @@ export class NodeWriter implements Writer {
         waiter();
       }
       this._drainWaiters = [];
-    })
+    });
   }
 
   write(buffer: string | Uint8Array): Promise<void> {
@@ -136,5 +156,28 @@ export class NodeWriter implements Writer {
 
   close(): Promise<void> {
     return new Promise((resolve) => this._writable.end(() => resolve()));
+  }
+}
+
+export class ArrayReader implements Reader {
+  _buf: Uint8Array;
+
+  constructor(buf: Uint8Array) {
+    this._buf = buf;
+  }
+
+  read(
+    dst: Uint8Array,
+    offset: number,
+    position: number,
+    length: number
+  ): Promise<number> {
+    const sub = this._buf.subarray(position, position + length);
+    dst.set(sub, offset);
+    return Promise.resolve(sub.length);
+  }
+
+  size(): Promise<number> {
+    return Promise.resolve(this._buf.length);
   }
 }
