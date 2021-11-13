@@ -53,7 +53,7 @@ describe('PDF generation', () => {
     const imgBuf = await fs.promises.readFile(
       path.resolve(__dirname, './fixtures/wunder.jpg')
     );
-    await pdfgen.renderPage({ width: 290, height: 400 }, imgBuf, 72);
+    await pdfgen.renderPage({ width: 290, height: 400 }, imgBuf, undefined, 72);
     await pdfgen.end();
 
     const pdfData = await fs.promises.readFile(pdfPath);

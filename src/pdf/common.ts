@@ -67,24 +67,26 @@ function isUnicode(str: string): boolean {
 }
 
 /** Convert a JS UTF8 string to a UTF16 Big Endian string */
-function toUTF16BE(str: string): Uint8Array {
-  const buf = new Uint16Array(str.length + 1);
-  for (let i = 1; i < buf.length; i++) {
-    buf[i] = str.charCodeAt(i - 1);
+export function toUTF16BE(str: string, includeBom = true): Uint8Array {
+  const buf = new Uint16Array(str.length + (includeBom ? 1 : 0));
+  for (let i = includeBom ? 1 : 0; i < buf.length; i++) {
+    buf[i] = str.charCodeAt(i - (includeBom ? 1 : 0));
   }
   const outBuf = new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
   if (!IS_BIG_ENDIAN) {
     // PDF needs UTF16-BE, so in little endian systems we need to swap each
     // codepoint's byte pair
-    for (let i = 2, end = outBuf.length - 1; i < end; i += 2) {
+    for (let i = includeBom ? 2 : 0, end = outBuf.length - 1; i < end; i += 2) {
       const a = outBuf[i];
       outBuf[i] = outBuf[i + 1];
       outBuf[i + 1] = a;
     }
   }
   // UTF16BE BOM
-  outBuf[0] = 254;
-  outBuf[1] = 255;
+  if (includeBom) {
+    outBuf[0] = 254;
+    outBuf[1] = 255;
+  }
   return outBuf;
 }
 

@@ -19,6 +19,7 @@ import PDFGenerator from './pdf/generator';
 import { CountingWriter, WebWriter, NodeWriter, Writer } from './io';
 import { TocItem } from './pdf/util';
 import { getLicenseInfo } from './res/licenses';
+import { OcrPage, fetchAndParseText, getTextSeeAlso } from './ocr';
 
 const FALLBACK_PPI = 300;
 
@@ -319,6 +320,7 @@ interface ImageData {
   height: number;
   ppi: number;
   numBytes: number;
+  text?: OcrPage;
 }
 
 /** Options for fetching image */
@@ -410,6 +412,7 @@ async function fetchImage(
     height,
     ppi: getPointsPerInch(infoJson, canvas, width, ppiOverride),
     numBytes: imgSize,
+    text: await fetchAndParseText(canvas),
   };
 }
 
@@ -670,7 +673,7 @@ export async function convertManifest(
     onProgress,
     ppi,
     preferLossless = false,
-    concurrency = 1,
+    concurrency = 4,
     cancelToken = new CancelToken(),
     coverPageCallback,
     coverPageEndoint,
@@ -711,6 +714,7 @@ export async function convertManifest(
     .getSequenceByIndex(0)
     .getCanvases()
     .filter((c) => canvasPredicate(c.id));
+  const hasText = !!canvases.find(c => !!getTextSeeAlso(c));
   const labels = canvases.map(
     (canvas) => canvas.getLabel().getValue(languagePreference as string[]) ?? ''
   );
@@ -734,7 +738,8 @@ export async function convertManifest(
     metadata,
     canvases.length,
     labels,
-    outline
+    outline,
+    hasText
   );
   const progress = new ProgressTracker(
     canvases,
@@ -763,16 +768,16 @@ export async function convertManifest(
       const imgData = await imgFuts[canvasIdx];
       // This means the task was aborted, do nothing
       if (imgData) {
-        const { width, height, data, ppi } = imgData;
+        const { width, height, data, ppi, text } = imgData;
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        await pdfGen.renderPage({ width, height }, data!, ppi);
+        await pdfGen.renderPage({ width, height }, data!, text, ppi);
         progress.updatePixels(
           width * height,
           canvas.getWidth() * canvas.getHeight()
         );
       }
     } catch (err) {
-      // Clear queue, cancel all oingoing image fetching
+      // Clear queue, cancel all ongoing image fetching
       console.error(err);
       queue.clear();
       await cancelToken.requestCancel();

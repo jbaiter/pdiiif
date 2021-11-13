@@ -17,12 +17,14 @@ import {
   PdfRef,
   serialize,
   PdfValue,
+  toUTF16BE,
 } from './common';
 import { TocItem, textEncoder, randomData } from './util';
 import { ArrayReader, Writer } from '../io';
 import PdfImage from './image';
 import { sRGBIEC1966_21 as srgbColorspace } from '../res/srgbColorspace';
 import { PdfParser } from './parser';
+import { OcrPage } from '../ocr';
 
 const PRODUCER = 'pdiiif v0.1.0';
 /// If the font is 10 pts, nominal character width is 5 pts
@@ -165,7 +167,7 @@ export default class PDFGenerator {
       {
         Type: '/Font',
         Subtype: '/Type0',
-        BaseFont: '/GlyphlessFont',
+        BaseFont: '/GlyphLessFont',
         Encoding: '/Identity-H',
       },
       'Type0Font'
@@ -217,7 +219,7 @@ export default class PDFGenerator {
             <0000> <FFFF>
             endcodespacerange
             1 beginbfrange
-            <0000> <FFFF> <0000>
+            <0000> <FFFE> <0000>
             endbfrange
         endcmap
         CMapName currentdict /CMap defineresource pop
@@ -227,6 +229,7 @@ export default class PDFGenerator {
       {
         Length: cmapStream.length,
       },
+      undefined,
       cmapStream
     );
     (typeZeroFont.data as PdfDictionary).ToUnicode = makeRef(cmap);
@@ -388,7 +391,8 @@ export default class PDFGenerator {
       height: canvasHeight,
     }: { width: number; height: number },
     imgData: ArrayBuffer,
-    ppi = 300
+    ocrText?: OcrPage,
+    ppi = 300,
   ): Promise<void> {
     if (!this._pagesStarted) {
       if (this._pageLabels) {
@@ -442,20 +446,20 @@ export default class PDFGenerator {
         ProcSet: ['/PDF', '/Text', '/ImageB', '/ImageI', '/ImageC'],
       },
     };
-    // FIXME: Should only be done if the page actually has text
-    if (this._objRefs.Type0Font) {
+    if (ocrText && this._objRefs.Type0Font) {
       (pageDict.Resources as PdfDictionary).Font = {
         'f-0-0': this._objRefs.Type0Font,
       };
     }
     const page = this._addObject(pageDict);
 
-    const contentStream = Pako.deflate(dedent`
+    const contentOps = dedent`
       q
       ${unitScale * canvasWidth} 0 0 ${unitScale * canvasHeight} 0 0 cm
       /Im1 Do
-      Q
-    `);
+      Q${ocrText ? '\n' + this._renderOcrText(ocrText, unitScale) : ''}
+    `;
+    const contentStream = Pako.deflate(contentOps);
     const contentsObj = this._addObject(
       {
         Length: contentStream.length,
@@ -476,6 +480,87 @@ export default class PDFGenerator {
 
     // Write out all of the objects
     return this._flush();
+  }
+
+  /** Get PDF instructions to render a hidden text layer with the page's OCR.
+   * 
+   * This owes *a lot* to Tesseract's PDF renderer[1] and the IA's `pdf-tools`[2]
+   * that ported it to Python. Accordingly, the license of this method is Apache 2.0.
+   * 
+   * [1] https://github.com/tesseract-ocr/tesseract/blob/5.0.0-beta-20210916/src/api/pdfrenderer.cpp
+   * [2] https://github.com/internetarchive/archive-pdf-tools/blob/master/internetarchivepdf/pdfrenderer.py
+   *
+   *                            Apache License
+   *                     Version 2.0, January 2004
+   *                  http://www.apache.org/licenses/
+   */
+  _renderOcrText(ocr: OcrPage, unitScale: number): string {
+    // TODO: Handle changes in writing direction!
+    // TODO: Handle baselines, at least the simple ``cx+d` skewed-line-type, proper polyline support
+    //       requires a per-character transformation matrix, which is a bit much for the current
+    //       MVP-ish state
+    const fontRef = '/f-0-0';
+    const ops: Array<string> = [];
+    ops.push('BT');  // Begin text rendering
+    ops.push('3 Tr');  // Use "invisible ink" (no fill, no stroke)
+    const scaleX = 1;
+    const scaleY = 1;
+    const shearX = 0;
+    const shearY = 0;
+    const pageHeight = ocr.height;
+    /*
+    ops.push(`${fontRef} 32 Tf`);
+    ops.push(`${scaleX} ${shearX} ${shearY} ${scaleY} 0 ${pageHeight * unitScale - 0.78 * 32} Tm`);
+    ops.push(`${serialize(toUTF16BE("TOP LEFT OF HOCR PAGE"))} TJ`);
+    */
+    for (const line of ocr.lines) {
+      // Approximated font size for western scripts, PDF font size is specified in multiples of
+      // 'user units', which default to 1/72inch. The `userScale` gives us the units per pixel.
+      const fontSize = line.height * unitScale * 0.75;
+      //const fontSize = 8; // TODO: This is what Tesseract uses, why does this work?
+      ops.push(`${fontRef} ${fontSize} Tf`);
+      // We use a text matrix for every line. Tesseract uses a per-paragraph matrix, but we don't
+      // neccesarily have block/paragraph information available, so we'll use the next-closest
+      // thing. This means that every word on the line is positioned relative to the line, not
+      // relative to the page as in the markup.
+      const xPos = line.x * unitScale;
+      const yPos = (pageHeight - line.y - line.height * 0.75) * unitScale;
+      ops.push(`${scaleX} ${shearX} ${shearY} ${scaleY} ${xPos} ${yPos} Tm`);
+      let xOld = 0;
+      let yOld = 0;
+      for (const word of line.spans) {
+        if (!word.text) {
+          continue;
+        }
+        if (word.isExtra || !word.width) {
+        // TODO: What to do if word.isExtra?
+          continue;
+        }
+        // Position drawing with relative moveto
+        const wordX = (word.x - line.x) * unitScale;
+        const wordY = (word.y - line.y) * unitScale;
+        const wordWidth = word.width * unitScale;
+        const wordHeight = word.height * unitScale;
+        const dx = wordX - xOld;
+        const dy = wordY - yOld;
+        ops.push(`${dx * scaleX + dy * shearX} ${dx * shearY + dy * scaleY} Td`);
+        xOld = wordX;
+        yOld = wordY;
+        // Calculate horizontal stretch
+        // TODO: This is ripped straight from Tesseract, I have no clue what it does
+        const wordLength = Math.pow(Math.pow(word.width * unitScale, 2) + Math.pow(word.height * unitScale, 2), 0.5);
+        const pdfWordLen = word.text.length;
+        ops.push(`${CHAR_WIDTH * (100 * wordLength / (fontSize * pdfWordLen))} Tz`);
+        // TODO: Account for trailing space in width calculation
+        const textBytes = serialize(toUTF16BE(word.text + ' ', false));
+        ops.push(`[ ${textBytes} ] TJ`);
+      }
+      // Add a newline to visually group together all statements pertaining to a line
+      ops.push('')
+    }
+    ops.push('ET');
+    console.log(ops.join('\n'));
+    return ops.join('\n');
   }
 
   get bytesWritten(): number {
@@ -545,7 +630,7 @@ export default class PDFGenerator {
     const xrefOffset = this._offset;
     await this._write(`xref\n0 ${xrefEntries.length}\n${xRefTable}`);
     const trailerDict: PdfDictionary = {
-      Size: xRefTable.length,
+      Size: xrefEntries.length,
       Root: this._objRefs.Catalog,
       Info: this._objRefs.Info,
       ID: [randomData(32), randomData(32)],
