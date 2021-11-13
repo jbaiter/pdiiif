@@ -25,8 +25,9 @@ import PdfImage from './image';
 import { sRGBIEC1966_21 as srgbColorspace } from '../res/srgbColorspace';
 import { PdfParser } from './parser';
 import { OcrPage } from '../ocr';
+import pdiiifVersion from '../version';
 
-const PRODUCER = 'pdiiif v0.1.0';
+const PRODUCER = `pdiiif v${pdiiifVersion}`;
 /// If the font is 10 pts, nominal character width is 5 pts
 const CHAR_WIDTH = 2;
 /// Taken from tesseract@2d6f38eebf9a14d9fbe65d785f0d7bd898ff46cb, tessdata/pdf.ttf
@@ -548,18 +549,17 @@ export default class PDFGenerator {
         yOld = wordY;
         // Calculate horizontal stretch
         // TODO: This is ripped straight from Tesseract, I have no clue what it does
-        const wordLength = Math.pow(Math.pow(word.width * unitScale, 2) + Math.pow(word.height * unitScale, 2), 0.5);
+        const wordLength = Math.pow(Math.pow(wordWidth, 2) + Math.pow(wordHeight, 2), 0.5);
         const pdfWordLen = word.text.length;
         ops.push(`${CHAR_WIDTH * (100 * wordLength / (fontSize * pdfWordLen))} Tz`);
-        // TODO: Account for trailing space in width calculation
+        // TODO: Account for trailing space in width calculation?
         const textBytes = serialize(toUTF16BE(word.text + ' ', false));
         ops.push(`[ ${textBytes} ] TJ`);
       }
-      // Add a newline to visually group together all statements pertaining to a line
+      // Add a newline to visually group together all statements belonging to a line
       ops.push('')
     }
     ops.push('ET');
-    console.log(ops.join('\n'));
     return ops.join('\n');
   }
 

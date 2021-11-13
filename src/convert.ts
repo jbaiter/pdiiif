@@ -20,6 +20,7 @@ import { CountingWriter, WebWriter, NodeWriter, Writer } from './io';
 import { TocItem } from './pdf/util';
 import { getLicenseInfo } from './res/licenses';
 import { OcrPage, fetchAndParseText, getTextSeeAlso } from './ocr';
+import pdiiifVersion from './version';
 
 const FALLBACK_PPI = 300;
 
@@ -99,6 +100,7 @@ interface CoverPageParams {
     logo?: string;
   };
   metadata?: Array<[string, string | Array<string>]>;
+  pdiiifVersion: string;
 }
 
 /** Options for converting a IIIF Manifest to a PDF. */
@@ -139,7 +141,7 @@ export interface ConvertOptions {
   };
   // Endpoint to contact for retrieving PDF data with one or more cover pages
   // to insert before the canvas pages
-  coverPageEndoint?: string;
+  coverPageEndpoint?: string;
   // Callback to call for retrieving PDF data with one or more cover pages
   // to insert before the canvas pages
   coverPageCallback?: (params: CoverPageParams) => Promise<Uint8Array>;
@@ -579,6 +581,7 @@ async function getCoverPagePdf(
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     title: manifest.getLabel().getValue(languagePreference)!,
     manifestUrl: manifest.id,
+    pdiiifVersion,
   };
   const thumb = manifest.getThumbnail();
   if (thumb != null) {
@@ -676,7 +679,7 @@ export async function convertManifest(
     concurrency = 4,
     cancelToken = new CancelToken(),
     coverPageCallback,
-    coverPageEndoint,
+    coverPageEndpoint,
   }: ConvertOptions
 ): Promise<void> {
   let writer: Writer;
@@ -749,11 +752,11 @@ export async function convertManifest(
   );
   progress.emitProgress(0);
 
-  if (coverPageCallback || coverPageEndoint) {
+  if (coverPageCallback || coverPageEndpoint) {
     const coverPageData = await getCoverPagePdf(
       manifest,
       languagePreference as string[],
-      coverPageEndoint,
+      coverPageEndpoint,
       coverPageCallback
     );
     await pdfGen.insertCoverPages(coverPageData);
