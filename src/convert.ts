@@ -735,7 +735,7 @@ export async function convertManifest(
   );
   const pdfGen = new PDFGenerator(
     countingWriter,
-    metadata,
+    pdfMetadata,
     canvases.length,
     labels,
     outline,
