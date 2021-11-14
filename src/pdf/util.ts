@@ -3,7 +3,7 @@ import util from 'util';
 
 // Browsers have native encoders/decoders in the global namespace, use these
 export const textEncoder = new (util?.TextEncoder ?? window.TextEncoder)();
-export const textDecoder= new (util?.TextDecoder ?? window.TextEncoder)();
+export const textDecoder= new (util?.TextDecoder ?? window.TextDecoder)();
 
 export const IS_BIG_ENDIAN = (() => {
   const array = new Uint8Array(4);

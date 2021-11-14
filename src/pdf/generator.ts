@@ -417,7 +417,7 @@ export default class PDFGenerator {
       // Now that we know from which object number the pages start, we can set the
       // /Kids entry in the Pages object and update the outline destinations.
       const pageDict = pagesObj.data as PdfDictionary;
-      const pageRefs = pageDict.Kids as PdfArray;
+      const pageRefs = (pageDict.Kids ?? []) as PdfArray;
       pageDict.Kids = pageRefs.concat(
         range(
           this._nextObjNo,

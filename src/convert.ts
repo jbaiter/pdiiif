@@ -1,4 +1,3 @@
-/* eslint-disable no-await-in-loop */
 /// <reference types="wicg-file-system-access"/>
 import type { Writable } from 'stream';
 import {
@@ -78,6 +77,7 @@ export class CancelToken {
   }
 }
 
+/** Parameters for rendering a cover page. */
 interface CoverPageParams {
   title: string;
   manifestUrl: string;
@@ -145,6 +145,67 @@ export interface ConvertOptions {
   // Callback to call for retrieving PDF data with one or more cover pages
   // to insert before the canvas pages
   coverPageCallback?: (params: CoverPageParams) => Promise<Uint8Array>;
+}
+
+
+/** A 'respectful' wrapper around `fetch` that tries to respect rate-limiting headers. */
+async function fetchRespectfully(
+  url: string,
+  init?: RequestInit,
+  maxRetries = 5
+): Promise<Response> {
+  let numRetries = -1;
+  let resp: Response;
+  do {
+    resp = await fetch(url, init);
+    numRetries++;
+    if (resp.ok || resp.status >= 500) {
+      break;
+    }
+
+    let waitMs: number;
+
+    const retryAfter = resp.headers.get('retry-after');
+    if (retryAfter != null) {
+      if (Number.isInteger(retryAfter)) {
+        waitMs = Number.parseInt(retryAfter, 10) * 1000;
+      } else {
+        const waitUntil = Date.parse(retryAfter);
+        waitMs = waitUntil - Date.now();
+      }
+    }
+
+    // Check if the server response has headers corresponding to the IETF `RateLimit Header Fiels for HTTP` spec draft[1]
+    // [1] https://www.ietf.org/archive/id/draft-polli-ratelimit-headers-05.html
+    const getHeaderValue = (ietfHeader: string): number | undefined => {
+      const headerVariants = [ietfHeader, `x-${ietfHeader}`, `x-${ietfHeader.replace('ratelimit', 'rate-limit')}`]
+      return headerVariants
+        .map((header) => resp.headers.get(header))
+        .filter((limit: string | null): limit is string => limit != null)
+        .map((limit) => Number.parseInt(limit, 10))
+        .find((limit) => limit != null);
+    }
+    const limit = getHeaderValue('ratelimit-limit');
+    const remaining = getHeaderValue('ratelimit-remaining');
+    const reset = getHeaderValue('ratelimit-reset');
+    if (limit === undefined || remaining === undefined || reset === undefined) {
+      break;
+    }
+    // We assume a sliding window implemention here
+    const secsPerQuotaUnit = reset / (limit - remaining);
+    if (remaining > 0) {
+      // If we have remaining quota units but were blocked, we wait until we have enough
+      // quota to fetch remaining*2 quota units (i.e. we assume that the units in `remaining`
+      // were not enough to fully fetch the resource)
+      waitMs = 2 * remaining * secsPerQuotaUnit * 1000;
+    } else {
+      waitMs = secsPerQuotaUnit * 1000;
+    }
+
+    // Add a 100ms buffer just to be safe and wait until the next attempt
+    await new Promise((resolve) => setTimeout(resolve, waitMs + 100));
+  } while (numRetries < maxRetries)
+  return resp;
 }
 
 /** Container for image size along with its corresponding IIIF Image API string. */
@@ -359,7 +420,7 @@ async function fetchImage(
   let infoJson: any;
   if (img.getServices().length > 0) {
     const imgService = img.getServices()[0];
-    infoJson = await (await fetch(`${imgService.id}/info.json`)).json();
+    infoJson = await (await fetchRespectfully(`${imgService.id}/info.json`)).json();
     if (cancelToken?.isCancellationConfirmed) {
       return;
     } else if (cancelToken?.isCancellationRequested) {
@@ -391,7 +452,7 @@ async function fetchImage(
     height = img.getHeight();
     infoJson = { width, height };
   }
-  let imgResp = await fetch(imgUrl, { method: sizeOnly ? 'HEAD' : 'GET' });
+  let imgResp = await fetchRespectfully(imgUrl, { method: sizeOnly ? 'HEAD' : 'GET' });
   if (imgResp.status >= 400) {
     throw new Error(
       `Failed to fetch page image from ${imgUrl}, server returned status ${imgResp.status}`
@@ -405,7 +466,7 @@ async function fetchImage(
   let imgSize = Number.parseInt(imgResp.headers.get('Content-Length') ?? '-1');
   if (sizeOnly && imgSize < 0) {
     // Server did not send content length for HEAD request gotta fetch image wholly
-    imgResp = await fetch(imgUrl);
+    imgResp = await fetchRespectfully(imgUrl);
     imgSize = (await imgResp.arrayBuffer()).byteLength;
   }
   return {
@@ -652,7 +713,7 @@ async function getCoverPagePdf(
   if (callback) {
     return callback(params);
   } else if (endpoint) {
-    const resp = await fetch(endpoint, {
+    const resp = await fetchRespectfully(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params),
@@ -717,7 +778,7 @@ export async function convertManifest(
     .getSequenceByIndex(0)
     .getCanvases()
     .filter((c) => canvasPredicate(c.id));
-  const hasText = !!canvases.find(c => !!getTextSeeAlso(c));
+  const hasText = !!canvases.find((c) => !!getTextSeeAlso(c));
   const labels = canvases.map(
     (canvas) => canvas.getLabel().getValue(languagePreference as string[]) ?? ''
   );

@@ -1,8 +1,6 @@
-import { PdfParser, ObjectParser } from '../pdf/parser';
+import { ObjectParser } from '../pdf/parser';
 import { textEncoder } from '../pdf/util';
-import { PdfDictionary, PdfRef } from '../pdf/common';
-import fs from 'fs';
-import { NodeReader } from '../io';
+import { PdfRef } from '../pdf/common';
 
 const FIXTURES = {
   dict:`
