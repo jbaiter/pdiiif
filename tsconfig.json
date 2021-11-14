@@ -1,0 +1,10 @@
+{
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules/*", "__sapper__/*", "public/*"],
+
+  "compilerOptions": {
+    "resolveJsonModule": true,
+    "sourceMap": true,
+    "esModuleInterop": true
+  }
+}
