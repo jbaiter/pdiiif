@@ -1,13 +1,13 @@
-import svelte from "rollup-plugin-svelte";
-import commonjs from "@rollup/plugin-commonjs";
-import resolve from "@rollup/plugin-node-resolve";
-import livereload from "rollup-plugin-livereload";
-import { terser } from "rollup-plugin-terser";
-import sveltePreprocess from "svelte-preprocess";
-import typescript from "@rollup/plugin-typescript";
-import css from "rollup-plugin-css-only";
-import json from "@rollup/plugin-json";
-import nodePolyfills from "rollup-plugin-polyfill-node";
+import svelte from 'rollup-plugin-svelte';
+import commonjs from '@rollup/plugin-commonjs';
+import resolve from '@rollup/plugin-node-resolve';
+import livereload from 'rollup-plugin-livereload';
+import { terser } from 'rollup-plugin-terser';
+import sveltePreprocess from 'svelte-preprocess';
+import typescript from '@rollup/plugin-typescript';
+import css from 'rollup-plugin-css-only';
+import json from '@rollup/plugin-json';
+import nodePolyfills from 'rollup-plugin-polyfill-node';
 import inject from '@rollup/plugin-inject';
 import replace from '@rollup/plugin-replace';
 
@@ -23,28 +23,28 @@ function serve() {
   return {
     writeBundle() {
       if (server) return;
-      server = require("child_process").spawn(
-        "npm",
-        ["run", "start", "--", "--dev"],
+      server = require('child_process').spawn(
+        'npm',
+        ['run', 'start', '--', '--dev'],
         {
-          stdio: ["ignore", "inherit", "inherit"],
+          stdio: ['ignore', 'inherit', 'inherit'],
           shell: true,
         }
       );
 
-      process.on("SIGTERM", toExit);
-      process.on("exit", toExit);
+      process.on('SIGTERM', toExit);
+      process.on('exit', toExit);
     },
   };
 }
 
 export default {
-  input: "src/main.ts",
+  input: 'src/main.ts',
   output: {
     sourcemap: true,
-    format: "umd",
-    name: "PdiiifApp",
-    file: "public/build/bundle.js",
+    format: 'umd',
+    name: 'PdiiifApp',
+    file: 'public/build/bundle.js',
   },
   plugins: [
     svelte({
@@ -57,7 +57,7 @@ export default {
     }),
     // we'll extract any component CSS out into
     // a separate file - better for performance
-    css({ output: "bundle.css" }),
+    css({ output: 'bundle.css' }),
     json(),
 
     // If you have external dependencies installed from
@@ -66,7 +66,7 @@ export default {
     // consult the documentation for details:
     // https://github.com/rollup/plugins/tree/master/packages/commonjs
     nodePolyfills({
-      include: ["node_modules/**/*.js", "src/**/*.js", "src/**/*.ts"],
+      include: ['node_modules/**/*.js', 'src/**/*.js', 'src/**/*.ts'],
       sourcemap: true,
     }),
     inject({
@@ -74,7 +74,7 @@ export default {
     }),
     resolve({
       browser: true,
-      dedupe: ["svelte"],
+      dedupe: ['svelte'],
     }),
     commonjs(),
     typescript({
@@ -93,7 +93,7 @@ export default {
 
     // Watch the `public` directory and refresh the
     // browser on changes when not in production
-    !production && livereload("public"),
+    !production && livereload('public'),
 
     // If we're building for production (npm run build
     // instead of npm run dev), minify
