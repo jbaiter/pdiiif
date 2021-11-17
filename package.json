@@ -2,11 +2,16 @@
   "name": "pdiiif",
   "version": "0.1.0",
   "description": "Generate PDFs with page labels and a table of contents from IIIF manifests",
+  "type": "module",
   "sideEffects": false,
   "scripts": {
-    "build": "tsc --build",
-    "clean": "tsc --build --clean; rm -rf dist/*",
-    "watch": "tsc --build --watch",
+    "build": "run-s build:*",
+    "build:esm": "tsc",
+    "build:cjs": "tsc -p tsconfig-cjs.json && echo '{\n  \"type\": \"commonjs\"\n}' > ./lib/commonjs/package.json",
+    "clean": "rm -rf lib",
+    "watch": "run-p watch:*",
+    "watch:esm": "tsc --build --watch",
+    "watch:cjs": "mkdir -p ./lib/commonjs && echo '{\n  \"type\": \"commonjs\"\n}' > ./lib/commonjs/package.json && tsc -p tsconfig-cjs.json --watch",
     "format": "prettier -w ./src",
     "lint": "eslint . --ext .ts && tsc --noemit",
     "pretest": "tsc --noemit",
@@ -36,7 +41,7 @@
     "manifesto.js": "^4.1.0",
     "p-queue": "6.6.2",
     "pako": "^2.0.4",
-    "tslib": "^1.13.0"
+    "tslib": "^2.3.1"
   },
   "devDependencies": {
     "@types/common-tags": "^1.8.1",
@@ -56,6 +61,7 @@
     "globby": "^10.0.2",
     "jest": "^26.4.2",
     "jest-fetch-mock": "^3.0.3",
+    "npm-run-all": "^4.1.5",
     "pdf-lib": "^1.16.0",
     "prettier": "^2.1.1",
     "tmp": "^0.2.1",
@@ -75,8 +81,13 @@
     "/lib/*.ts.map",
     "/lib/*.js"
   ],
-  "main": "lib/index.js",
-  "types": "lib/index.d.ts",
+  "main": "./lib/commonjs/index.js",
+  "module": "./lib/esm/index.js",
+  "types": "./lib/index.d.ts",
+  "exports": {
+    ".": "./lib/commonjs/index.js",
+    "./esm": "./lib/esm/index.js"
+  },
   "prettier": {
     "trailingComma": "es5",
     "tabWidth": 2,

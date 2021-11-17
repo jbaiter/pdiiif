@@ -4,7 +4,7 @@ import max from 'lodash/max';
 import jsdom from 'jsdom';
 import { Annotation, Canvas, Resource } from 'manifesto.js';
 
-if (jsdom.JSDOM !== undefined) {
+if (typeof window === 'undefined') {
   const nodeDom = new jsdom.JSDOM();
   (global as any).DOMParser = nodeDom.window.DOMParser;
   (global as any).Text = nodeDom.window.Text;

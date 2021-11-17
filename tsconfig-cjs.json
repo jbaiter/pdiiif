@@ -1,15 +1,16 @@
 {
   "compilerOptions": {
+    "importHelpers": true,
+    "module": "commonjs",
+    "moduleResolution": "node",
     "declaration": true,
     "declarationMap": true,
-    "module": "es2015",
-    "moduleResolution": "node",
-    "outDir": "lib/esm",
+    "outDir": "lib/commonjs",
     "rootDir": "src",
     "strict": true,
     "target": "es2015",
-    "resolveJsonModule": true,
-    "esModuleInterop": true
+    "esModuleInterop": true,
+    "resolveJsonModule": true
   },
   "include": [
     "src/**/*.ts",

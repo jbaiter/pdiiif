@@ -548,11 +548,14 @@ export default class PDFGenerator {
         xOld = wordX;
         yOld = wordY;
         // Calculate horizontal stretch
-        // TODO: This is ripped straight from Tesseract, I have no clue what it does
+        // FIXME: This is ripped straight from Tesseract, I have no clue what it does
+        // FIXME: The end of the line seems to be too far to the left sometimes,
+        // while the start seems to match
         const wordLength = Math.pow(Math.pow(wordWidth, 2) + Math.pow(wordHeight, 2), 0.5);
         const pdfWordLen = word.text.length;
         ops.push(`${CHAR_WIDTH * (100 * wordLength / (fontSize * pdfWordLen))} Tz`);
-        // TODO: Account for trailing space in width calculation?
+        // FIXME: Account for trailing space in width calculation to prevent readers
+        //        from inserting a line break
         const textBytes = serialize(toUTF16BE(word.text + ' ', false));
         ops.push(`[ ${textBytes} ] TJ`);
       }
