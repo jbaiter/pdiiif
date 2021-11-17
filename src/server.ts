@@ -21,7 +21,7 @@ import {
   progressPath as progressPathSpec,
   coverPath as coverPathSpec,
 } from './openapi';
-import { sortBy } from 'lodash';
+import sortBy from 'lodash/sortBy';
 import { PropertyValue } from 'manifesto.js';
 
 export interface CoverPageParams {
