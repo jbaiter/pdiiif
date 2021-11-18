@@ -7,6 +7,8 @@
   import Preview from './Preview.svelte';
   import Settings from './Settings.svelte';
 
+  import logoSvgUrl from '../assets/logo.svg';
+
   export let apiEndpoint: string = 'http://localhost:31337/api';
   export let coverPageEndpoint: string = `${apiEndpoint}/coverpage`;
 
@@ -184,7 +186,7 @@
 
 <div class="w-full md:w-1/2">
   <img
-    src="logo.svg"
+    src={logoSvgUrl}
     alt="pdiiif logo"
     class="w-24 mx-auto mb-4 filter drop-shadow-lg"
   />
