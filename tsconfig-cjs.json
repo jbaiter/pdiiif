@@ -3,8 +3,6 @@
     "importHelpers": true,
     "module": "commonjs",
     "moduleResolution": "node",
-    "declaration": true,
-    "declarationMap": true,
     "outDir": "lib/commonjs",
     "rootDir": "src",
     "strict": true,

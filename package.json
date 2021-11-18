@@ -84,10 +84,13 @@
   ],
   "main": "./lib/commonjs/index.js",
   "module": "./lib/esm/index.js",
-  "types": "./lib/index.d.ts",
+  "types": "./lib/types/index.d.ts",
   "exports": {
-    ".": "./lib/commonjs/index.js",
-    "./esm": "./lib/esm/index.js"
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "require": "./lib/commonjs/index.js",
+      "import": "./lib/esm/index.js"
+    }
   },
   "prettier": {
     "trailingComma": "es5",
