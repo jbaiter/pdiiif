@@ -1,0 +1,337 @@
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>
+      Cover Page
+    </title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    {{! TODO: Make fonts configurable}}
+    <link
+      href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&family=Noto+Sans:wght@400;700&family=Noto+Serif:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      @page {
+        size: letter;
+        margin: 24pt;
+      }
+
+      body {
+        font-family: 'Merriweather', 'Noto Serif', 'Noto Sans', serif;
+      }
+
+      a {
+        text-decoration: none;
+      }
+
+      dd {
+        margin-inline-start: 8pt;
+      }
+
+      main {
+        display: flex;
+        flex-direction: row;
+        width: 100%;
+      }
+
+      main .sidebar {
+        display: flex;
+        flex-direction: column;
+      }
+
+      main .metadata {
+        font-size: 10pt;
+      }
+
+      .sidebar {
+        flex-grow: 0;
+        padding-right: 24pt;
+        border-right: 1pt solid black;
+      }
+
+      .sidebar img.preview {
+        max-width: 128pt;
+        margin-bottom: 36pt;
+      }
+
+      .sidebar figure {
+        margin-left: 0;
+        margin-bottom: 24pt;
+        max-width: 128pt;
+        font-size: 10pt;
+      }
+
+      .sidebar figcaption {
+        margin-top: 8pt;
+      }
+
+      .required {
+        font-size: 10pt;
+      }
+
+      .required h2 {
+        font-size: 12pt;
+        font-weight: 700;
+        margin-bottom: 8pt;
+      }
+
+      figure.attribution img,
+      figure.license img {
+        max-width: 128pt;
+      }
+
+      figure.license {
+        word-break: break-all;
+      }
+
+      .manifest-link {
+        z-index: 500;
+        max-width: 190pt;
+        background-color: white;
+      }
+
+      .manifest-link figcaption {
+        font-size: 8pt;
+      }
+
+      .manifest-link svg {
+        max-width: 128pt;
+      }
+
+      .pdiiif-logo svg {
+        margin-left: 8pt;
+        max-height: 128pt;
+      }
+
+      .logo-container {
+        display: flex;
+        align-items: flex-end;
+      }
+
+      .main {
+        flex-grow: 1;
+        padding-left: 24pt;
+      }
+
+      .main .metadata .label {
+        font-weight: 700;
+      }
+
+      .propertyvalue {
+        page-break-inside: avoid;
+        break-inside: avoid-page;
+        margin-bottom: 4pt;
+      }
+
+      footer {
+        position: absolute;
+        bottom: 0;
+        display: flex;
+        flex-direction: row;
+        width: 100%;
+        justify-content: space-between;
+      }
+
+      footer figure {
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        min-width: 128pt;
+      }
+
+      footer figcaption {
+        font-size: 8pt;
+        margin-top: 4pt;
+      }
+
+      footer .version {
+        color: lightgray;
+        font-size: 5pt;
+        text-align: right;
+        margin-right: 12pt;
+        margin-top: -4pt;
+      }
+
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="sidebar">
+        {{#if thumbUrl}}
+          <img class="preview" src="{{thumbUrl}}" alt="Preview Image" />
+        {{/if}}
+        {{#if providerLogo}}
+          <figure class="attribution">
+            {{#if providerLink}}
+            <a href="{{providerLink}}">
+              <img class="logo" src="{{providerLogo}}" />
+            </a>
+            {{else}}
+            <img class="logo" src="{{providerLogo}}" />
+            {{/if}}
+            {{#if providerText}}
+              <figcaption>
+                {{#if providerLink}}
+                  <a href="{{providerLink}}">
+                    {{providerText}}
+                  </a>
+                {{else}}
+                  {{providerText}}
+                {{/if}}
+              </figcaption>
+            {{/if}}
+          </figure>
+        {{else if providerText}}
+          <p>
+            {{#if providerLink}}
+              <a href="{{providerLink}}">
+                {{providerText}}
+              </a>
+            {{else}}
+              {{providerText}}
+            {{/if}}
+          </p>
+        {{/if}}
+        {{#if rightsLogo}}
+          <figure class="license">
+            {{#if rightsLink}}
+            <a href="{{rightsLink}}">
+              <img class="logo" src="{{rightsLogo}}" />
+            </a>
+            {{else}}
+            <img class="logo" src="{{rightsLogo}}" />
+            {{/if}}
+            {{#if rightsText}}
+              <figcaption>
+                {{#if rightsLink}}
+                  <a href="{{rightsLink}}">
+                    {{rightsText}}
+                  </a>
+                {{else}}
+                  {{rightsText}}
+                {{/if}}
+              </figcaption>
+            {{/if}}
+          </figure>
+        {{else if rightsText}}
+          <p>
+            {{#if rightsLink}}
+              <a href="{{rightsLink}}">
+                {{rightsText}}
+              </a>
+            {{else}}
+              {{rightsText}}
+            {{/if}}
+          </p>
+        {{/if}}
+        {{#if requiredStatement}}
+          <div class="required">
+            <h2>
+              {{requiredStatement.label}}
+            </h2>
+              {{#sanitizeHtml requiredStatement.value}}{{/sanitizeHtml}}
+          </div>
+        {{/if}}
+      </div>
+      <div class="main">
+        <h1 class="title">
+          {{title}}
+        </h1>
+        <dl class="metadata">
+          {{#each metadata}}
+            <div class="propertyvalue">
+              <dt class="label">
+                {{this.[0]}}
+              </dt>
+              <dd class="value">
+                {{#ifArray this.[1]}}
+                  <ul>
+                    {{#each this.[1]}}
+                      <li>
+                        {{#sanitizeHtml this}}{{/sanitizeHtml}}
+                      </li>
+                    {{/each}}
+                  </ul>
+                {{else}}
+                  {{#sanitizeHtml this.[1]}}{{/sanitizeHtml}}
+                {{/ifArray}}
+              </dd>
+            </div>
+          {{/each}}
+        </dl>
+      </div>
+    </main>
+    <footer>
+      <figure class="manifest-link">
+        <a href="{{manifestUrl}}">
+          {{#qrcode manifestUrl width=96 height=96}}{{/qrcode}}
+        </a>
+        <figcaption>
+          <a href="{{manifestUrl}}">
+            {{manifestUrl}}
+          </a>
+        </figcaption>
+      </figure>
+      <figure class="pdiiif-logo">
+        <div class="logo-container">
+          <strong class="prefix">
+            Created with
+          </strong>
+          {{! pdiiif logo }}
+          <a href="https://jbaiter.github.io/pdiiif">
+          <svg xmlns="http://www.w3.org/2000/svg" width="47" height="58">
+            <path
+              fill="#ee2635"
+              d="M3.91968.000001H36.9019L47.078 9.33807V54.8913c0 2.1715-1.7482 3.9197-3.9197 3.9197H3.91968C1.74818 58.811 0 57.0628 0 54.8913V3.91968C0 1.74818 1.74818.000001 3.91968.000001Z"
+            ></path>
+            <path
+              fill="#fff"
+              d="M4.70707 46.6718v5.0279H2.04989V37.4161h4.64266c.95487 0 1.78133.112 2.47937.3359.69805.2239 1.27428.5367 1.72868.9384.4544.4017.7902.8824 1.0075 1.4422.2239.5597.3359 1.1722.3359 1.8373 0 .6915-.1153 1.3269-.3457 1.9064-.2305.573-.5763 1.0669-1.0372 1.4818-.461.4148-1.04052.7375-1.73857.968-.69146.2305-1.50145.3457-2.42998.3457Zm0-2.0744h1.98548c.48731 0 .91206-.0592 1.27426-.1777.36219-.1252.66182-.2997.8989-.5236.24365-.2305.42475-.5071.54329-.8297.11853-.3293.1778-.6948.1778-1.0965 0-.3819-.05927-.7277-.1778-1.0372-.11854-.3095-.29634-.5729-.53342-.7902-.23707-.2173-.5367-.382-.89889-.4939-.3622-.1186-.79024-.1778-1.28414-.1778H4.70707Zm21.68893-.0395c0 1.0471-.1745 2.0086-.5236 2.8844-.349.8759-.8396 1.6299-1.4718 2.2621-.6322.6322-1.3928 1.1228-2.2818 1.4718s-1.8768.5235-2.9634.5235h-5.4428V37.4161h5.4428c1.0866 0 2.0744.1778 2.9634.5334.889.3491 1.6496.8397 2.2818 1.4719.6322.6256 1.1228 1.3763 1.4718 2.2522.3491.8758.5236 1.8373.5236 2.8843Zm-2.7263 0c0-.7836-.1054-1.485-.3161-2.104-.2042-.6256-.5038-1.1524-.8989-1.5805-.3886-.4346-.8627-.7672-1.4225-.9976-.5531-.2305-1.1787-.3458-1.8768-.3458h-2.7757v10.0558h2.7757c.6981 0 1.3237-.1152 1.8768-.3457.5598-.2305 1.0339-.5597 1.4225-.9878.3951-.4346.6947-.9615.8989-1.5805.2107-.6256.3161-1.3302.3161-2.1139Z"
+              aria-label="PD"
+            ></path>
+            <path fill="#fff" d="M27.551 35.689h21.663v18.275H27.551Z"></path>
+            <path
+              fill="none"
+              stroke="#fff"
+              stroke-width=".264583"
+              d="M36.9019.000001V9.47155l10.1761-.13348"
+            ></path>
+            <path
+              fill="#2873ab"
+              d="m29.1672 42.3338 3.382 1.2564-.006 9.0503-3.376-1.2444Zm3.5196-2.1975c.388 1.1475-.1261 2.0778-1.1481 2.0778-1.022 0-2.165-.9303-2.553-2.0778-.3879-1.1474.1262-2.0777 1.1482-2.0777 1.0221 0 2.165.9303 2.5529 2.0777"
+            ></path>
+            <path
+              fill="#ed1d33"
+              d="m36.8521 42.3338-3.382 1.2564.0059 9.0503 3.3761-1.2444Zm-3.5416-2.1975c-.3879 1.1475.1262 2.0778 1.1482 2.0778s2.165-.9303 2.553-2.0778c.3878-1.1474-.1262-2.0777-1.1482-2.0777-1.0221 0-2.165.9303-2.553 2.0777"
+            ></path>
+            <path
+              fill="#2873ab"
+              d="m37.7174 42.3338 3.382 1.2564-.006 9.0503-3.376-1.2444Zm3.5416-2.1975c.3879 1.1475-.1261 2.0778-1.1482 2.0778s-2.165-.9303-2.5529-2.0778c-.388-1.1474.1261-2.0777 1.1481-2.0777 1.0221 0 2.165.9303 2.553 2.0777"
+            ></path>
+            <path
+              fill="#ed1d33"
+              d="M46.482 36.9453v3.1081s-1.0956-.4287-1.2266.6787c-.0119 1.179 0 1.6017 0 1.6017l1.2266-.3989v2.727l-1.2319.4406v6.3591l-3.3648 1.2504V41.4705s-.0714-4.0489 4.5967-4.5252"
+            ></path>
+          </svg>
+        </a>
+        </div>
+        <figcaption>
+          <div class="version">v{{pdiiifVersion}}</div>
+          <a href="https://jbaiter.github.io/pdiiif">
+            https://jbaiter.github.io/pdiiif
+          </a>
+        </figcaption>
+      </figure>
+    </footer>
+    <script>
+      const mainElem = document.querySelector('main');
+      if (mainElem.offsetHeight > 800) {
+        const footer = document.querySelector('footer');
+        footer.style.position = 'relative';
+        footer.style.marginTop = '96pt';
+      }
+    </script>
+  </body>
+</html>
