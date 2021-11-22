@@ -1,0 +1,130 @@
+{
+  "name": "pdiiif",
+  "version": "0.1.0",
+  "description": "Generate PDFs with page labels and a table of contents from IIIF manifests",
+  "type": "module",
+  "sideEffects": false,
+  "scripts": {
+    "build": "run-s build:*",
+    "build:esm": "tsc",
+    "build:cjs": "tsc -p tsconfig-cjs.json && echo '{\n  \"type\": \"commonjs\"\n}' > ./lib/commonjs/package.json",
+    "clean": "rm -rf lib",
+    "watch": "run-p watch:*",
+    "watch:esm": "tsc --build --watch",
+    "watch:cjs": "mkdir -p ./lib/commonjs && echo '{\n  \"type\": \"commonjs\"\n}' > ./lib/commonjs/package.json && tsc -p tsconfig-cjs.json --watch",
+    "format": "prettier -w ./src",
+    "lint": "eslint . --ext .ts && tsc --noemit",
+    "pretest": "tsc --noemit",
+    "posttest": "eslint . --ext .ts",
+    "prepack": "rm -rf lib && npm run build",
+    "test": "jest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jbaiter/pdiiif-lib.git"
+  },
+  "keywords": [
+    "iiif",
+    "pdf"
+  ],
+  "author": "Johannes Baiter <johannes.baiter@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/jbaiter/pdiiif-lib/issues"
+  },
+  "homepage": "https://github.com/jbaiter/pdiiif-lib#readme",
+  "dependencies": {
+    "async-mutex": "^0.3.2",
+    "cross-fetch": "^3.1.4",
+    "dedent-js": "^1.0.1",
+    "jsdom": "^17.0.0",
+    "lodash": "^4.17.20",
+    "manifesto.js": "^4.1.0",
+    "p-queue": "6.6.2",
+    "pako": "^2.0.4",
+    "tslib": "^2.3.1"
+  },
+  "devDependencies": {
+    "@types/common-tags": "^1.8.1",
+    "@types/jest": "^26.0.13",
+    "@types/jsdom": "^16.2.13",
+    "@types/lodash": "^4.14.161",
+    "@types/node": "^10.17.32",
+    "@types/node-fetch": "^2.5.12",
+    "@types/pako": "^1.0.2",
+    "@types/tmp": "^0.2.1",
+    "@types/wicg-file-system-access": "^2020.9.2",
+    "@typescript-eslint/eslint-plugin": "^4.28.5",
+    "@typescript-eslint/parser": "^4.28.5",
+    "eslint": "^7.31.0",
+    "eslint-config-prettier": "^6.11.0",
+    "eslint-config-recommended": "^4.1.0",
+    "globby": "^10.0.2",
+    "jest": "^26.4.2",
+    "jest-fetch-mock": "^3.0.3",
+    "npm-run-all": "^4.1.5",
+    "pdf-lib": "^1.16.0",
+    "prettier": "^2.1.1",
+    "tmp": "^0.2.1",
+    "ts-jest": "^26.3.0",
+    "ts-node": "^8.10.2",
+    "typescript": "^3.9.10"
+  },
+  "engines": {
+    "node": ">=8.0.0"
+  },
+  "browser": {
+    "jsdom": false,
+    "util": false
+  },
+  "files": [
+    "/lib/*.ts",
+    "/lib/*.ts.map",
+    "/lib/*.js"
+  ],
+  "main": "./lib/commonjs/index.js",
+  "module": "./lib/esm/index.js",
+  "types": "./lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "require": "./lib/commonjs/index.js",
+      "import": "./lib/esm/index.js"
+    }
+  },
+  "prettier": {
+    "trailingComma": "es5",
+    "tabWidth": 2,
+    "semi": true,
+    "singleQuote": true
+  },
+  "jest": {
+    "roots": [
+      "<rootDir>/src"
+    ],
+    "setupFiles": [
+      "<rootDir>/src/__tests__/setupJest.ts"
+    ],
+    "testMatch": [
+      "**/?(*.)+(spec|test).+(ts|tsx|js)"
+    ],
+    "transform": {
+      "^.+\\.(ts|tsx)$": "ts-jest"
+    }
+  },
+  "eslintConfig": {
+    "root": true,
+    "ignorePatterns": "lib",
+    "parser": "@typescript-eslint/parser",
+    "plugins": [
+      "@typescript-eslint"
+    ],
+    "extends": [
+      "eslint:recommended",
+      "plugin:@typescript-eslint/recommended"
+    ],
+    "rules": {
+      "@typescript-eslint/no-explicit-any": "off"
+    }
+  }
+}
