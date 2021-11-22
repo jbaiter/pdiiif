@@ -1,0 +1,89 @@
+import max from 'lodash/max';
+
+export interface ManifestInfo {
+  label: string;
+  previewImageUrl?: string;
+  manifestJson: any;
+  maximumImageWidth: number;
+  supportsLossless: boolean;
+  supportsDownscale: boolean;
+}
+
+// TODO: Use manifesto.js for i18n and better 2/3 cross-compatibility
+export async function fetchManifestInfo(
+  manifestUrl: string
+): Promise<ManifestInfo> {
+  const manifestResp = await fetch(manifestUrl);
+  const manifestJson = await manifestResp.json();
+
+  const iiifContext = Array.isArray(manifestJson['@context'])
+    ? manifestJson['@context'].find((c) =>
+        c.startsWith('http://iiif.io/api/presentation/')
+      )
+    : manifestJson['@context'];
+  const isIIIFv3 = iiifContext.indexOf('/presentation/3') > 0;
+  const canvases = isIIIFv3
+    ? manifestJson.items.filter((i) => i.type === 'Canvas')
+    : manifestJson.sequences?.[0]?.canvases;
+  const canvasIds = canvases.map((c) => c.id ?? c['@id']);
+  let images = isIIIFv3
+    ? canvases.map(
+        (c) =>
+          c.items
+            .find((i) => i.type === 'AnnotationPage')
+            ?.items?.find((i) => i.motivation === 'painting')?.body
+      )
+    : canvases.map(
+        (c) => c.images.find((i) => i.motivation === 'sc:painting')?.resource
+      );
+
+  let preview;
+  if (manifestJson.thumbnail) {
+    preview = isIIIFv3 ? manifestJson.thumbnail[0] : manifestJson.thumbnail;
+  } else {
+    let startCanvasId;
+    if (isIIIFv3) {
+      if (manifestJson.start) {
+        startCanvasId =
+          manifestJson.start.type === 'Canvas'
+            ? manifestJson.start.id
+            : manifestJson.start.source;
+      } else {
+        startCanvasId = canvases[0].id;
+      }
+    } else {
+      startCanvasId = manifestJson.startCanvas ?? canvases[0]['@id'];
+    }
+    preview = images[canvasIds.indexOf(startCanvasId)];
+  }
+  let previewImageUrl;
+  if (preview.service) {
+    const service = isIIIFv3 ? preview.service[0].id : preview.service['@id'];
+    previewImageUrl = `${service}/full/300,/0/default.jpg`;
+  } else {
+    previewImageUrl = isIIIFv3 ? preview.id : preview['@id'];
+  }
+
+  let supportsLossless =
+    images.find(
+      (i) =>
+        i.service?.profile?.endsWith('level2.json') ||
+        i.service?.[0]?.profile === 'level2'
+    ) !== undefined;
+  let supportsDownscale =
+    supportsLossless ||
+    images.find(
+      (i) =>
+        i.service?.profile?.endsWith('level1.json') ||
+        i.service?.[0]?.profile === 'level1'
+    ) !== undefined;
+
+  return {
+    label: manifestJson.label,
+    previewImageUrl,
+    maximumImageWidth: max(images.map((i) => i.width ?? i.service?.width ?? 0)),
+    supportsLossless,
+    manifestJson,
+    supportsDownscale,
+  };
+}

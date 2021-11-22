@@ -1,25 +1,31 @@
-import { addMessages, init, getLocaleFromNavigator } from "svelte-i18n";
+import { addMessages, init, getLocaleFromNavigator } from 'svelte-i18n';
 
-import App from "./App.svelte";
-import de from "../locales/de.json";
-import en from "../locales/en.json";
+import App from './App.svelte';
+import de from '../locales/de.json';
+import en from '../locales/en.json';
 
 interface Options {
-  apiEndpoint: string | undefined;
+  apiEndpoint: string;
+  coverPageEndpoint?: string;
 }
 
-function render(target: HTMLElement, { apiEndpoint }: Options): App {
-  addMessages("de", de);
-  addMessages("en", en);
+export function render(
+  target: HTMLElement,
+  { apiEndpoint, coverPageEndpoint }: Options
+): App {
+  addMessages('de', de);
+  addMessages('en', en);
   init({
-    fallbackLocale: "en",
+    fallbackLocale: 'en',
     initialLocale: getLocaleFromNavigator(),
   });
 
   return new App({
-    props: { apiEndpoint },
-    target
+    props: { apiEndpoint, coverPageEndpoint },
+    target,
   });
 }
 
-export default { render };
+render(document.getElementById('app'), {
+  apiEndpoint: `http://localhost:31337/api`,
+});

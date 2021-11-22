@@ -2,11 +2,14 @@
   "name": "pdiiif-web",
   "version": "0.1.0",
   "scripts": {
-    "build": "rollup -c",
-    "dev": "rollup -c -w",
-    "format": "prettier --write --plugin-search-dir=. ./**/*.html",
-    "start": "sirv public --no-clear",
-    "validate": "svelte-check"
+    "dev": "vite",
+    "compile": "cross-env NODE_ENV=production vite build",
+    "check": "svelte-check --human && tsc --noEmit",
+    "watch:svelte": "svelte-check --human --watch",
+    "watch:ts": "tsc --noEmit --watch",
+    "start": "run-p watch:* dev",
+    "build": "run-s check compile",
+    "serve": "sirv dist"
   },
   "repository": {
     "type": "git",
@@ -23,33 +26,33 @@
   },
   "homepage": "https://github.com/jbaiter/pdiiif/tree/pdiiif-web#readme",
   "devDependencies": {
-    "@rollup/plugin-commonjs": "^20.0.0",
-    "@rollup/plugin-json": "^4.1.0",
-    "@rollup/plugin-node-resolve": "^13.0.4",
-    "@rollup/plugin-replace": "^3.0.0",
-    "@rollup/plugin-typescript": "^8.2.5",
+    "@sveltejs/vite-plugin-svelte": "^1.0.0-next.30",
     "@tsconfig/svelte": "^2.0.1",
     "@types/wicg-file-system-access": "^2020.9.2",
-    "postcss": "^8.3.6",
+    "cross-env": "^7.0.3",
+    "npm-run-all": "^4.1.5",
     "prettier": "^2.3.2",
     "prettier-plugin-svelte": "^2.3.1",
-    "rollup": "^2.56.2",
-    "rollup-plugin-css-only": "^3.1.0",
-    "rollup-plugin-livereload": "^2.0.5",
-    "rollup-plugin-polyfill-node": "^0.7.0",
-    "rollup-plugin-svelte": "^7.1.0",
-    "rollup-plugin-terser": "^7.0.2",
     "sirv-cli": "^1.0.14",
-    "svelte": "^3.42.1",
-    "svelte-check": "^2.2.4",
+    "svelte": "^3.44.1",
+    "svelte-check": "^2.2.9",
     "svelte-preprocess": "^4.7.4",
-    "tslib": "^2.3.1",
-    "typescript": "^4.5.2"
+    "tailwindcss": "^2.2.19",
+    "typescript": "^4.5.2",
+    "vite": "^2.6.14"
   },
   "dependencies": {
-    "buffer": "^6.0.3",
+    "lodash": "^4.17.21",
     "pdiiif": "workspace:../pdiiif-lib",
-    "svelte-i18n": "^3.3.9",
-    "svelte-trim-whitespace-preprocessor": "^1.0.1"
-  }
+    "svelte-i18n": "^3.3.9"
+  },
+  "prettier": {
+    "trailingComma": "es5",
+    "tabWidth": 2,
+    "semi": true,
+    "singleQuote": true
+  },
+  "browserslist": [
+    "defaults"
+  ]
 }
