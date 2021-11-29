@@ -22,10 +22,11 @@ import { getLicenseInfo } from './res/licenses';
 import { OcrPage, fetchAndParseText, getTextSeeAlso } from './ocr';
 import pdiiifVersion from './version';
 
+/// In absence of more detailed information (from physical dimensions service), use this resolution
 const FALLBACK_PPI = 300;
 
 /** Progress information for rendering a progress bar or similar UI elements. */
-export interface ProgressStatus {
+export type ProgressStatus = {
   /// Expected total number of pages in the PDF
   totalPages: number;
   /// Number of pages that were submitted for writing
@@ -42,6 +43,8 @@ export interface ProgressStatus {
   remainingDuration: number;
 }
 
+// TODO: Use `AbortController` instead to improve responsiveness, since
+//       we can completely abort long-running `fetch` requests with it
 type CancelCallback = () => void;
 /** Token used for managing the cancellation of long processes. */
 export class CancelToken {
@@ -49,6 +52,7 @@ export class CancelToken {
   isCancellationConfirmed = false;
   onCancelled: CancelCallback[] = [];
 
+  /** Request cancellation, promise resolved when cancellation has been confirmed. */
   requestCancel(): Promise<void> {
     const promise: Promise<void> = new Promise((resolve) =>
       this.addOnCancelled(resolve)
@@ -57,6 +61,7 @@ export class CancelToken {
     return promise;
   }
 
+  /** Confirm successful cancellation, call this when all resources have been cleaned up. */
   confirmCancelled(): void {
     if (this.isCancellationConfirmed) {
       return;
@@ -65,14 +70,17 @@ export class CancelToken {
     this.onCancelled.forEach((cb) => cb());
   }
 
+  /** Add a callback for when a cancellation is confirmed. */
   addOnCancelled(cb: CancelCallback): void {
     this.onCancelled.push(cb);
   }
 
+  /** Check if the cancellation has been requested or confirmed. */
   get cancelled(): boolean {
     return this.isCancellationRequested || this.isCancellationConfirmed;
   }
 
+  /** You can simply `await` this token to wait for the cancellation to be confirmed. */
   then(resolve: () => void): void {
     this.onCancelled.push(() => resolve());
   }
@@ -105,7 +113,7 @@ interface CoverPageParams {
 }
 
 /** Options for converting a IIIF Manifest to a PDF. */
-export interface ConvertOptions {
+export type ConvertOptions = {
   /// Pixels per inch to assume for the full resolution version of each canvas.
   /// If not set, the conversion will use an available IIIF Physical Dimensions
   /// service to calculate the page dimensions instead.
@@ -331,7 +339,7 @@ function getPointsPerInch(
 }
 
 /** Parameters for size estimation */
-interface EstimationParams {
+export type EstimationParams = {
   /// The manifest to determine the PDF size for
   manifestJson: any;
   /// Restrict the image size to include in the PDF. Only works with Level 2 Image API
@@ -419,15 +427,19 @@ interface ImageData {
 
 /** Options for fetching image */
 interface FetchImageOptions {
+  /// Prefer lossless formats (PNG, TIF) over lossy (JPG))
   preferLossless: boolean;
+  /// Maximum width of the image to fetch
   maxWidth?: number;
   /// PPI override, will be fetched from physical dimensions serivce by default
   ppiOverride?: number;
+  // Optional token to use for cancelling the image fetching
   cancelToken?: CancelToken;
   /// Only obtain the size of the image, don't fetch any data
   sizeOnly?: boolean;
 }
 
+/** Fetch the first image associated with a canvas. */
 async function fetchImage(
   canvas: Canvas,
   {
