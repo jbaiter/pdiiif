@@ -1,16 +1,19 @@
 import express, { Response } from 'express';
 import fetch from 'node-fetch';
-import { convertManifest, ProgressStatus } from 'pdiiif';
 import range from 'lodash/range';
 import acceptLanguageParser from 'accept-language-parser';
 import cors from 'cors';
+import promClient from 'prom-client';
+import promBundle from 'express-prom-bundle';
+import { PropertyValue } from 'manifesto.js';
+
 import {
   middleware as openApiMiddleware,
   pdfPath as pdfPathSpec,
   progressPath as progressPathSpec,
   coverPath as coverPathSpec,
 } from './openapi';
-import { PropertyValue } from 'manifesto.js';
+import { convertManifest, ProgressStatus } from 'pdiiif';
 import createLogger from './logger';
 import { CoverPageGenerator, CoverPageParams } from './coverpage';
 import { RateLimiter } from './ratelimit';
@@ -117,8 +120,28 @@ app.use(
     origin: '*',
   })
 );
+
 app.use('/docs', openApiMiddleware.swaggerui);
 app.use(express.json());
+
+// Only allow access to Prometheus metrics endpoint from localhost
+app.use('/metrics', (req, res, next) => {
+  if (req.ip === '127.0.0.1') {
+    next();
+  } else {
+    res.status(403).send();
+  }
+});
+app.use(
+  promBundle({
+    includePath: true,
+    promClient: {
+      collectDefaultMetrics: {},
+    },
+  })
+);
+
+// TODO: Define some custom Prometheus metrics
 
 app.get('/api/progress/:token', progressPathSpec, (req, res) => {
   const { token } = req.params;
@@ -271,9 +294,12 @@ app.post(
           'Too many requests, please respect the rate limits. For an exception, contact the provider of this API.',
         rateLimitInfo,
       });
-      log.warn('Rate-limited client due to exceeded quota for cover page generation', {
-        clientAddr: req.ip,
-      });
+      log.warn(
+        'Rate-limited client due to exceeded quota for cover page generation',
+        {
+          clientAddr: req.ip,
+        }
+      );
       return;
     }
 

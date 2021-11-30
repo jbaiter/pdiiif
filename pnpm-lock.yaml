@@ -20,6 +20,7 @@ importers:
       cors: ^2.8.5
       eslint: ^7.32.0
       express: ^4.17.1
+      express-prom-bundle: ^6.4.1
       handlebars: ^4.7.7
       ip-cidr: ^3.0.4
       lodash: ^4.17.21
@@ -30,6 +31,7 @@ importers:
       npm-run-all: ^4.1.5
       pdiiif: workspace:../pdiiif-lib
       prettier: ^2.3.2
+      prom-client: ^14.0.1
       puppeteer: ^11.0.0
       qrcode-svg: ^1.1.0
       sanitize-html: ^2.5.3
@@ -41,6 +43,7 @@ importers:
       accept-language-parser: 1.5.0
       cors: 2.8.5
       express: 4.17.1
+      express-prom-bundle: 6.4.1_prom-client@14.0.1
       handlebars: 4.7.7
       ip-cidr: 3.0.4
       lodash: 4.17.21
@@ -48,6 +51,7 @@ importers:
       mnemonist: 0.39.0
       node-fetch: 2.6.6
       pdiiif: link:../pdiiif-lib
+      prom-client: 14.0.1
       puppeteer: 11.0.0
       qrcode-svg: 1.1.0
       sanitize-html: 2.5.3
@@ -1689,6 +1693,10 @@ packages:
     engines: {node: '>=8'}
     dev: true
 
+  /bintrees/1.0.1:
+    resolution: {integrity: sha1-DmVcm5wkNeqraL9AJyJtK1WjRSQ=}
+    dev: false
+
   /bl/4.1.0:
     resolution: {integrity: sha512-1W07cM9gS6DcLperZfFSj+bWLtaPGSOHWhPiGzXmvVJbRLdG82sH/Kn8EtW1VqWVA54AKf2h5k5BbnIbwF3h6w==}
     dependencies:
@@ -3163,6 +3171,17 @@ packages:
       jest-message-util: 26.6.2
       jest-regex-util: 26.0.0
     dev: true
+
+  /express-prom-bundle/6.4.1_prom-client@14.0.1:
+    resolution: {integrity: sha512-Sg0svLQe/SS5z1tHDTVfZVjNumobiDlXM0jmemt5Dm9K6BX8z9yCwEr93zbko6fNMR4zKav77iPfxUWi6gAjNA==}
+    engines: {node: '>=10'}
+    peerDependencies:
+      prom-client: '>=12.0.0'
+    dependencies:
+      on-finished: 2.3.0
+      prom-client: 14.0.1
+      url-value-parser: 2.0.3
+    dev: false
 
   /express/4.17.1:
     resolution: {integrity: sha512-mHJ9O79RqluphRrcw2X/GTh3k9tVv8YcoyY4Kkh4WDMUYKRZUq0h1o0w2rrrxBqM7VoeUVqgb27xlEMXTnYt4g==}
@@ -6170,6 +6189,13 @@ packages:
     resolution: {integrity: sha512-7PiHtLll5LdnKIMw100I+8xJXR5gW2QwWYkT6iJva0bXitZKa/XMrSbdmg3r2Xnaidz9Qumd0VPaMrZlF9V9sA==}
     engines: {node: '>=0.4.0'}
 
+  /prom-client/14.0.1:
+    resolution: {integrity: sha512-HxTArb6fkOntQHoRGvv4qd/BkorjliiuO2uSWC2KC17MUTKYttWdDoXX/vxOhQdkoECEM9BBH0pj2l8G8kev6w==}
+    engines: {node: '>=10'}
+    dependencies:
+      tdigest: 0.1.1
+    dev: false
+
   /promise-polyfill/8.2.1:
     resolution: {integrity: sha512-3p9zj0cEHbp7NVUxEYUWjQlffXqnXaZIMPkAO7HhFh8u5636xLRDHOUo2vpWSK0T2mqm6fKLXYn1KP6PAZ2gKg==}
     dev: true
@@ -7462,6 +7488,12 @@ packages:
       readable-stream: 3.6.0
     dev: false
 
+  /tdigest/0.1.1:
+    resolution: {integrity: sha1-Ljyyw56kSeVdHmzZEReszKRYgCE=}
+    dependencies:
+      bintrees: 1.0.1
+    dev: false
+
   /terminal-link/2.1.1:
     resolution: {integrity: sha512-un0FmiRUQNr5PJqy9kP7c40F5BOfpGlYTrxonDChEZB7pzZxRNp/bt+ymiy9/npwXya9KH99nJ/GXFIiUkYGFQ==}
     engines: {node: '>=8'}
@@ -7848,6 +7880,11 @@ packages:
 
   /url-template/2.0.8:
     resolution: {integrity: sha1-/FZaPMy/93MMd19WQflVV5FDnyE=}
+    dev: false
+
+  /url-value-parser/2.0.3:
+    resolution: {integrity: sha512-FjIX+Q9lYmDM9uYIGdMYfQW0uLbWVwN2NrL2ayAI7BTOvEwzH+VoDdNquwB9h4dFAx+u6mb0ONLa3sHD5DvyvA==}
+    engines: {node: '>=6.0.0'}
     dev: false
 
   /use/3.1.1:
