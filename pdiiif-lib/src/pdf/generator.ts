@@ -525,7 +525,8 @@ export default class PDFGenerator {
       // thing. This means that every word on the line is positioned relative to the line, not
       // relative to the page as in the markup.
       const xPos = line.x * unitScale;
-      const yPos = (pageHeight - line.y - line.height * 0.75) * unitScale;
+      const lineY = pageHeight - line.y - line.height * 0.75
+      const yPos = lineY * unitScale;
       ops.push(`${scaleX} ${shearX} ${shearY} ${scaleY} ${xPos} ${yPos} Tm`);
       let xOld = 0;
       let yOld = 0;
@@ -539,7 +540,9 @@ export default class PDFGenerator {
         }
         // Position drawing with relative moveto
         const wordX = (word.x - line.x) * unitScale;
-        const wordY = (word.y - line.y) * unitScale;
+        // Convert beween different y-origins in OCR and PDF
+        const wordYAbsolute = pageHeight - word.y - word.height * 0.75;
+        const wordY = (wordYAbsolute - lineY) * unitScale;
         const wordWidth = word.width * unitScale;
         const wordHeight = word.height * unitScale;
         const dx = wordX - xOld;
