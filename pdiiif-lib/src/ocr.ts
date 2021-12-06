@@ -204,9 +204,9 @@ export function parseHocr(
     }
   }
   return {
-    height: pageSize[3],
+    height: Math.round(scaleFactor * pageSize[3]),
     lines,
-    width: pageSize[2],
+    width: Math.round(scaleFactor * pageSize[2]),
   };
 }
 
