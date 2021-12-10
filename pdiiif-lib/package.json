@@ -8,6 +8,7 @@
     "build": "run-s build:*",
     "build:esm": "tsc",
     "build:cjs": "tsc -p tsconfig-cjs.json && echo '{\n  \"type\": \"commonjs\"\n}' > ./lib/commonjs/package.json",
+    "docs": "typedoc --out ../docs src/index.ts",
     "clean": "rm -rf lib",
     "watch": "run-p watch:*",
     "watch:esm": "tsc --build --watch",
@@ -68,6 +69,7 @@
     "tmp": "^0.2.1",
     "ts-jest": "^26.3.0",
     "ts-node": "^8.10.2",
+    "typedoc": "^0.22.10",
     "typescript": "^4.5.2"
   },
   "engines": {

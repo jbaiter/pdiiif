@@ -21,28 +21,29 @@ import pdiiifVersion from './version';
 import { fetchImage, fetchRespectfully, ImageData } from './download';
 
 /** Progress information for rendering a progress bar or similar UI elements. */
-export type ProgressStatus = {
-  /// Human-readable message about what is currently going on
+export interface ProgressStatus {
+  /** Human-readable message about what is currently going on */
   message?: string;
-  /// Expected total number of pages in the PDF
+  /** Expected total number of pages in the PDF */
   totalPages: number;
-  /// Number of pages that were submitted for writing
+  /** Number of pages that were submitted for writing */
   pagesWritten: number;
-  /// Number of bytes that were submitted for writing to the output stream
+  /** Number of bytes that were submitted for writing to the output stream */
   bytesPushed: number;
-  /// Number of bytes that were written to the output stream so far
+  /** Number of bytes that were written to the output stream so far */
   bytesWritten: number;
-  /// Predicted size of the final file in bytes
+  /** Predicted size of the final file in bytes */
   estimatedFileSize?: number;
-  /// Write speed in bytes per second
+  /** Write speed in bytes per second */
   writeSpeed: number;
-  /// Estimated time in seconds until PDF has finished generating
+  /** Estimated time in seconds until PDF has finished generating */
   remainingDuration: number;
 }
 
 // TODO: Use `AbortController` instead to improve responsiveness, since
 //       we can completely abort long-running `fetch` requests with it
-type CancelCallback = () => void;
+/** Function that gets triggered whenever a cancellation was successful. */
+export type CancelCallback = () => void;
 /** Token used for managing the cancellation of long processes. */
 export class CancelToken {
   isCancellationRequested = false;
@@ -84,7 +85,7 @@ export class CancelToken {
 }
 
 /** Parameters for rendering a cover page, parsed from IIIF manifest. */
-interface CoverPageParams {
+export interface CoverPageParams {
   title: string;
   manifestUrl: string;
   thumbnail?: {
@@ -110,66 +111,66 @@ interface CoverPageParams {
 }
 
 /** Options for converting a IIIF Manifest to a PDF. */
-export type ConvertOptions = {
-  /// Pixels per inch to assume for the full resolution version of each canvas.
-  /// If not set, the conversion will use an available IIIF Physical Dimensions
-  /// service to calculate the page dimensions instead.
+export interface ConvertOptions {
+  /** Pixels per inch to assume for the full resolution version of each canvas.
+      If not set, the conversion will use an available IIIF Physical Dimensions
+      service to calculate the page dimensions instead. */
   ppi?: number;
-  /// Set of canvas ids to include in PDF, or a predicate to filter canvas identifiers
-  /// by. By default, all canvases are included in the PDF.
+  /** Set of canvas ids to include in PDF, or a predicate to filter canvas identifiers
+      by. By default, all canvases are included in the PDF. */
   filterCanvases?: readonly string[] | ((canvasId: string) => boolean);
-  /// List of languages to use for metadata, page labels and table of contents, in
-  /// descending order of preference. Will use the environment's locale settings by
-  /// default.
+  /** List of languages to use for metadata, page labels and table of contents, in
+      descending order of preference. Will use the environment's locale settings by
+      default. */
   languagePreference?: readonly string[] | string;
-  /// Restrict the image size to include in the PDF. Only works with Level 2 Image API
-  /// services that allow arbitrary downscaling, the conversion will not perform
-  /// downscaling itself. For Level 1 endpoints, the closest available lower width
-  /// will be selected.
+  /** Restrict the image size to include in the PDF. Only works with Level 2 Image API
+     services that allow arbitrary downscaling, the conversion will not perform
+     downscaling itself. For Level 1 endpoints, the closest available lower width
+     will be selected. */
   maxWidth?: number;
-  /// Prefer lossless formats (PNG or TIF) over lossy (JPG, default)
+  /** Prefer lossless formats (PNG or TIF) over lossy (JPG, default) */
   preferLossless?: boolean;
-  /// Number of concurrent IIIF Image API requests to be performed, defaults to 1
+  /** Number of concurrent IIIF Image API requests to be performed, defaults to 1 */
   concurrency?: number;
-  /// Callback that gets called whenever a page has finished, useful to render a
-  /// progress bar.
+  /** Callback that gets called whenever a page has finished, useful to render a
+      progress bar. */
   onProgress?: (status: ProgressStatus) => void;
-  /// Token that allows cancelling the PDF generation. All pending
-  /// downloads will be terminated. The caller is responsible for
-  /// removing underlying partial files and/or other user signaling.
+  /** Token that allows cancelling the PDF generation. All pending
+      downloads will be terminated. The caller is responsible for
+      removing underlying partial files and/or other user signaling. */
   cancelToken?: CancelToken;
-  /// Set PDF metadata, by default `Title` will be the manifest's label.
+  /** Set PDF metadata, by default `Title` will be the manifest's label. */
   metadata?: {
     CreationDate?: Date;
     Title?: string;
     Author?: string;
     Keywords?: string;
   };
-  // Endpoint to contact for retrieving PDF data with one or more cover pages
-  // to insert before the canvas pages
+  /** Endpoint to contact for retrieving PDF data with one or more cover pages
+      to insert before the canvas pages */
   coverPageEndpoint?: string;
-  // Callback to call for retrieving PDF data with one or more cover pages
-  // to insert before the canvas pages
+  /** Callback to call for retrieving PDF data with one or more cover pages
+      to insert before the canvas pages */
   coverPageCallback?: (params: CoverPageParams) => Promise<Uint8Array>;
 }
 
 /** Parameters for size estimation */
-export type EstimationParams = {
-  /// The manifest to determine the PDF size for
+export interface EstimationParams {
+  /** The manifest to determine the PDF size for */
   manifestJson: any;
-  /// Restrict the image size to include in the PDF. Only works with Level 2 Image API
-  /// services that allow arbitrary downscaling, the conversion will not perform
-  /// downscaling itself. For Level 1 endpoints, the closest available lower width
-  /// will be selected.
+  /** Restrict the image size to include in the PDF. Only works with Level 2 Image API
+      services that allow arbitrary downscaling, the conversion will not perform
+      downscaling itself. For Level 1 endpoints, the closest available lower width
+      will be selected. */
   maxWidth?: number;
-  /// Set of canvas ids to include in PDF, or a predicate to filter canvas identifiers
-  /// by. By default, all canvases are included in the PDF.
+  /** Set of canvas ids to include in PDF, or a predicate to filter canvas identifiers
+      by. By default, all canvases are included in the PDF. */
   filterCanvases?: readonly string[] | ((canvasId: string) => boolean);
-  /// Prefer lossless formats (PNG or TIF) over lossy (JPG, default)
+  /** Prefer lossless formats (PNG or TIF) over lossy (JPG, default) */
   preferLossless?: boolean;
-  /// Number of canvses to sample for estimation, defaults to 8
+  /** Number of canvses to sample for estimation, defaults to 8 */
   numSamples?: number;
-  /// Number of concurrent IIIF Image API requests to be performed, defaults to 1
+  /** Number of concurrent IIIF Image API requests to be performed, defaults to 1 */
   concurrency?: number;
 }
 
@@ -252,7 +253,7 @@ function buildOutlineFromRanges(
   // Our approach is to pre-generate the range associated with each canvas and a hierarchy
   // of parent-child relationships for ranges.
 
-  /// All canvas identifiers in the order they appear as in the sequence
+  // All canvas identifiers in the order they appear as in the sequence
   const canvasIds = canvases.map((canvas) => canvas.id);
 
   let tocTree = manifest.getDefaultTree();
