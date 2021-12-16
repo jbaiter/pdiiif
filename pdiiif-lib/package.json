@@ -76,7 +76,8 @@
   },
   "browser": {
     "jsdom": false,
-    "util": false
+    "util": false,
+    "zlib": false
   },
   "files": [
     "/lib/*.ts",

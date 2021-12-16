@@ -6,7 +6,6 @@ import flatten from 'lodash/flatten';
 import range from 'lodash/range';
 import pad from 'lodash/padStart';
 import dedent from 'dedent-js';
-import Pako from 'pako';
 
 import {
   Metadata,
@@ -19,7 +18,7 @@ import {
   PdfValue,
   toUTF16BE,
 } from './common';
-import { TocItem, textEncoder, randomData } from './util';
+import { TocItem, textEncoder, randomData, tryDeflateStream } from './util';
 import { ArrayReader, Writer } from '../io';
 import PdfImage from './image';
 import { sRGBIEC1966_21 as srgbColorspace } from '../res/srgbColorspace';
@@ -72,6 +71,8 @@ export default class PDFGenerator {
   _numCanvases: number;
   _pageLabels?: string[];
   _numCoverPages = 0;
+  _outline: TocItem[] = [];
+  _hasText = false;
 
   constructor(
     writer: Writer,
@@ -82,21 +83,10 @@ export default class PDFGenerator {
     hasText = false
   ) {
     this._writer = writer;
-    const catalog: PdfDictionary = {
-      Type: '/Catalog',
-    };
-    this._addObject(catalog, 'Catalog');
     this._numCanvases = numCanvases;
     this._pageLabels = pageLabels;
-
-    const pagesObj = this._addObject(
-      {
-        Type: '/Pages',
-        Count: numCanvases,
-      },
-      'Pages'
-    );
-    catalog.Pages = makeRef(pagesObj);
+    this._outline = outline;
+    this._hasText = hasText;
 
     const pdfMetadata: PdfDictionary = {
       ...Object.entries(metadata)
@@ -108,8 +98,24 @@ export default class PDFGenerator {
       Producer: `(${PRODUCER})`,
     };
     this._addObject(pdfMetadata, 'Info');
+  }
 
-    if (outline.length > 0) {
+  async setup(): Promise<void> {
+    const catalog: PdfDictionary = {
+      Type: '/Catalog',
+    };
+    this._addObject(catalog, 'Catalog');
+
+    const pagesObj = this._addObject(
+      {
+        Type: '/Pages',
+        Count: this._numCanvases,
+      },
+      'Pages'
+    );
+    catalog.Pages = makeRef(pagesObj);
+
+    if (this._outline.length > 0) {
       catalog.PageMode = 'UseOutlines';
       const outlines: PdfDictionary = {
         Type: '/Outlines',
@@ -118,19 +124,19 @@ export default class PDFGenerator {
       const outlinesObj = this._addObject(outlines);
       catalog.Outlines = makeRef(outlinesObj);
       let prev: PdfObject | undefined;
-      for (const [idx, itm] of outline.entries()) {
+      for (const [idx, itm] of this._outline.entries()) {
         const [childObj, numKids] = this._addOutline(itm, outlinesObj, prev);
         (outlines.Count as number) += 1 + numKids;
         if (idx === 0) {
           outlines.First = makeRef(childObj);
-        } else if (idx === outline.length - 1) {
+        } else if (idx === this._outline.length - 1) {
           outlines.Last = makeRef(childObj);
         }
         prev = childObj;
       }
     }
-    if (hasText) {
-      this._setupHiddenTextFont();
+    if (this._hasText) {
+      await this._setupHiddenTextFont();
     }
 
     // Add output color space for PDF/A compliance
@@ -142,15 +148,14 @@ export default class PDFGenerator {
     //           || (N == 4 && colorSpace == "CMYK")))
     //        But N == 3 and the ICC's colorSpace value is RGB, as confirmed with
     //        Argyll's iccdump tool, so I don't know what the problem is ¯\_(ツ)_/¯
-    const colorSpaceCompressed = Pako.deflate(srgbColorspace);
+    const comp = await tryDeflateStream(srgbColorspace);
     const colorSpace = this._addObject(
       {
+        ...comp.dict,
         N: 3,
-        Length: colorSpaceCompressed.length,
-        Filter: '/FlateDecode',
       },
       undefined,
-      colorSpaceCompressed
+      comp.stream
     );
     catalog.OutputIntents = [
       {
@@ -163,7 +168,7 @@ export default class PDFGenerator {
     ];
   }
 
-  _setupHiddenTextFont(): void {
+  async _setupHiddenTextFont(): Promise<void> {
     const typeZeroFont = this._addObject(
       {
         Type: '/Font',
@@ -193,14 +198,11 @@ export default class PDFGenerator {
     for (let i = 0; i < cidtoGidMapData.length; i++) {
       cidtoGidMapData[i] = i % 2 ? 1 : 0;
     }
-    const comp = Pako.deflate(cidtoGidMapData);
+    const comp = await tryDeflateStream(cidtoGidMapData);
     const cidToGidMap = this._addObject(
-      {
-        Length: comp.length,
-        Filter: '/FlateDecode',
-      },
+      comp.dict,
       undefined,
-      comp as Uint8Array
+      comp.stream
     );
     (typeTwoFont.data as PdfDictionary).CIDToGIDMap = makeRef(cidToGidMap);
 
@@ -386,7 +388,7 @@ export default class PDFGenerator {
     return;
   }
 
-  renderPage(
+  async renderPage(
     {
       width: canvasWidth,
       height: canvasHeight,
@@ -460,14 +462,11 @@ export default class PDFGenerator {
       /Im1 Do
       Q${ocrText ? '\n' + this._renderOcrText(ocrText, unitScale) : ''}
     `;
-    const contentStream = Pako.deflate(contentOps);
+    const contentStreamComp = await tryDeflateStream(contentOps);
     const contentsObj = this._addObject(
-      {
-        Length: contentStream.length,
-        Filter: '/FlateDecode',
-      },
+      contentStreamComp.dict,
       undefined,
-      contentStream
+      contentStreamComp.stream
     );
     (page.data as PdfDictionary).Contents = makeRef(contentsObj);
 

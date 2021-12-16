@@ -1,5 +1,8 @@
 import sum from 'lodash/sum';
 import util from 'util';
+import zlib from 'zlib';
+
+import { PdfDictionary } from './common';
 
 // Browsers have native encoders/decoders in the global namespace, use these
 export let textEncoder: TextEncoder | util.TextEncoder;
@@ -8,8 +11,8 @@ if (typeof window !== 'undefined') {
   textEncoder = new window.TextEncoder();
   textDecoder = new window.TextDecoder();
 } else {
-  textEncoder = new util.TextEncoder;
-  textDecoder = new util.TextDecoder;
+  textEncoder = new util.TextEncoder();
+  textDecoder = new util.TextDecoder();
 }
 
 export const IS_BIG_ENDIAN = (() => {
@@ -56,4 +59,40 @@ export function findLastIndex<T>(
     if (predicate(array[l], l, array)) return l;
   }
   return -1;
+}
+
+export async function tryDeflateStream(
+  pdfStream: Uint8Array | string
+): Promise<{ stream: Uint8Array | string; dict: PdfDictionary }> {
+  const data =
+    pdfStream instanceof Uint8Array ? pdfStream : textEncoder.encode(pdfStream);
+  let compressed: Uint8Array;
+  if (typeof window !== 'undefined') {
+    if (typeof (window as any).CompressionStream !== 'undefined') {
+      // Browser doesn't support CompressionStream API, no deflate possible
+      return Promise.resolve({
+        stream: pdfStream,
+        dict: { Length: pdfStream.length },
+      });
+    }
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(data);
+      },
+    }).pipeThrough(new (window as any).CompressionStream('deflate'));
+    compressed = await new Response(stream)
+      .arrayBuffer()
+      .then((buf) => new Uint8Array(buf));
+  } else {
+    compressed = await new Promise((resolve, reject) =>
+      zlib.deflate(data, (err, buf) => (err ? reject(err) : resolve(buf)))
+    );
+  }
+  return {
+    dict: {
+      Length: compressed.length,
+      Filter: '/FlateDecode',
+    },
+    stream: compressed,
+  };
 }
