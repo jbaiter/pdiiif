@@ -102,7 +102,6 @@ importers:
       manifesto.js: ^4.1.0
       npm-run-all: ^4.1.5
       p-queue: 6.6.2
-      pako: ^2.0.4
       pdf-lib: ^1.16.0
       prettier: ^2.1.1
       tmp: ^0.2.1
@@ -119,7 +118,6 @@ importers:
       lodash: 4.17.21
       manifesto.js: 4.2.4
       p-queue: 6.6.2
-      pako: 2.0.4
       tslib: 2.3.1
     devDependencies:
       '@types/common-tags': 1.8.1
@@ -5917,10 +5915,6 @@ packages:
   /pako/1.0.11:
     resolution: {integrity: sha512-4hLB8Py4zZce5s4yd9XzopqwVv/yGNhV1Bl8NTmCq1763HeK2+EwVTv+leGeL13Dnh2wfbqowVPXCIO0z4taYw==}
     dev: true
-
-  /pako/2.0.4:
-    resolution: {integrity: sha512-v8tweI900AUkZN6heMU/4Uy4cXRc2AYNRggVmTR+dEncawDJgCdLMximOVA2p4qO57WMynangsfGRb5WD6L1Bg==}
-    dev: false
 
   /parent-module/1.0.1:
     resolution: {integrity: sha512-GQ2EWRpQV8/o+Aw8YqtfZZPfNRWZYkbidE9k5rpl/hC3vtHHBfGm2Ifi6qWV+coDGkrUKZAxE3Lot5kcsRlh+g==}

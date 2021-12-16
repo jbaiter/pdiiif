@@ -42,7 +42,6 @@
     "lodash": "^4.17.20",
     "manifesto.js": "^4.1.0",
     "p-queue": "6.6.2",
-    "pako": "^2.0.4",
     "tslib": "^2.3.1"
   },
   "devDependencies": {

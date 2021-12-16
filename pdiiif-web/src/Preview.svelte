@@ -5,20 +5,17 @@
   import Spinner from './Spinner.svelte';
 
   export let manifestUrl: string;
-  export let preferLossless: boolean = false;
   export let maxWidth: number | undefined;
   export let infoPromise: Promise<ManifestInfo>;
 
   async function getFileSizeEstimate(
     manifestInfo: ManifestInfo,
     maxWidth: number | undefined,
-    preferLossless: boolean
   ): Promise<number> {
     return await estimatePdfSize({
       manifestJson: manifestInfo.manifestJson,
       concurrency: 4,
       maxWidth,
-      preferLossless,
       numSamples: 8,
     });
   }
@@ -37,7 +34,7 @@
       <h2 class="font-bold text-lg mt-4">{manifestInfo.label}</h2>
       <p class="mt-4">
         Estimated PDF size:
-        {#await getFileSizeEstimate(manifestInfo, maxWidth, preferLossless)}
+        {#await getFileSizeEstimate(manifestInfo, maxWidth)}
           <Spinner />
         {:then size}
           <strong>{(size / 1024 / 1024).toFixed(2)} MiB</strong>

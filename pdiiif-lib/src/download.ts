@@ -203,8 +203,6 @@ export type ImageData = {
 
 /** Options for fetching image */
 export type FetchImageOptions = {
-  /// Prefer lossless formats (PNG, TIF) over lossy (JPG))
-  preferLossless: boolean;
   /// Maximum width of the image to fetch
   maxWidth?: number;
   /// PPI override, will be fetched from physical dimensions serivce by default
@@ -219,7 +217,6 @@ export type FetchImageOptions = {
 export async function fetchImage(
   canvas: Canvas,
   {
-    preferLossless = false,
     maxWidth,
     ppiOverride,
     cancelToken,
@@ -248,25 +245,11 @@ export async function fetchImage(
       cancelToken.confirmCancelled();
       return;
     }
-    let imgFormat = 'jpg';
-    if (preferLossless) {
-      // Check for PNG support
-      const canPng =
-        infoJson.profile[0].endsWith('level2.json') ||
-        infoJson.profile[1].indexOf('png') >= 0;
-      const canTif =
-        infoJson.profile.length > 1 && infoJson.profile.indexOf('tif') >= 0;
-      if (canPng) {
-        imgFormat = 'png';
-      } else if (canTif) {
-        imgFormat = 'tif';
-      }
-    }
     const sizeInfo = getImageSize(infoJson, maxWidth);
     const { iiifSize } = sizeInfo;
     width = sizeInfo.width;
     height = sizeInfo.height;
-    imgUrl = `${imgService.id}/full/${iiifSize}/0/default.${imgFormat}`;
+    imgUrl = `${imgService.id}/full/${iiifSize}/0/default.jpg`;
   } else {
     imgUrl = img.id;
     width = img.getWidth();

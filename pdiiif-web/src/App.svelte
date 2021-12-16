@@ -25,7 +25,6 @@
   let manifestInfo: ManifestInfo | undefined;
   let infoPromise: Promise<ManifestInfo> | undefined;
   let maxWidth: number | undefined;
-  let preferLossless = false;
 
   $: progressPercent = currentProgress
     ? (currentProgress.bytesWritten /
@@ -56,7 +55,6 @@
     manifestInfo = undefined;
     infoPromise = undefined;
     maxWidth = undefined;
-    preferLossless = false;
   }
 
   /// Simply generate a random hex string
@@ -193,7 +191,7 @@
   <div class="flex flex-col bg-blue-400 m-auto p-4 rounded-md shadow-lg">
     <form on:submit={generatePdf}>
       {#if infoPromise}
-        <Preview {manifestUrl} {preferLossless} {maxWidth} {infoPromise} />
+        <Preview {manifestUrl} {maxWidth} {infoPromise} />
       {/if}
       <div class="relative text-gray-700 mt-4">
         <input
@@ -228,7 +226,7 @@
         </button>
       </div>
       {#if manifestInfo}
-        <Settings bind:preferLossless bind:maxWidth {manifestInfo} />
+        <Settings bind:maxWidth {manifestInfo} />
       {/if}
     </form>
     {#if currentProgress && !pdfFinished && !cancelled}

@@ -18,7 +18,6 @@ const manifest = await manifestResp.json();
 const estimatedSizeInBytes = await estimatePdfSize({
   manifestJson: manifest,
   maxWidth: 1500,
-  preferLossless: false
 });
 
 // Get a writable handle to a file on the user's machine
@@ -77,8 +76,6 @@ convertManifest(
     /// downscaling itself. For Level 1 endpoints, the closest available lower width
     /// will be selected.
     maxWidth?: number;
-    /// Prefer lossless formats (PNG or TIF) over lossy (JPG, default)
-    preferLossless?: boolean;
     /// Number of concurrent IIIF Image API requests to be performed, defaults to 1
     concurrency?: number;
     /// Callback that gets called whenever a page has finished, useful to render a
@@ -119,8 +116,6 @@ estimatePdfSize({
   /// Set of canvas ids to include in PDF, or a predicate to filter canvas identifiers
   /// by. By default, all canvases are included in the PDF.
   filterCanvases?: readonly string[] | ((canvasId: string) => boolean);
-  /// Prefer lossless formats (PNG or TIF) over lossy (JPG, default)
-  preferLossless?: boolean;
   /// Number of canvses to sample for estimation, defaults to 8
   numSamples?: number;
   /// Number of concurrent IIIF Image API requests to be performed, defaults to 1

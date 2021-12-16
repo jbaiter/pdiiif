@@ -16,7 +16,7 @@ import PDFGenerator from './pdf/generator';
 import { CountingWriter, WebWriter, NodeWriter, Writer } from './io';
 import { TocItem } from './pdf/util';
 import { getLicenseInfo } from './res/licenses';
-import {  getTextSeeAlso } from './ocr';
+import { getTextSeeAlso } from './ocr';
 import pdiiifVersion from './version';
 import { fetchImage, fetchRespectfully, ImageData } from './download';
 
@@ -128,8 +128,6 @@ export interface ConvertOptions {
      downscaling itself. For Level 1 endpoints, the closest available lower width
      will be selected. */
   maxWidth?: number;
-  /** Prefer lossless formats (PNG or TIF) over lossy (JPG, default) */
-  preferLossless?: boolean;
   /** Number of concurrent IIIF Image API requests to be performed, defaults to 1 */
   concurrency?: number;
   /** Callback that gets called whenever a page has finished, useful to render a
@@ -166,8 +164,6 @@ export interface EstimationParams {
   /** Set of canvas ids to include in PDF, or a predicate to filter canvas identifiers
       by. By default, all canvases are included in the PDF. */
   filterCanvases?: readonly string[] | ((canvasId: string) => boolean);
-  /** Prefer lossless formats (PNG or TIF) over lossy (JPG, default) */
-  preferLossless?: boolean;
   /** Number of canvses to sample for estimation, defaults to 8 */
   numSamples?: number;
   /** Number of concurrent IIIF Image API requests to be performed, defaults to 1 */
@@ -184,7 +180,6 @@ export async function estimatePdfSize({
   concurrency = 1,
   maxWidth,
   filterCanvases = () => true,
-  preferLossless = false,
   numSamples = 8,
 }: EstimationParams): Promise<number> {
   const manifest = new Manifest(manifestJson);
@@ -220,7 +215,7 @@ export async function estimatePdfSize({
   const sizePromises: Array<Promise<ImageData | undefined>> =
     sampleCanvases.map((c) =>
       queue.add(() =>
-        fetchImage(c, { preferLossless, maxWidth, sizeOnly: true })
+        fetchImage(c, { maxWidth, sizeOnly: true })
       )
     );
   const imgData = await Promise.all(sizePromises);
@@ -496,7 +491,6 @@ export async function convertManifest(
     metadata = {},
     onProgress,
     ppi,
-    preferLossless = false,
     concurrency = 4,
     cancelToken = new CancelToken(),
     coverPageCallback,
@@ -548,7 +542,7 @@ export async function convertManifest(
   cancelToken.addOnCancelled(() => queue.clear());
   const imgFuts = canvases.map((c) => {
     return queue.add(() =>
-      fetchImage(c, { preferLossless, maxWidth, ppiOverride: ppi, cancelToken })
+      fetchImage(c, { maxWidth, ppiOverride: ppi, cancelToken })
     );
   });
 
