@@ -1,6 +1,6 @@
 import winston from 'winston';
 
-export default function createLogger(level: string, logToFiles = true): winston.Logger {
+function createLogger(level: string, logToFiles = true): winston.Logger {
   const transports = [];
   if (process.env.NODE_ENV === 'production' && logToFiles) {
     transports.push(
@@ -22,3 +22,10 @@ export default function createLogger(level: string, logToFiles = true): winston.
     transports,
   });
 }
+
+export default createLogger(
+  process.env.CFG_LOG_LEVEL ?? process.env.NODE_ENV === 'production'
+    ? 'info'
+    : 'debug',
+  process.env.CFG_LOG_TOFILES !== 'false'
+);

@@ -14,7 +14,7 @@ import {
   coverPath as coverPathSpec,
 } from './openapi';
 import { convertManifest, ProgressStatus } from 'pdiiif';
-import createLogger from './logger';
+import log from './logger';
 import { CoverPageGenerator, CoverPageParams } from './coverpage';
 import { RateLimiter } from './ratelimit';
 
@@ -108,12 +108,6 @@ const rateLimiter = new RateLimiter({
 const progressClients: { [token: string]: Response } = {};
 
 const app = express();
-const log = createLogger(
-  process.env.CFG_LOG_LEVEL ?? process.env.NODE_ENV === 'production'
-    ? 'info'
-    : 'debug',
-  process.env.CFG_LOG_TOFILES !== 'false'
-);
 app.use(openApiMiddleware);
 app.use(
   cors({
@@ -162,25 +156,8 @@ app.get(
   '/api/generate-pdf',
   pdfPathSpec,
   async (req, res) => {
-    const rateLimitInfo = rateLimiter.throttle(req.ip, 'pdf');
-    res.setHeader(
-      'RateLimit-Limit',
-      `${rateLimitInfo.total};w=${24 * 60 * 60};burst=${
-        rateLimitInfo.burst
-      };policy="generic cell rate algorithm"`
-    );
-    res.setHeader('RateLimit-Remaining', rateLimitInfo.remaining);
-    res.setHeader('RateLimit-Reset', rateLimitInfo.resetIn);
-    if (rateLimitInfo.limited) {
-      res.setHeader('Retry-After', rateLimitInfo.retryIn);
-      res.status(429).send({
-        message:
-          'Too many requests, please respect the rate limits. For an exception, contact the provider of this API.',
-        rateLimitInfo,
-      });
-      log.warn('Rate-limited client due to exceeded quota for PDF generation', {
-        clientAddr: req.ip,
-      });
+    const shouldThrottle = rateLimiter.throttle(req.ip, 'pdf', res);
+    if (shouldThrottle) {
       return;
     }
     const { manifestUrl, canvasNos, locale, progressToken } = req.query;
@@ -278,31 +255,10 @@ app.post(
   '/api/coverpage',
   coverPathSpec,
   async (req, res) => {
-    const rateLimitInfo = rateLimiter.throttle(req.ip, 'cover');
-    res.setHeader(
-      'RateLimit-Limit',
-      `${rateLimitInfo.total};w=${24 * 60 * 60};burst=${
-        rateLimitInfo.burst
-      };policy="generic cell rate algorithm"`
-    );
-    res.setHeader('RateLimit-Remaining', rateLimitInfo.remaining);
-    res.setHeader('RateLimit-Reset', rateLimitInfo.resetIn);
-    if (rateLimitInfo.limited) {
-      res.setHeader('Retry-After', rateLimitInfo.retryIn);
-      res.status(429).send({
-        message:
-          'Too many requests, please respect the rate limits. For an exception, contact the provider of this API.',
-        rateLimitInfo,
-      });
-      log.warn(
-        'Rate-limited client due to exceeded quota for cover page generation',
-        {
-          clientAddr: req.ip,
-        }
-      );
+    const shouldThrottle = rateLimiter.throttle(req.ip, 'cover', res);
+    if (shouldThrottle) {
       return;
     }
-
     // Need to destructure to prevent XSS
     const {
       title,
