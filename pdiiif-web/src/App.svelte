@@ -113,7 +113,6 @@
         concurrency: 4,
         languagePreference: window.navigator.languages,
         onProgress: (status) => {
-          console.log(status);
           currentProgress = status;
         },
         cancelToken,

@@ -2,13 +2,11 @@
   import type { ManifestInfo } from './iiif';
 
   export let manifestInfo: ManifestInfo;
-  export let preferLossless: boolean = false;
   export let maxWidth: number | undefined;
 
   let showSettings = false;
 
-  $: settingsAvailable =
-    manifestInfo.supportsLossless || manifestInfo.supportsDownscale;
+  $: settingsAvailable = manifestInfo.supportsDownscale;
 </script>
 
 {#if settingsAvailable}
@@ -22,15 +20,6 @@
             showSettings = false;
           }}>×</button
         >
-        {#if manifestInfo.supportsLossless}
-          <label class="block">
-            <input
-              type="checkbox"
-              name="prefer-lossless"
-              bind:checked={preferLossless}
-            /> Prefer lossless
-          </label>
-        {/if}
         {#if manifestInfo.supportsDownscale}
           <label class="block">
             Maximum Image Width

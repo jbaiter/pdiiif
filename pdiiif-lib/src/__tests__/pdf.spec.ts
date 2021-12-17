@@ -50,6 +50,7 @@ describe('PDF generation', () => {
       Title: 'Täst Tütle',
     };
     const pdfgen = new PDFGenerator(writer, metadata, 1, ['Tüst Läbel']);
+    await pdfgen.setup();
     const imgBuf = await fs.promises.readFile(
       path.resolve(__dirname, './fixtures/wunder.jpg')
     );

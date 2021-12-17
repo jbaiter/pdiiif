@@ -88,6 +88,7 @@
   "module": "./lib/esm/index.js",
   "types": "./lib/types/index.d.ts",
   "exports": {
+    "./package.json": "./package.json",
     ".": {
       "types": "./lib/types/index.d.ts",
       "require": "./lib/commonjs/index.js",

@@ -5,7 +5,6 @@ export interface ManifestInfo {
   previewImageUrl?: string;
   manifestJson: any;
   maximumImageWidth: number;
-  supportsLossless: boolean;
   supportsDownscale: boolean;
 }
 
@@ -64,16 +63,11 @@ export async function fetchManifestInfo(
     previewImageUrl = isIIIFv3 ? preview.id : preview['@id'];
   }
 
-  let supportsLossless =
+  let supportsDownscale =
     images.find(
       (i) =>
         i.service?.profile?.endsWith('level2.json') ||
-        i.service?.[0]?.profile === 'level2'
-    ) !== undefined;
-  let supportsDownscale =
-    supportsLossless ||
-    images.find(
-      (i) =>
+        i.service?.[0]?.profile === 'level2' ||
         i.service?.profile?.endsWith('level1.json') ||
         i.service?.[0]?.profile === 'level1'
     ) !== undefined;
@@ -82,7 +76,6 @@ export async function fetchManifestInfo(
     label: manifestJson.label,
     previewImageUrl,
     maximumImageWidth: max(images.map((i) => i.width ?? i.service?.width ?? 0)),
-    supportsLossless,
     manifestJson,
     supportsDownscale,
   };

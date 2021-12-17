@@ -559,6 +559,7 @@ export async function convertManifest(
     outline,
     hasText
   );
+  await pdfGen.setup();
   const progress = new ProgressTracker(
     canvases,
     countingWriter,
