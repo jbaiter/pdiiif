@@ -601,6 +601,8 @@ export async function convertManifest(
       queue.clear();
       await cancelToken.requestCancel();
       throw err;
+    } finally {
+      delete imgFuts[canvasIdx];
     }
     progress.emitProgress(canvasIdx + 1);
   }

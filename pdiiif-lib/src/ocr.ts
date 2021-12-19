@@ -129,11 +129,11 @@ function parseHocrNode(
 export function parseHocr(
   hocrText: string,
   referenceSize: Dimensions
-): OcrPage {
+): OcrPage | null {
   const doc = parser.parseFromString(hocrText, 'text/html');
   const pageNode = doc.querySelector('div.ocr_page');
   if (pageNode === null) {
-    throw new Error('Could not find a page node in hOCR markup');
+    return null;
   }
   const pageSize = parseHocrAttribs((pageNode as HTMLDivElement).title)
     .bbox as [number, number, number, number];
@@ -420,12 +420,15 @@ function getFallbackImageSize(lines: OcrSpan[]): Dimensions {
  * @param {object} referenceSize Reference size to scale coordinates to
  * @returns {OcrPage} the parsed OCR page
  */
-export function parseOcr(ocrText: string, referenceSize: Dimensions): OcrPage {
-  let parse: OcrPage;
+export function parseOcr(ocrText: string, referenceSize: Dimensions): OcrPage | null {
+  let parse: OcrPage | null;
   if (ocrText.indexOf('<alto') >= 0) {
     parse = parseAlto(ocrText, referenceSize);
   } else {
     parse = parseHocr(ocrText, referenceSize);
+  }
+  if (parse === null) {
+    return null;
   }
   if (!parse.width || !parse.height) {
     parse = { ...parse, ...getFallbackImageSize(parse.lines) };
@@ -540,6 +543,6 @@ export async function fetchAndParseText(
     return parseOcr(markup, {
       width: canvas.getWidth(),
       height: canvas.getHeight(),
-    });
+    }) ?? undefined;
   }
 }
