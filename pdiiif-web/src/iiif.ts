@@ -66,9 +66,12 @@ export async function fetchManifestInfo(
   let supportsDownscale =
     images.find(
       (i) =>
-        i.service?.profile?.endsWith('level2.json') ||
+        i.service?.profile?.some?.(p => p.supports?.indexOf('sizeByWh') >= 0) ||
+        i.service?.profile?.endsWith?.('level2.json') ||
+        i.service?.profile?.[0]?.endsWith?.('level2.json') ||
         i.service?.[0]?.profile === 'level2' ||
-        i.service?.profile?.endsWith('level1.json') ||
+        i.service?.profile?.[0]?.endsWith?.('level2.json') ||
+        i.service?.profile?.endsWith?.('level1.json') ||
         i.service?.[0]?.profile === 'level1'
     ) !== undefined;
 

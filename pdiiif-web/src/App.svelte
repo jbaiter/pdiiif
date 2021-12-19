@@ -13,8 +13,10 @@
   export let coverPageEndpoint: string = `${apiEndpoint}/coverpage`;
 
   let manifestUrl: string = '';
+  let manifestUrlIsValid: boolean | undefined;
   let pdfFinished: boolean | undefined;
-  let error: string | undefined = undefined;
+  let errorMessage: string | undefined = undefined;
+  let infoMessage: string | undefined = undefined;
   let currentProgress: ProgressStatus | undefined;
 
   // Only relevant for client-side generation
@@ -23,7 +25,7 @@
   let cancelRequested = false;
   let cancelled = false;
   let manifestInfo: ManifestInfo | undefined;
-  let infoPromise: Promise<ManifestInfo> | undefined;
+  let infoPromise: Promise<ManifestInfo | void> | undefined;
   let maxWidth: number | undefined;
 
   $: progressPercent = currentProgress
@@ -32,11 +34,14 @@
       100
     : undefined;
   $: progressStyle = currentProgress ? `width: ${progressPercent}%` : undefined;
-  $: if (manifestUrl) {
+  $: if (manifestUrl && manifestUrlIsValid) {
     infoPromise = fetchManifestInfo(manifestUrl).then((info) => {
       maxWidth = info.maximumImageWidth;
       manifestInfo = info;
       return info;
+    }).catch((err) => {
+      errorMessage = `Could not fetch manifest: ${err}`;
+      infoPromise = undefined;
     });
   }
 
@@ -48,7 +53,8 @@
     manifestUrl = '';
     pdfPath = undefined;
     currentProgress = undefined;
-    error = undefined;
+    errorMessage = undefined;
+    infoMessage = undefined;
     pdfFinished = undefined;
     cancelRequested = false;
     cancelled = false;
@@ -75,7 +81,7 @@
     try {
       manifestResp = await fetch(manifestUrl);
     } catch (err) {
-      error = `Failed to fetch manifest from ${manifestUrl}: ${err}`;
+      errorMessage = `Failed to fetch manifest from ${manifestUrl}: ${err}`;
       return;
     }
     const manifestJson = await manifestResp.json();
@@ -98,7 +104,7 @@
       ],
     });
     if ((await handle.queryPermission({ mode: 'readwrite' })) !== 'granted') {
-      error = `no permission to write to '${handle.name}'`;
+      errorMessage = `no permission to write to '${handle.name}'`;
       return;
     }
     pdfPath = (await handle.getFile()).name;
@@ -117,9 +123,10 @@
         },
         cancelToken,
         coverPageEndpoint,
+        maxWidth,
       });
     } catch (err) {
-      console.error(err);
+      errorMessage = `Failed to generate PDF: ${err}`;
       await webWritable.abort();
     } finally {
       cancelToken = undefined;
@@ -136,13 +143,14 @@
     const progressSource = new EventSource(progressEndpoint, {
       withCredentials: true,
     });
-    progressSource.addEventListener('error', () => {
+    progressSource.addEventListener('error', (msg) => {
       if (pdfFinished) {
         return;
       }
       progressSource.close();
       currentProgress = undefined;
       cancelled = true;
+      errorMessage = `Failed to generate PDF: "${progressEndpoint}"`;
     });
     const promise: Promise<void> = new Promise((resolve) =>
       progressSource.addEventListener('progress', (evt) => {
@@ -172,12 +180,14 @@
       promise = generatePdfServerSide();
     }
     await promise;
+    infoMessage = `PDF successfully generated.`;
     pdfFinished = true;
   }
 
   async function cancelGeneration(): Promise<void> {
     cancelRequested = true;
     await cancelToken.requestCancel();
+    infoMessage = `PDF generation cancelled.`;
   }
 </script>
 
@@ -187,6 +197,46 @@
     alt="pdiiif logo"
     class="w-24 mx-auto mb-4 filter drop-shadow-lg"
   />
+  {#if infoMessage}
+    <div
+      class="flex items-center bg-green-600 rounded-lg mb-2 text-white text-sm font-bold px-4 py-3"
+      role="alert"
+    >
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        class="h-5 w-5 mr-2"
+        viewBox="0 0 20 20"
+        fill="currentColor"
+      >
+        <path
+          fill-rule="evenodd"
+          d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+          clip-rule="evenodd"
+        />
+      </svg>
+      <p>{infoMessage}</p>
+    </div>
+  {/if}
+  {#if errorMessage}
+    <div
+      class="flex items-center bg-red-600 rounded-lg mb-2 text-white text-sm font-bold px-4 py-3"
+      role="alert"
+    >
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        class="h-5 w-5 mr-2"
+        viewBox="0 0 20 20"
+        fill="currentColor"
+      >
+        <path
+          fill-rule="evenodd"
+          d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+          clip-rule="evenodd"
+        />
+      </svg>
+      <p>{errorMessage}</p>
+    </div>
+  {/if}
   <div class="flex flex-col bg-blue-400 m-auto p-4 rounded-md shadow-lg">
     <form on:submit={generatePdf}>
       {#if infoPromise}
@@ -194,12 +244,22 @@
       {/if}
       <div class="relative text-gray-700 mt-4">
         <input
-          class="w-full h-10 pl-3 pr-8 text-base placeholder-gray-600 border rounded-lg focus:shadow-outline"
-          type="text"
+          class="w-full h-10 pl-3 pr-10 text-base placeholder-gray-600 border rounded-lg focus:shadow-outline"
+          type="url"
           placeholder="Manifest URL"
           name="manifest-url"
           disabled={currentProgress !== undefined && !pdfFinished}
           bind:value={manifestUrl}
+          on:input={(evt) => {
+            const inp = evt.target;
+            if (inp.validity.typeMisMatch || inp.validity.patternMismatch) {
+              manifestUrlIsValid = false;
+              errorMessage = inp.validationMessage;
+            } else {
+              manifestUrlIsValid = true;
+              errorMessage = undefined;
+            }
+          }}
           on:focus={() => {
             if (pdfFinished || cancelled) {
               resetState();
@@ -262,22 +322,6 @@
           Cancel PDF generation
         </button>
       {/if}
-    {:else if !cancelled && pdfFinished && pdfPath}
-      <p class="mt-4 text-lg">
-        PDF was successfully saved to {pdfPath} ({(
-          currentProgress.bytesWritten /
-          1024 /
-          1024
-        ).toFixed(2)}MiB)
-      </p>
-    {:else if !cancelled && pdfFinished}
-      <p class="mt-4 text-lg">PDF generation and download successful</p>
-    {:else if cancelled}
-      <p
-        class="mt-4 w-full p-2 text-center text-white bg-red-600 rounded-lg font-bold"
-      >
-        Cancelled
-      </p>
     {/if}
   </div>
 </div>

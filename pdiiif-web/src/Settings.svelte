@@ -5,6 +5,7 @@
   export let maxWidth: number | undefined;
 
   let showSettings = false;
+  let maxWidthPct: number = 100;
 
   $: settingsAvailable = manifestInfo.supportsDownscale;
 </script>
@@ -26,12 +27,15 @@
             <input
               type="range"
               name="max-img-width"
-              min="50"
-              max={manifestInfo.maximumImageWidth}
-              step="1"
-              bind:value={maxWidth}
+              min="10"
+              max="100"
+              step="10"
+              on:change={() => {
+                maxWidth = Math.round((maxWidthPct / 100.) * manifestInfo.maximumImageWidth)
+              }}
+              bind:value={maxWidthPct}
             />
-            <span class="ml-2">{maxWidth}px</span>
+            <span class="ml-2">{maxWidthPct}%</span>
           </label>
         {/if}
       </div>
