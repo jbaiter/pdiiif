@@ -569,6 +569,7 @@ export async function convertManifest(
   progress.emitProgress(0);
 
   if (coverPageCallback || coverPageEndpoint) {
+    progress.emitProgress(0, 'Generating cover page');
     const coverPageData = await getCoverPagePdf(
       manifest,
       languagePreference as string[],
@@ -578,6 +579,7 @@ export async function convertManifest(
     await pdfGen.insertCoverPages(coverPageData);
   }
 
+  progress.emitProgress(0, 'Downloading images and generating PDF pages');
   for (let canvasIdx = 0; canvasIdx < canvases.length; canvasIdx++) {
     if (cancelToken.isCancellationConfirmed) {
       break;
@@ -620,7 +622,7 @@ export async function convertManifest(
       if (closed) {
         return;
       }
-      progress.emitProgress(canvases.length);
+      progress.emitProgress(canvases.length, 'Finishing PDF generation');
       if (!closed && progress.writeOutstanding) {
         writer.waitForDrain().then(progressOnDrain);
       }

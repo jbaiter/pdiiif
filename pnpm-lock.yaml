@@ -146,6 +146,9 @@ importers:
       typedoc: 0.22.10_typescript@4.5.2
       typescript: 4.5.2
 
+  pdiiif-lib/lib/commonjs:
+    specifiers: {}
+
   pdiiif-web:
     specifiers:
       '@sveltejs/vite-plugin-svelte': ^1.0.0-next.30
@@ -183,6 +186,15 @@ importers:
       svelte-preprocess: 4.9.8_svelte@3.44.2+typescript@4.5.2
       tailwindcss: 2.2.19
       typescript: 4.5.2
+      vite: 2.6.14
+
+  test:
+    specifiers:
+      pdiiif: workspace:../pdiiif-lib
+      vite: ^2.6.14
+    dependencies:
+      pdiiif: link:../pdiiif-lib
+    devDependencies:
       vite: 2.6.14
 
 packages:

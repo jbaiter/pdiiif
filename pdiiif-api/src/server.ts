@@ -3,7 +3,6 @@ import fetch from 'node-fetch';
 import range from 'lodash/range';
 import acceptLanguageParser from 'accept-language-parser';
 import cors from 'cors';
-import promClient from 'prom-client';
 import promBundle from 'express-prom-bundle';
 import { PropertyValue } from 'manifesto.js';
 
@@ -144,10 +143,14 @@ app.get('/api/progress/:token', progressPathSpec, (req, res) => {
     Connection: 'keep-alive',
     'Cache-Control': 'no-cache',
   });
+  const keepAliveTimer = setInterval(() => {
+    res.write(':keepalive\n\n')
+  }, 15000);
   res.flushHeaders();
   progressClients[token] = res;
 
   req.on('close', () => {
+    clearInterval(keepAliveTimer);
     delete progressClients[token];
   });
 });
@@ -222,15 +225,26 @@ app.get(
       };
     }
 
-    await convertManifest(manifestJson, res, {
-      languagePreference,
-      filterCanvases: canvasIds,
-      onProgress,
-      coverPageCallback: async (params) => {
-        const buf = await coverPageGenerator.render(params);
-        return new Uint8Array(buf.buffer);
-      },
-    });
+    try {
+      await convertManifest(manifestJson, res, {
+        languagePreference,
+        filterCanvases: canvasIds,
+        onProgress,
+        coverPageCallback: async (params) => {
+          const buf = await coverPageGenerator.render(params);
+          return new Uint8Array(buf.buffer);
+        },
+      });
+    } catch (err) {
+      log.error(log.exceptions.getAllInfo(err))
+      if (progressToken && typeof progressToken === 'string') {
+        const clientResp = progressClients[progressToken];
+        if (clientResp) {
+          clientResp.write('event: error\n');
+          clientResp.write(`data: ${err}\n\n`);
+        }
+      }
+    }
     if (progressToken && typeof progressToken === 'string') {
       progressClients[progressToken]?.end(
         undefined,

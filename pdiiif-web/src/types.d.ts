@@ -3,3 +3,9 @@ declare module "*.svg" {
   const content: string;
   export default content;
 }
+
+  interface NotificationMessage {
+    type: 'success' | 'error' | 'info' | 'warn';
+    message: string;
+    tags?: string[];
+  }

@@ -10,14 +10,17 @@ function createLogger(level: string, logToFiles = true): winston.Logger {
   } else {
     transports.push(
       new winston.transports.Console({
-        format: winston.format.simple(),
+        format: winston.format.json({ space: 2 }),
         level,
       })
     );
   }
   return winston.createLogger({
     level,
-    format: winston.format.json(),
+    format: winston.format.combine(
+      winston.format.timestamp({ alias: '@timestamp' }),
+      winston.format.json(),
+    ),
     defaultMeta: { service: 'pdiiif' },
     transports,
   });

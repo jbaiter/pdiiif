@@ -1,11 +1,14 @@
 <script lang="ts">
   /// <reference types="wicg-file-system-access"/>
+  import { onMount } from 'svelte';
+  import { without } from 'lodash';
   import { convertManifest, ProgressStatus, CancelToken } from 'pdiiif';
 
   import type { ManifestInfo } from './iiif';
   import { fetchManifestInfo } from './iiif';
   import Preview from './Preview.svelte';
   import Settings from './Settings.svelte';
+  import Notification from './Notification.svelte';
 
   import logoSvgUrl from '../assets/logo.svg';
 
@@ -15,12 +18,10 @@
   let manifestUrl: string = '';
   let manifestUrlIsValid: boolean | undefined;
   let pdfFinished: boolean | undefined;
-  let errorMessage: string | undefined = undefined;
-  let infoMessage: string | undefined = undefined;
   let currentProgress: ProgressStatus | undefined;
+  let notifications: Array<NotificationMessage> = [];
 
   // Only relevant for client-side generation
-  let pdfPath: string | undefined;
   let cancelToken: CancelToken | undefined;
   let cancelRequested = false;
   let cancelled = false;
@@ -35,26 +36,38 @@
     : undefined;
   $: progressStyle = currentProgress ? `width: ${progressPercent}%` : undefined;
   $: if (manifestUrl && manifestUrlIsValid) {
-    infoPromise = fetchManifestInfo(manifestUrl).then((info) => {
-      maxWidth = info.maximumImageWidth;
-      manifestInfo = info;
-      return info;
-    }).catch((err) => {
-      errorMessage = `Could not fetch manifest: ${err}`;
-      infoPromise = undefined;
-    });
+    infoPromise = fetchManifestInfo(manifestUrl)
+      .then((info) => {
+        maxWidth = info.maximumImageWidth;
+        manifestInfo = info;
+        return info;
+      })
+      .catch((err) => {
+        addNotification({
+          type: 'error',
+          message: `Could not fetch manifest: ${err.message}`,
+        });
+        infoPromise = undefined;
+      });
   }
 
   $: if (manifestUrl.length === 0) {
     resetState();
   }
 
+  onMount(async () => {
+    if (typeof window.showSaveFilePicker !== 'function') {
+      addNotification({
+        type: 'warn',
+        message:
+          'Your browser does not support generating PDFs on its own, so the app will fall back to a server. Please note that there are limits in place due to bandwidth limitations.',
+      });
+    }
+  });
+
   function resetState() {
     manifestUrl = '';
-    pdfPath = undefined;
     currentProgress = undefined;
-    errorMessage = undefined;
-    infoMessage = undefined;
     pdfFinished = undefined;
     cancelRequested = false;
     cancelled = false;
@@ -62,6 +75,37 @@
     infoPromise = undefined;
     maxWidth = undefined;
   }
+
+  function addNotification(msg: NotificationMessage): void {
+    notifications = [msg, ...notifications.slice(0, 4)];
+  }
+
+  function clearNotifications(tag?: string) {
+    if (tag !== undefined) {
+      notifications = notifications.filter(
+        (n) => n.tags == undefined || n.tags.indexOf(tag) < 0
+      );
+    } else {
+      notifications = [];
+    }
+  }
+
+  const onManifestInput = (evt) => {
+    const inp = evt.target as HTMLInputElement;
+    clearNotifications('validation');
+    if (inp.validity.typeMismatch || inp.validity.patternMismatch) {
+      manifestUrlIsValid = false;
+      addNotification({
+        type: 'error',
+        message: inp.validationMessage,
+        tags: ['validation'],
+      });
+    } else {
+      manifestUrlIsValid = true;
+      // FIXME: Meh, shouldn't we have a separate state variable for validation messages?
+      clearNotifications('validation');
+    }
+  };
 
   /// Simply generate a random hex string
   function generateProgressToken() {
@@ -81,7 +125,10 @@
     try {
       manifestResp = await fetch(manifestUrl);
     } catch (err) {
-      errorMessage = `Failed to fetch manifest from ${manifestUrl}: ${err}`;
+      addNotification({
+        type: 'error',
+        message: `Could not fetch manifest from ${manifestUrl}: ${err.message}`,
+      });
       return;
     }
     const manifestJson = await manifestResp.json();
@@ -104,10 +151,11 @@
       ],
     });
     if ((await handle.queryPermission({ mode: 'readwrite' })) !== 'granted') {
-      errorMessage = `no permission to write to '${handle.name}'`;
-      return;
+      addNotification({
+        type: 'error',
+        message: `no permission to write to '${handle.name}'`,
+      });
     }
-    pdfPath = (await handle.getFile()).name;
     const webWritable = await handle.createWritable();
     cancelToken = new CancelToken();
     cancelToken.addOnCancelled(async () => {
@@ -126,8 +174,11 @@
         maxWidth,
       });
     } catch (err) {
-      errorMessage = `Failed to generate PDF: ${err}`;
-      await webWritable.abort();
+      addNotification({
+        type: 'error',
+        message: `Failed to generate PDF: ${err.message}`,
+      });
+      currentProgress = undefined;
     } finally {
       cancelToken = undefined;
     }
@@ -150,7 +201,10 @@
       progressSource.close();
       currentProgress = undefined;
       cancelled = true;
-      errorMessage = `Failed to generate PDF: "${progressEndpoint}"`;
+      addNotification({
+        type: 'error',
+        message: `Failed to generate PDF: ${msg}`,
+      });
     });
     const promise: Promise<void> = new Promise((resolve) =>
       progressSource.addEventListener('progress', (evt) => {
@@ -168,6 +222,7 @@
       `${pdfEndpoint}?${new URLSearchParams({ manifestUrl, progressToken })}`
     );
     await promise;
+    pdfFinished = true;
   }
 
   async function generatePdf(evt: Event): Promise<void> {
@@ -180,14 +235,20 @@
       promise = generatePdfServerSide();
     }
     await promise;
-    infoMessage = `PDF successfully generated.`;
+    addNotification({
+      type: 'success',
+      message: 'PDF successfully generated.',
+    });
     pdfFinished = true;
   }
 
   async function cancelGeneration(): Promise<void> {
     cancelRequested = true;
     await cancelToken.requestCancel();
-    infoMessage = `PDF generation cancelled.`;
+    addNotification({
+      type: 'info',
+      message: 'PDF generation cancelled.',
+    });
   }
 </script>
 
@@ -197,46 +258,21 @@
     alt="pdiiif logo"
     class="w-24 mx-auto mb-4 filter drop-shadow-lg"
   />
-  {#if infoMessage}
-    <div
-      class="flex items-center bg-green-600 rounded-lg mb-2 text-white text-sm font-bold px-4 py-3"
-      role="alert"
-    >
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        class="h-5 w-5 mr-2"
-        viewBox="0 0 20 20"
-        fill="currentColor"
+  <div>
+    {#each notifications as notification}
+      <Notification
+        type={notification.type}
+        on:close={() => {
+          if (notification.type === 'success') {
+            resetState();
+          }
+          notifications = without(notifications, notification);
+        }}
       >
-        <path
-          fill-rule="evenodd"
-          d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-          clip-rule="evenodd"
-        />
-      </svg>
-      <p>{infoMessage}</p>
-    </div>
-  {/if}
-  {#if errorMessage}
-    <div
-      class="flex items-center bg-red-600 rounded-lg mb-2 text-white text-sm font-bold px-4 py-3"
-      role="alert"
-    >
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        class="h-5 w-5 mr-2"
-        viewBox="0 0 20 20"
-        fill="currentColor"
-      >
-        <path
-          fill-rule="evenodd"
-          d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-          clip-rule="evenodd"
-        />
-      </svg>
-      <p>{errorMessage}</p>
-    </div>
-  {/if}
+        {notification.message}
+      </Notification>
+    {/each}
+  </div>
   <div class="flex flex-col bg-blue-400 m-auto p-4 rounded-md shadow-lg">
     <form on:submit={generatePdf}>
       {#if infoPromise}
@@ -250,21 +286,7 @@
           name="manifest-url"
           disabled={currentProgress !== undefined && !pdfFinished}
           bind:value={manifestUrl}
-          on:input={(evt) => {
-            const inp = evt.target;
-            if (inp.validity.typeMisMatch || inp.validity.patternMismatch) {
-              manifestUrlIsValid = false;
-              errorMessage = inp.validationMessage;
-            } else {
-              manifestUrlIsValid = true;
-              errorMessage = undefined;
-            }
-          }}
-          on:focus={() => {
-            if (pdfFinished || cancelled) {
-              resetState();
-            }
-          }}
+          on:input={onManifestInput}
         />
         <button
           type="submit"
@@ -289,8 +311,8 @@
       {/if}
     </form>
     {#if currentProgress && !pdfFinished && !cancelled}
-      <div class="relative mt-4 h-8 w-full bg-gray-300">
-        <div style={progressStyle} class="h-full bg-blue-600" />
+      <div class="relative mt-4 h-8 w-full rounded-md bg-gray-300">
+        <div style={progressStyle} class="h-full rounded-md bg-blue-600" />
         {#if currentProgress.estimatedFileSize}
           <div
             class="absolute w-full top-0 pt-1 text-center text-white mix-blend-difference"

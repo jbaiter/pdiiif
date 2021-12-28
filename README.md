@@ -4,7 +4,7 @@
 
 [**Sample PDF generated with the library**](https://pdiiif.jbaiter.de/wunder.pdf)
 
-[**Library documentation**](https://github.com/jbaiter/pdiiif/tree/main/pdiiif-lib)
+[**Library API Documentation**](https://jbaiter.github.io/pdiiif)
 
 **pdiiif** is a JavaScript library to **create PDFs from IIIF Manifests.**
 For the most part, it runs both in browsers (that implement the
