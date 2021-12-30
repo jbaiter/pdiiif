@@ -10,7 +10,37 @@ import { CancelToken } from '.';
 const FALLBACK_PPI = 300;
 
 /** Maps rate-limited hosts to a mutex that limits the concurrent fetching. */
-const RateLimitingRegistry = new Map<string, Mutex>();
+class RateLimitingRegistry {
+  private hostMutexes = new Map<string, Mutex>();
+  private callbacks: Array<(host: string, limited: boolean) => void> = [];
+
+  getMutex(host: string): Mutex | undefined {
+    return this.hostMutexes.get(host);
+  }
+
+  limitHost(host: string): Mutex {
+    const mutex = new Mutex();
+    this.hostMutexes.set(host, mutex);
+    this.callbacks.forEach(cb => cb(host, true));
+    return mutex;
+  }
+
+  unlimitHost(host: string): void {
+    this.hostMutexes.delete(host);
+    this.callbacks.forEach(cb => cb(host, false));
+  }
+
+  subscribe(cb: (host: string, limited: boolean) => void): number {
+    this.callbacks.push(cb);
+    return this.callbacks.length - 1;
+  }
+
+  unsubscribe(ticket: number) {
+    this.callbacks.splice(ticket, 1);
+  }
+}
+
+export const rateLimitRegistry = new RateLimitingRegistry();
 
 /** A 'respectful' wrapper around `fetch` that tries to respect rate-limiting headers. */
 export async function fetchRespectfully(
@@ -21,7 +51,7 @@ export async function fetchRespectfully(
   const { host } = new URL(url);
   // If the host associated with the URL is rate-limited, limit concurrency to a single
   // fetch at a time by acquiring the mutex for the host.
-  let rateLimitMutex = RateLimitingRegistry.get(host);
+  let rateLimitMutex = rateLimitRegistry.getMutex(host);
   let numRetries = -1;
   let resp: Response;
   let waitMs = 0;
@@ -72,8 +102,7 @@ export async function fetchRespectfully(
       }
       // At this point we're pretty sure that we're being rate-limited, so let's
       // limit concurrency from here on out.
-      rateLimitMutex = new Mutex();
-      RateLimitingRegistry.set(host, rateLimitMutex);
+      rateLimitMutex = rateLimitRegistry.limitHost(host);
 
       // We assume a sliding window implemention here
       const secsPerQuotaUnit = reset / (limit - remaining);
