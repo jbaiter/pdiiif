@@ -1,1 +1,21 @@
-{}
+{
+    "errors": {
+        "cors": "The Image API endpoint in the manifest does not support CORS for images, falling back to server-side PDF generation.",
+        "manifest_fetch": "Could not fetch manifest from {manifestUrl}: {errorMsg}",
+        "no_clientside": "Your browser does not support generating PDFs on its own, so the app will fall back to a server.",
+        "write_perm": "No permission to write to '{fileName}'",
+        "pdf_failure": "Failed to generate PDF: {errorMsg}",
+        "pdf_failure_conn": "Failed to generate PDF: Could not connect to server at {apiEndpoint}",
+        "estimate_failure": "Failed to load size estimate."
+    },
+    "notifications": {
+        "success": "PDF successfully generated.",
+        "cancel": "PDF generation cancelled."
+    },
+    "buttons": {
+        "generate": "Generate PDF",
+        "cancel": "Cancel PDF generation",
+        "close": "Close"
+    },
+    "estimated_pdf_size": "Estimated PDF size."
+}

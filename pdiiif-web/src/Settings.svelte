@@ -3,6 +3,7 @@
 
   export let manifestInfo: ManifestInfo;
   export let maxWidth: number | undefined;
+  export let disabled = false;
 
   let showSettings = false;
   let maxWidthPct: number = 100;
@@ -17,6 +18,7 @@
         <button
           class="float-right flex items-center justify-center w-6 h-6 bg-gray-200 rounded-full"
           type="button"
+          disabled={disabled}
           on:click={() => {
             showSettings = false;
           }}>×</button

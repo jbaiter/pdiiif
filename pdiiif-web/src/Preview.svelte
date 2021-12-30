@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { _ } from 'svelte-i18n';
   import { estimatePdfSize } from 'pdiiif';
 
   import type { ManifestInfo } from './iiif';
@@ -33,19 +34,19 @@
       />
       <div>
         <h2 class="font-bold text-lg mt-4">{manifestInfo.label}</h2>
+        {#if manifestInfo.imageApiHasCors}
         <p class="mt-4">
-          Estimated PDF size:
+          {$_('estimated_pdf_size')}:
           {#await getFileSizeEstimate(manifestInfo, maxWidth)}
             <Spinner />
           {:then size}
             <strong>{(size / 1024 / 1024).toFixed(2)} MiB</strong>
           {:catch}
-            <strong>Failed to load size estimatePromise.</strong>
+            <strong>{$_('errors.estimate_failure')}</strong>
           {/await}
         </p>
+        {/if}
       </div>
     {/if}
-  {:catch err}
-    <div>Failed to load Manifest from {manifestUrl}: {err}</div>
   {/await}
 </div>

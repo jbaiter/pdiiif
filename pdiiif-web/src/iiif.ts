@@ -6,6 +6,7 @@ export interface ManifestInfo {
   manifestJson: any;
   maximumImageWidth: number;
   supportsDownscale: boolean;
+  imageApiHasCors: boolean;
 }
 
 // TODO: Use manifesto.js for i18n and better 2/3 cross-compatibility
@@ -75,11 +76,21 @@ export async function fetchManifestInfo(
         i.service?.[0]?.profile === 'level1'
     ) !== undefined;
 
+    let testImgResp = await fetch(images[0]['@id']);
+    let imageApiHasCors: boolean;
+    try {
+      let testImgData = await testImgResp.arrayBuffer();
+      imageApiHasCors = testImgData[0] !== undefined;
+    } catch {
+      imageApiHasCors = false;
+    }
+
   return {
     label: manifestJson.label,
     previewImageUrl,
     maximumImageWidth: max(images.map((i) => i.width ?? i.service?.width ?? 0)),
     manifestJson,
     supportsDownscale,
+    imageApiHasCors,
   };
 }

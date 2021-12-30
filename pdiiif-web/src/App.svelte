@@ -1,6 +1,7 @@
 <script lang="ts">
   /// <reference types="wicg-file-system-access"/>
   import { onMount } from 'svelte';
+  import { _ } from 'svelte-i18n';
   import { without } from 'lodash';
   import { convertManifest, ProgressStatus, CancelToken } from 'pdiiif';
 
@@ -20,6 +21,8 @@
   let pdfFinished: boolean | undefined;
   let currentProgress: ProgressStatus | undefined;
   let notifications: Array<NotificationMessage> = [];
+  const supportsClientSideGeneration =
+    typeof window.showSaveFilePicker === 'function';
 
   // Only relevant for client-side generation
   let cancelToken: CancelToken | undefined;
@@ -35,17 +38,25 @@
       100
     : undefined;
   $: progressStyle = currentProgress ? `width: ${progressPercent}%` : undefined;
-  $: if (manifestUrl && manifestUrlIsValid) {
+  $: if (manifestUrl && manifestUrlIsValid && !infoPromise) {
     infoPromise = fetchManifestInfo(manifestUrl)
       .then((info) => {
         maxWidth = info.maximumImageWidth;
         manifestInfo = info;
+        if (supportsClientSideGeneration && !manifestInfo.imageApiHasCors) {
+          notifications.push({
+            type: 'warn',
+            message: $_('errors.cors'),
+          });
+        }
         return info;
       })
       .catch((err) => {
         addNotification({
           type: 'error',
-          message: `Could not fetch manifest: ${err.message}`,
+          message: $_('errors.manifest_fetch', {
+            values: { manifestUrl, errorMsg: err.message },
+          }),
         });
         infoPromise = undefined;
       });
@@ -56,11 +67,10 @@
   }
 
   onMount(async () => {
-    if (typeof window.showSaveFilePicker !== 'function') {
+    if (!supportsClientSideGeneration) {
       addNotification({
         type: 'warn',
-        message:
-          'Your browser does not support generating PDFs on its own, so the app will fall back to a server. Please note that there are limits in place due to bandwidth limitations.',
+        message: $_('errors.no_clientside'),
       });
     }
   });
@@ -90,7 +100,7 @@
     }
   }
 
-  const onManifestInput = (evt) => {
+  const onManifestInput: svelte.JSX.FormEventHandler<HTMLInputElement> = (evt) => {
     const inp = evt.target as HTMLInputElement;
     clearNotifications('validation');
     if (inp.validity.typeMismatch || inp.validity.patternMismatch) {
@@ -127,7 +137,9 @@
     } catch (err) {
       addNotification({
         type: 'error',
-        message: `Could not fetch manifest from ${manifestUrl}: ${err.message}`,
+        message: $_('errors.manifest_fetch', {
+          values: { manifestUrl, errorMsg: err.message },
+        }),
       });
       return;
     }
@@ -153,7 +165,7 @@
     if ((await handle.queryPermission({ mode: 'readwrite' })) !== 'granted') {
       addNotification({
         type: 'error',
-        message: `no permission to write to '${handle.name}'`,
+        message: $_('errors.write_perm', { values: { fileName: handle.name } }),
       });
     }
     const webWritable = await handle.createWritable();
@@ -176,7 +188,9 @@
     } catch (err) {
       addNotification({
         type: 'error',
-        message: `Failed to generate PDF: ${err.message}`,
+        message: $_('errors.pdf_failure_', {
+          values: { errorMsg: err.message },
+        }),
       });
       currentProgress = undefined;
     } finally {
@@ -194,7 +208,16 @@
     const progressSource = new EventSource(progressEndpoint, {
       withCredentials: true,
     });
-    progressSource.addEventListener('error', (msg) => {
+    progressSource.addEventListener('error', () => {
+      progressSource.close();
+      currentProgress = undefined;
+      cancelled = true;
+      addNotification({
+        type: 'error',
+        message: $_('errors.pdf_failure_conn', { values: { apiEndpoint } }),
+      });
+    });
+    progressSource.addEventListener('servererror', (evt) => {
       if (pdfFinished) {
         return;
       }
@@ -203,7 +226,9 @@
       cancelled = true;
       addNotification({
         type: 'error',
-        message: `Failed to generate PDF: ${msg}`,
+        message: $_('errors.pdf_failure', {
+          values: { errorMsg: (evt as any).data },
+        }),
       });
     });
     const promise: Promise<void> = new Promise((resolve) =>
@@ -229,7 +254,7 @@
     evt.preventDefault();
     pdfFinished = false;
     let promise: Promise<void>;
-    if (typeof window.showSaveFilePicker === 'function') {
+    if (supportsClientSideGeneration && manifestInfo.imageApiHasCors) {
       promise = generatePdfClientSide();
     } else {
       promise = generatePdfServerSide();
@@ -237,7 +262,7 @@
     await promise;
     addNotification({
       type: 'success',
-      message: 'PDF successfully generated.',
+      message: $_('success'),
     });
     pdfFinished = true;
   }
@@ -247,7 +272,7 @@
     await cancelToken.requestCancel();
     addNotification({
       type: 'info',
-      message: 'PDF generation cancelled.',
+      message: $_('cancel'),
     });
   }
 </script>
@@ -299,7 +324,7 @@
             aria-hidden="true"
             class="w-7 h-7 fill-current"
           >
-            <title>Generate PDF</title>
+            <title>{$_('buttons.generate')}</title>
             <path
               d="M20 2H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-8.5 7.5c0 .83-.67 1.5-1.5 1.5H9v2H7.5V7H10c.83 0 1.5.67 1.5 1.5v1zm5 2c0 .83-.67 1.5-1.5 1.5h-2.5V7H15c.83 0 1.5.67 1.5 1.5v3zm4-3H19v1h1.5V11H19v2h-1.5V7h3v1.5zM9 9.5h1v-1H9v1zM4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm10 5.5h1v-3h-1v3z"
             />
@@ -307,11 +332,13 @@
         </button>
       </div>
       {#if manifestInfo}
-        <Settings bind:maxWidth {manifestInfo} />
+        <Settings bind:maxWidth {manifestInfo} disabled={!!currentProgress} />
       {/if}
     </form>
     {#if currentProgress && !pdfFinished && !cancelled}
-      <div class="relative mt-4 h-8 w-full rounded-md bg-gray-300">
+      <div
+        class="relative mt-4 h-8 w-full rounded-md bg-gray-300 border-2 border-white"
+      >
         <div style={progressStyle} class="h-full rounded-md bg-blue-600" />
         {#if currentProgress.estimatedFileSize}
           <div
@@ -341,7 +368,7 @@
               d="M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm5 13.59L15.59 17 12 13.41 8.41 17 7 15.59 10.59 12 7 8.41 8.41 7 12 10.59 15.59 7 17 8.41 13.41 12 17 15.59z"
             /></svg
           >
-          Cancel PDF generation
+          {$_('buttons.cancel')}
         </button>
       {/if}
     {/if}

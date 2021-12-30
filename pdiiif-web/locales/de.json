@@ -1,1 +1,21 @@
-{}
+{
+    "errors": {
+        "cors": "Die Image API Schnittstelle, die im Manifest verwendet wird, unterstützt kein CORS für Bilder. Deshalb wird das PDF auf dem Server generiert.",
+        "manifest_fetch": "Konnte IIIF Manifest nicht von {manifestUrl} abrufen: {errorMsg}",
+        "no_clientside": "Ihr Browser unterstützt leider keine PDF-Generierung, deshalb wird das PDF auf dem Server generiert.",
+        "write_perm": "Keine Berechtigung um PDF nach '{fileName}' zu schreiben",
+        "pdf_failure": "PDF-Erstellung fehlgeschlagen: {errorMsg}",
+        "pdf_failure_conn": "PDF-Erstellung fehlgeschlagen: Konnte keine Verbindung zum Server {apiEndpoint} herstellen",
+        "estimate_failure": "Dateigrößen-Schätzung fehlgeschlagen."
+    },
+    "notifications": {
+        "success": "PDF erfolgreich erstellt.",
+        "cancel": "PDF-Erstellung abgebrochen."
+    },
+    "buttons": {
+        "generate": "PDF erstellen",
+        "cancel": "PDF-Erstellung abbrechen",
+        "close": "Schließen"
+    },
+    "estimated_pdf_size": "Geschätzte Dateigröße."
+}
