@@ -1,7 +1,5 @@
 module.exports = {
-  // TODO: Find out why mode: 'jit' doesn't work
-  purge: [
-    './index.html',
-    './src/**/*.svelte',
-  ],
-}
+  content: ['./index.html', './src/**/*.svelte'],
+  theme: { extend: {} },
+  plugins: [],
+};

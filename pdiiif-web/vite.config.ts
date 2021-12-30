@@ -2,10 +2,11 @@ import { defineConfig } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 import sveltePreprocess from 'svelte-preprocess';
 import tailwind from 'tailwindcss';
+import autoprefixer from 'autoprefixer'
 
 export default defineConfig(({ command, mode }) => {
   const postssConfig = {
-    plugins: [tailwind()],
+    plugins: [tailwind(), autoprefixer()],
   };
   return {
     assetsInclude: ['assets/**'],
