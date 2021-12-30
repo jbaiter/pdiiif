@@ -15,7 +15,11 @@
     "buttons": {
         "generate": "Generate PDF",
         "cancel": "Cancel PDF generation",
-        "close": "Close"
+        "close": "Close",
+        "settings": "Settings"
+    },
+    "settings": {
+        "img_width": "Image size"
     },
     "estimated_pdf_size": "Estimated PDF size."
 }

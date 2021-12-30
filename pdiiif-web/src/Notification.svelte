@@ -29,7 +29,7 @@
   class="flex items-start {colorClass} rounded-lg mb-2 text-white text-sm font-bold px-4 py-3"
   role="alert"
 >
-  <svelte:component this={Icon} classes="h-12 w-12 mr-2 flex-grow" />
+  <svelte:component this={Icon} classes="h-4 w-4 mr-2" />
   <p class="flex-grow"><slot /></p>
   <button
     title="{$_('buttons.close')}"

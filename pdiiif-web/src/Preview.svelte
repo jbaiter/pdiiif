@@ -5,7 +5,6 @@
   import type { ManifestInfo } from './iiif';
   import Spinner from './Spinner.svelte';
 
-  export let manifestUrl: string;
   export let maxWidth: number | undefined;
   export let infoPromise: Promise<ManifestInfo | void>;
 

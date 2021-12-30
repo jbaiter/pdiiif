@@ -205,9 +205,7 @@
     const pdfEndpoint = `${apiEndpoint}/generate-pdf`;
     const progressToken = generateProgressToken();
     const progressEndpoint = `${apiEndpoint}/progress/${progressToken}`;
-    const progressSource = new EventSource(progressEndpoint, {
-      withCredentials: true,
-    });
+    const progressSource = new EventSource(progressEndpoint);
     progressSource.addEventListener('error', () => {
       progressSource.close();
       currentProgress = undefined;
@@ -262,7 +260,7 @@
     await promise;
     addNotification({
       type: 'success',
-      message: $_('success'),
+      message: $_('notifications.success'),
     });
     pdfFinished = true;
   }
@@ -272,7 +270,7 @@
     await cancelToken.requestCancel();
     addNotification({
       type: 'info',
-      message: $_('cancel'),
+      message: $_('notifications.cancel'),
     });
   }
 </script>
@@ -301,7 +299,7 @@
   <div class="flex flex-col bg-blue-400 m-auto p-4 rounded-md shadow-lg">
     <form on:submit={generatePdf}>
       {#if infoPromise}
-        <Preview {manifestUrl} {maxWidth} {infoPromise} />
+        <Preview {maxWidth} {infoPromise} />
       {/if}
       <div class="relative text-gray-700 mt-4">
         <input

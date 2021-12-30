@@ -15,7 +15,11 @@
     "buttons": {
         "generate": "PDF erstellen",
         "cancel": "PDF-Erstellung abbrechen",
-        "close": "Schließen"
+        "close": "Schließen",
+        "settings": "Einstellungen"
+    },
+    "settings": {
+        "img_width": "Bildgröße"
     },
     "estimated_pdf_size": "Geschätzte Dateigröße."
 }
