@@ -10,7 +10,9 @@ function createLogger(level: string, logToFiles = true): winston.Logger {
   } else {
     transports.push(
       new winston.transports.Console({
-        format: winston.format.json({ space: 2 }),
+        format: winston.format.json({
+          space: process.env.NODE_ENV === 'production' ? 0 : 2,
+        }),
         level,
       })
     );
@@ -19,7 +21,7 @@ function createLogger(level: string, logToFiles = true): winston.Logger {
     level,
     format: winston.format.combine(
       winston.format.timestamp({ alias: '@timestamp' }),
-      winston.format.json(),
+      winston.format.json()
     ),
     defaultMeta: { service: 'pdiiif' },
     transports,

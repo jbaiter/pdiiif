@@ -167,16 +167,6 @@ export const pdfPath = middleware.validPath({
         type: 'number',
       },
     },
-    {
-      name: 'preferLossless',
-      in: 'query',
-      description:
-        'Prefer lossless images (currently this always means PNG) to lossy (JPG). Increases the size of the resulting PDF significantly.',
-      required: false,
-      schema: {
-        type: 'boolean',
-      },
-    },
   ],
   responses: {
     200: {

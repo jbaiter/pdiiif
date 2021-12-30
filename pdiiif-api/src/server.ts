@@ -240,7 +240,7 @@ app.get(
       if (progressToken && typeof progressToken === 'string') {
         const clientResp = progressClients[progressToken];
         if (clientResp) {
-          clientResp.write('event: error\n');
+          clientResp.write('event: servererror\n');
           clientResp.write(`data: ${err}\n\n`);
         }
       }
