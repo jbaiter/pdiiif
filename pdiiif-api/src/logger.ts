@@ -1,3 +1,4 @@
+import { omit } from 'lodash';
 import winston from 'winston';
 
 function createLogger(level: string, logToFiles = true): winston.Logger {
@@ -21,6 +22,7 @@ function createLogger(level: string, logToFiles = true): winston.Logger {
     level,
     format: winston.format.combine(
       winston.format.timestamp({ alias: '@timestamp' }),
+      winston.format((info) => omit(info, 'timestamp') as any)(),
       winston.format.json()
     ),
     defaultMeta: { service: 'pdiiif' },
