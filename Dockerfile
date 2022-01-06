@@ -40,6 +40,10 @@ WORKDIR /opt/pdiiif/pdiiif-lib
 RUN pnpm i
 RUN pnpm build
 
+WORKDIR /opt/pdiiif/pdiiif-web
+RUN pnpm i
+RUN pnpm build
+
 WORKDIR /opt/pdiiif/pdiiif-api
 RUN pnpm i
 RUN pnpm build
@@ -47,6 +51,6 @@ RUN pnpm build
 ENV CFG_PORT 8080
 ENV CFG_HOST 0.0.0.0
 
-RUN ls -l
+EXPOSE ${CFG_PORT}
 
 CMD ["node", "dist/server.js"]

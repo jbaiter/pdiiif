@@ -1,6 +1,6 @@
 [![pdiiif logo](pdiiif-web/assets/logo.svg)](https://pdiiif.jbaiter.de)
 
-[**Demo**](https://jbaiter.github.io/pdiiif)
+[**Demo**](https://pdiiif.jbaiter.de)
 
 [**Sample PDF generated with the library**](https://pdiiif.jbaiter.de/wunder.pdf)
 
@@ -41,6 +41,16 @@ each canvas (ALTO or hOCR referenced from a canvas' `seeAlso` property).
 - [ ] Optional rendering of IIIF Annotations as PDF annotations *(planned for v0.2, early 2022)*
 - [ ] Extraction of PDF annotations as IIIF anotations from PDFs generated with pdiiif *(planned for v0.2, early 2022)*
 - [ ] Rendering Canvases with multiple images *(planned for 2022)*
+
+**Quickstart**
+Besides using the public instance at https://pdiiif.jbaiter.de, you can also run the app yourself.
+The easiest way to do this is with Docker:
+
+```
+$ docker build . -t pdiiif
+# SYS_ADMIN capabilities are required (needed by Pupeteer's headless Chrome instance to generate cover page PDFs)
+$ docker run -p 8080:8080 --cap-add=SYS_ADMIN --name pdiiif
+```
 
 **Structure of the repository**
 - [`./pdiiif-lib`](https://github.com/jbaiter/pdiiif/tree/main/pdiiif-lib): Contains the library source code
