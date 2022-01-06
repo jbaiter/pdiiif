@@ -60,6 +60,7 @@
     "mnemonist": "^0.39.0",
     "node-fetch": "^2.6.1",
     "pdiiif": "workspace:../pdiiif-lib",
+    "pdiiif-web": "workspace:../pdiiif-web",
     "prom-client": "^14.0.1",
     "puppeteer": "^11.0.0",
     "qrcode-svg": "^1.1.0",

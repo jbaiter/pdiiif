@@ -110,6 +110,7 @@ const rateLimiter = new RateLimiter({
 const progressClients: { [token: string]: Response } = {};
 
 const app = express();
+app.use(express.static('node_modules/pdiiif-web/dist'))
 app.use(openApiMiddleware);
 app.use(
   cors({
