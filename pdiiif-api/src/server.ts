@@ -66,17 +66,20 @@ async function validateManifest(res: Response, manifestUrl: any): Promise<any> {
 
 function buildCanvasFilter(manifestJson: any, indexSpec: string): string[] {
   const canvasIdxs = new Set(
-    indexSpec.split(',').reduce((idxs, grp) => {
-      if (grp.indexOf('-') > 0) {
-        const parts = grp.split('-');
-        idxs.concat(
-          range(Number.parseInt(parts[0]), Number.parseInt(parts[1]))
-        );
-      } else {
-        idxs.push(Number.parseInt(grp));
-      }
-      return idxs;
-    }, [])
+    indexSpec
+      .split(',')
+      .filter((g) => g.length > 0)
+      .reduce((idxs, grp) => {
+        if (grp.indexOf('-') > 0) {
+          const parts = grp.split('-');
+          idxs.concat(
+            range(Number.parseInt(parts[0]), Number.parseInt(parts[1]))
+          );
+        } else {
+          idxs.push(Number.parseInt(grp));
+        }
+        return idxs;
+      }, [])
   );
   return (manifestJson.items ?? manifestJson.sequences?.[0]?.canvases)
     .map((c) => (c.id ?? c['@id']) as string)
@@ -144,7 +147,7 @@ app.get('/api/progress/:token', progressPathSpec, (req, res) => {
     'Cache-Control': 'no-cache',
   });
   const keepAliveTimer = setInterval(() => {
-    res.write(':keepalive\n\n')
+    res.write(':keepalive\n\n');
   }, 15000);
   res.flushHeaders();
   progressClients[token] = res;
@@ -236,7 +239,7 @@ app.get(
         },
       });
     } catch (err) {
-      log.error(log.exceptions.getAllInfo(err))
+      log.error(log.exceptions.getAllInfo(err));
       if (progressToken && typeof progressToken === 'string') {
         const clientResp = progressClients[progressToken];
         if (clientResp) {

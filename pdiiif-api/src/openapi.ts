@@ -118,13 +118,8 @@ export const pdfPath = middleware.validPath({
       },
       style: 'form',
       schema: {
-        type: 'array',
-        items: {
-          oneOf: [
-            { type: 'integer', description: 'Single canvas index' },
-            { type: 'string', description: 'Range of canvas indices' },
-          ],
-        },
+        type: 'string',
+        pattern: '^(?:\\d+,?|\\d+-\\d+,?)+$',
       },
     },
     {
