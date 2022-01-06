@@ -9,6 +9,7 @@ RUN apt-get update \
     && sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list' \
     && apt-get update \
     && apt-get install -y google-chrome-stable fonts-noto libxss1 --no-install-recommends \
+    && apt-get clean \ 
     && rm -rf /var/lib/apt/lists/*
 
 RUN wget -q -O - https://unpkg.com/@pnpm/self-installer | node
@@ -36,17 +37,14 @@ ENV CFG_PUPPETEER_BROWSER_EXECUTABLE google-chrome-stable
 
 COPY --chown=pptruser . .
 
-WORKDIR /opt/pdiiif/pdiiif-lib
-RUN pnpm i
-RUN pnpm build
-
-WORKDIR /opt/pdiiif/pdiiif-web
-RUN pnpm i
-RUN pnpm build
-
-WORKDIR /opt/pdiiif/pdiiif-api
-RUN pnpm i
-RUN pnpm build
+WORKDIR /opt/pdiiif
+RUN cd pdiiif-lib && \
+    pnpm i && pnpm build && \
+    cd ../pdiiif-web && \
+    pnpm i && pnpm build && \
+    cd ../pdiiif-api && \
+    pnpm i && pnpm run build && \
+    rm -rf ~/.pnpm-store
 
 ENV CFG_PORT 8080
 ENV CFG_HOST 0.0.0.0
