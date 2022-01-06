@@ -139,45 +139,46 @@ export type SizeInfo = {
 /** Calculate the image size to fetch, based on user constraints and available sizes
  *  in the Image API info.json response.
  */
-export function getImageSize(infoJson: any, requestedWidth?: number): SizeInfo {
+export function getImageSize(infoJson: any, scaleFactor = 1): SizeInfo {
   let sizeStr: string;
-  let maxWidth = requestedWidth;
+  const isIIIFv3 = (Array.isArray(infoJson['@context'])
+    ? infoJson['@context'].slice(-1)[0]
+    : infoJson['@context']) === 'http://iiif.io/api/image/3/context.json'
+  const maxWidth = infoJson.maxWidth ?? infoJson.width;
+  let requestedWidth = Math.floor(scaleFactor * maxWidth)
   const aspectRatio = infoJson.width / infoJson.height;
   const supportsScaleByWh =
     (infoJson.profile instanceof String &&
       infoJson.profile.indexOf('level2') >= 0) ||
     infoJson.profile[0].indexOf('level2') >= 0 ||
     infoJson.profile[1]?.supports?.indexOf('sizeByWh') >= 0;
-  if (maxWidth && !supportsScaleByWh) {
+  if (scaleFactor < 1 && !supportsScaleByWh) {
     // AR-compliant downscaling is not supported, find the closest available size
-    maxWidth = minBy(
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      infoJson.sizes.map((dims: any) => Math.abs(maxWidth! - dims.width))
-    );
-    sizeStr = `${maxWidth},`;
-  } else if (!maxWidth) {
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    requestedWidth = minBy(
+      infoJson.sizes.map((dims: any) => Math.abs(requestedWidth - dims.width))
+    )!;
+    sizeStr = `${requestedWidth},`;
+  } else if (scaleFactor == 1) {
+    sizeStr = isIIIFv3 || infoJson.maxWidth || infoJson.maxArea ? 'max' : 'full';
     if (infoJson.maxWidth) {
-      maxWidth = infoJson.maxWidth;
-      sizeStr = `${maxWidth},`;
+      requestedWidth = infoJson.maxWidth;
     } else if (infoJson.maxHeight) {
-      maxWidth = Math.round(aspectRatio * infoJson.maxHeight);
-      sizeStr = `,${infoJson.maxHeight}`;
+      requestedWidth = Math.round(aspectRatio * infoJson.maxHeight);
     } else if (infoJson.maxArea) {
       const fullArea = infoJson.width * infoJson.height;
       const scaleFactor = infoJson.maxArea / fullArea;
-      maxWidth = Math.round(scaleFactor * infoJson.width);
-      sizeStr = 'max';
+      requestedWidth = Math.round(scaleFactor * infoJson.width);
     } else {
-      sizeStr = 'full';
-      maxWidth = infoJson.width;
+      requestedWidth = infoJson.width;
     }
   } else {
-    sizeStr = `${maxWidth},`;
+    sizeStr = `${requestedWidth},`;
   }
   return {
     iiifSize: sizeStr,
-    width: maxWidth as number,
-    height: (maxWidth as number) / aspectRatio,
+    width: requestedWidth as number,
+    height: (requestedWidth as number) / aspectRatio,
   };
 }
 
@@ -232,8 +233,8 @@ export type ImageData = {
 
 /** Options for fetching image */
 export type FetchImageOptions = {
-  /// Maximum width of the image to fetch
-  maxWidth?: number;
+  /// Factor to downscale the image by, number between 0.1 and 1
+  scaleFactor?: number;
   /// PPI override, will be fetched from physical dimensions serivce by default
   ppiOverride?: number;
   // Optional token to use for cancelling the image fetching
@@ -246,7 +247,7 @@ export type FetchImageOptions = {
 export async function fetchImage(
   canvas: Canvas,
   {
-    maxWidth,
+    scaleFactor,
     ppiOverride,
     cancelToken,
     sizeOnly = false,
@@ -274,7 +275,7 @@ export async function fetchImage(
       cancelToken.confirmCancelled();
       return;
     }
-    const sizeInfo = getImageSize(infoJson, maxWidth);
+    const sizeInfo = getImageSize(infoJson, scaleFactor);
     const { iiifSize } = sizeInfo;
     width = sizeInfo.width;
     height = sizeInfo.height;
@@ -285,8 +286,8 @@ export async function fetchImage(
     height = img.getHeight();
     infoJson = { width, height };
   }
-  let imgResp = await fetchRespectfully(imgUrl, {
-    method: sizeOnly ? 'HEAD' : 'GET',
+  const imgResp = await fetchRespectfully(imgUrl, {
+    method: 'GET',
   });
   if (imgResp.status >= 400) {
     throw new Error(
@@ -297,12 +298,10 @@ export async function fetchImage(
     cancelToken.confirmCancelled();
     return;
   }
-  const imgData = sizeOnly ? undefined : await imgResp.arrayBuffer();
   let imgSize = Number.parseInt(imgResp.headers.get('Content-Length') ?? '-1');
-  if (sizeOnly && imgSize < 0) {
-    // Server did not send content length for HEAD request gotta fetch image wholly
-    imgResp = await fetchRespectfully(imgUrl);
-    imgSize = (await imgResp.arrayBuffer()).byteLength;
+  const imgData = sizeOnly && imgSize >= 0 ? undefined : await imgResp.arrayBuffer();
+  if (imgSize < 0) {
+    imgSize = imgData?.byteLength ?? - 1;
   }
   return {
     data: imgData,
@@ -310,6 +309,6 @@ export async function fetchImage(
     height,
     ppi: getPointsPerInch(infoJson, canvas, width, ppiOverride),
     numBytes: imgSize,
-    text: await fetchAndParseText(canvas),
+    text: await fetchAndParseText(canvas, undefined, scaleFactor),
   };
 }

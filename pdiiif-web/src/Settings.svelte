@@ -4,11 +4,11 @@
   import type { ManifestInfo } from './iiif';
 
   export let manifestInfo: ManifestInfo;
-  export let maxWidth: number | undefined;
+  export let scaleFactor: number;
   export let disabled = false;
 
+  let maxWidthPct = 100;
   let showSettings = false;
-  let maxWidthPct: number = 100;
 
   $: settingsAvailable = manifestInfo.supportsDownscale;
 </script>
@@ -35,7 +35,7 @@
               max="100"
               step="10"
               on:change={() => {
-                maxWidth = Math.round((maxWidthPct / 100.) * manifestInfo.maximumImageWidth)
+                scaleFactor =  maxWidthPct / 100.
               }}
               bind:value={maxWidthPct}
             />

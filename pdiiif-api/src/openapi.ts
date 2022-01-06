@@ -153,13 +153,15 @@ export const pdfPath = middleware.validPath({
       },
     },
     {
-      name: 'maxWidth',
+      name: 'scaleFactor',
       in: 'query',
       description:
-        'Limit the maximum width for images in the PDF to the set amount of pixels. Can be used to keep the size of the PDF down. Note that the server itself will perform no downscaling by itself, i.e. this only has an effect if the IIIF Image API endpoint for a given image supports downscaling, and if so, the closest value to the desired maximum width is picked.',
+        'Limit the maximum width for images in the PDF by downscaling by a fixed factor. Can be used to keep the size of the PDF down. Note that the pdiiif server will perform no downscaling by itself, i.e. this only has an effect if the IIIF Image API endpoint for a given image supports downscaling, and if so, the closest value to the desired maximum width is picked.',
       required: false,
       schema: {
         type: 'number',
+        minimum: 0.1,
+        maximum: 1.0,
       },
     },
   ],

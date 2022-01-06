@@ -30,7 +30,7 @@
   let cancelled = false;
   let manifestInfo: ManifestInfo | undefined;
   let infoPromise: Promise<ManifestInfo | void> | undefined;
-  let maxWidth: number | undefined;
+  let scaleFactor = 1;
 
   $: progressPercent = currentProgress
     ? (currentProgress.bytesWritten /
@@ -41,7 +41,6 @@
   $: if (manifestUrl && manifestUrlIsValid && !infoPromise) {
     infoPromise = fetchManifestInfo(manifestUrl)
       .then((info) => {
-        maxWidth = info.maximumImageWidth;
         manifestInfo = info;
         if (supportsClientSideGeneration && !manifestInfo.imageApiHasCors) {
           notifications.push({
@@ -83,7 +82,7 @@
     cancelled = false;
     manifestInfo = undefined;
     infoPromise = undefined;
-    maxWidth = undefined;
+    scaleFactor = 1;
   }
 
   function addNotification(msg: NotificationMessage): void {
@@ -183,7 +182,7 @@
         },
         cancelToken,
         coverPageEndpoint,
-        maxWidth,
+        scaleFactor,
       });
     } catch (err) {
       addNotification({
@@ -299,7 +298,7 @@
   <div class="flex flex-col bg-blue-400 m-auto p-4 rounded-md shadow-lg">
     <form on:submit={generatePdf}>
       {#if infoPromise}
-        <Preview {maxWidth} {infoPromise} />
+        <Preview {scaleFactor} {infoPromise} />
       {/if}
       <div class="relative text-gray-700 mt-4">
         <input
@@ -330,7 +329,7 @@
         </button>
       </div>
       {#if manifestInfo}
-        <Settings bind:maxWidth {manifestInfo} disabled={!!currentProgress} />
+        <Settings bind:scaleFactor {manifestInfo} disabled={!!currentProgress} />
       {/if}
     </form>
     {#if currentProgress && !pdfFinished && !cancelled}

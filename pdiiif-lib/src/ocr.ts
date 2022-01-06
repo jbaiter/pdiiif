@@ -267,7 +267,7 @@ export function parseAlto(altoText: string, imgSize: Dimensions): OcrPage {
   let scaleFactorX = 1.0;
   let scaleFactorY = 1.0;
 
-  if (measurementUnit !== 'pixel') {
+  if (measurementUnit !== 'pixel' || pageWidth !== imgSize.width) {
     scaleFactorX = imgSize.width / pageWidth;
     scaleFactorY = imgSize.height / pageHeight;
     pageWidth *= scaleFactorX;
@@ -532,7 +532,8 @@ export function getTextSeeAlso(canvas: Canvas): Resource | undefined {
 
 export async function fetchAndParseText(
   canvas: Canvas,
-  annotations?: Annotation[]
+  annotations?: Annotation[],
+  scaleFactor = 1
 ): Promise<OcrPage | undefined> {
   // TODO: Annotations are a major PITA due to all the indirection and multiple
   //       levels of fetching of external resources that might be neccessary,
@@ -541,8 +542,8 @@ export async function fetchAndParseText(
   if (seeAlso) {
     const markup = await fetchOcrMarkup(seeAlso.id);
     return parseOcr(markup, {
-      width: canvas.getWidth(),
-      height: canvas.getHeight(),
+      width: Math.floor(scaleFactor * canvas.getWidth()),
+      height: Math.floor(scaleFactor * canvas.getHeight()),
     }) ?? undefined;
   }
 }

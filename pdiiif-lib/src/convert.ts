@@ -123,11 +123,12 @@ export interface ConvertOptions {
       descending order of preference. Will use the environment's locale settings by
       default. */
   languagePreference?: readonly string[] | string;
-  /** Restrict the image size to include in the PDF. Only works with Level 2 Image API
-     services that allow arbitrary downscaling, the conversion will not perform
-     downscaling itself. For Level 1 endpoints, the closest available lower width
-     will be selected. */
-  maxWidth?: number;
+  /** Restrict the image size to include in the PDF by downscaling by a fixed factor.
+   * The value must be a number between 0.1 and 1.
+   * Only works with Level 2 Image API services that allow arbitrary downscaling, the
+   * conversion will not perform downscaling itself.
+   * For Level 1 endpoints, the closest available lower width will be selected. */
+  scaleFactor?: number;
   /** Number of concurrent IIIF Image API requests to be performed, defaults to 1 */
   concurrency?: number;
   /** Callback that gets called whenever a page has finished, useful to render a
@@ -156,11 +157,12 @@ export interface ConvertOptions {
 export interface EstimationParams {
   /** The manifest to determine the PDF size for */
   manifestJson: any;
-  /** Restrict the image size to include in the PDF. Only works with Level 2 Image API
-      services that allow arbitrary downscaling, the conversion will not perform
-      downscaling itself. For Level 1 endpoints, the closest available lower width
-      will be selected. */
-  maxWidth?: number;
+  /** Restrict the image size to include in the PDF by downscaling by a fixed factor.
+   * The value must be a number between 0.1 and 1.
+   * Only works with Level 2 Image API services that allow arbitrary downscaling, the
+   * conversion will not perform downscaling itself.
+   * For Level 1 endpoints, the closest available lower width will be selected. */
+  scaleFactor?: number;
   /** Set of canvas ids to include in PDF, or a predicate to filter canvas identifiers
       by. By default, all canvases are included in the PDF. */
   filterCanvases?: readonly string[] | ((canvasId: string) => boolean);
@@ -178,7 +180,7 @@ export interface EstimationParams {
 export async function estimatePdfSize({
   manifestJson,
   concurrency = 1,
-  maxWidth,
+  scaleFactor,
   filterCanvases = () => true,
   numSamples = 8,
 }: EstimationParams): Promise<number> {
@@ -215,7 +217,7 @@ export async function estimatePdfSize({
   const sizePromises: Array<Promise<ImageData | undefined>> =
     sampleCanvases.map((c) =>
       queue.add(() =>
-        fetchImage(c, { maxWidth, sizeOnly: true })
+        fetchImage(c, { scaleFactor, sizeOnly: true })
       )
     );
   const imgData = await Promise.all(sizePromises);
@@ -487,7 +489,7 @@ export async function convertManifest(
   {
     filterCanvases = () => true,
     languagePreference = [Intl.DateTimeFormat().resolvedOptions().locale],
-    maxWidth,
+    scaleFactor,
     metadata = {},
     onProgress,
     ppi,
@@ -542,7 +544,7 @@ export async function convertManifest(
   cancelToken.addOnCancelled(() => queue.clear());
   const imgFuts = canvases.map((c) => {
     return queue.add(() =>
-      fetchImage(c, { maxWidth, ppiOverride: ppi, cancelToken })
+      fetchImage(c, { scaleFactor, ppiOverride: ppi, cancelToken })
     );
   });
 

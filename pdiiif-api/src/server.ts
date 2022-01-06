@@ -110,7 +110,7 @@ const rateLimiter = new RateLimiter({
 const progressClients: { [token: string]: Response } = {};
 
 const app = express();
-app.use(express.static('node_modules/pdiiif-web/dist'))
+app.use(express.static('node_modules/pdiiif-web/dist'));
 app.use(openApiMiddleware);
 app.use(
   cors({
@@ -167,12 +167,15 @@ app.get(
     if (shouldThrottle) {
       return;
     }
-    const { manifestUrl, canvasNos, locale, progressToken } = req.query;
+    const { manifestUrl, canvasNos, locale, progressToken, scaleFactor, ppi } =
+      req.query;
     log.info('Generating PDF for manifest', {
       manifestUrl,
       canvasNos,
       locale,
       progressToken,
+      scaleFactor,
+      ppi,
     });
     const manifestJson = await validateManifest(res, manifestUrl);
     if (!manifestJson) {
@@ -233,6 +236,11 @@ app.get(
       await convertManifest(manifestJson, res, {
         languagePreference,
         filterCanvases: canvasIds,
+        scaleFactor:
+          scaleFactor === undefined
+            ? undefined
+            : Number.parseFloat(scaleFactor as string),
+        ppi: ppi === undefined ? undefined : Number.parseInt(ppi as string),
         onProgress,
         coverPageCallback: async (params) => {
           const buf = await coverPageGenerator.render(params);

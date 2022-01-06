@@ -76,10 +76,10 @@ export async function fetchManifestInfo(
         i.service?.[0]?.profile === 'level1'
     ) !== undefined;
 
-    let testImgResp = await fetch(images[0]['@id']);
     let imageApiHasCors: boolean;
     try {
-      let testImgData = await testImgResp.arrayBuffer();
+      let testImgResp = await fetch(images[0]['@id']);
+      let testImgData = new Uint8Array(await testImgResp.arrayBuffer());
       imageApiHasCors = testImgData[0] !== undefined;
     } catch {
       imageApiHasCors = false;
@@ -88,7 +88,7 @@ export async function fetchManifestInfo(
   return {
     label: manifestJson.label,
     previewImageUrl,
-    maximumImageWidth: max(images.map((i) => i.width ?? i.service?.width ?? 0)),
+    maximumImageWidth: max(images.map((i) => i.service?.width ?? 0)),
     manifestJson,
     supportsDownscale,
     imageApiHasCors,
