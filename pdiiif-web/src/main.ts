@@ -29,5 +29,5 @@ export function render(
 render(document.getElementById('app'), {
   apiEndpoint: import.meta.env.DEV
     ? 'http://localhost:31337/api'
-    : `${window.location}/api`,
+    : `${window.location.toString().replace(/\/$/g, '')}/api`,
 });
