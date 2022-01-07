@@ -7,6 +7,6 @@
     "moduleResolution": "node",
     "esModuleInterop": true,
     "resolveJsonModule": true,
-    "types": ["svelte"]
+    "types": ["svelte", "vite/client"]
   }
 }

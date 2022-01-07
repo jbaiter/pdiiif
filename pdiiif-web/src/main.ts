@@ -27,5 +27,7 @@ export function render(
 }
 
 render(document.getElementById('app'), {
-  apiEndpoint: `http://localhost:31337/api`,
+  apiEndpoint: import.meta.env.DEV
+    ? 'http://localhost:31337/api'
+    : `${window.location}/api`,
 });
