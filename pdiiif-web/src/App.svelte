@@ -15,6 +15,7 @@
 
   export let apiEndpoint: string = 'http://localhost:31337/api';
   export let coverPageEndpoint: string = `${apiEndpoint}/coverpage`;
+  export let onError: ((err: Error) => void) | undefined;
 
   let manifestUrl: string = '';
   let manifestUrlIsValid: boolean | undefined;
@@ -51,6 +52,7 @@
         return info;
       })
       .catch((err) => {
+        onError?.(err);
         addNotification({
           type: 'error',
           message: $_('errors.manifest_fetch', {
@@ -134,6 +136,7 @@
     try {
       manifestResp = await fetch(manifestUrl);
     } catch (err) {
+      onError?.(err);
       addNotification({
         type: 'error',
         message: $_('errors.manifest_fetch', {
@@ -185,9 +188,10 @@
         scaleFactor,
       });
     } catch (err) {
+      onError?.(err);
       addNotification({
         type: 'error',
-        message: $_('errors.pdf_failure_', {
+        message: $_('errors.pdf_failure', {
           values: { errorMsg: err.message },
         }),
       });
