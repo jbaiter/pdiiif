@@ -10,7 +10,9 @@
     },
     "notifications": {
         "success": "PDF successfully generated.",
-        "cancel": "PDF generation cancelled."
+        "cancel": "PDF generation cancelled.",
+        "filesystem_supported": "Congratulations, your browser supports generating PDFs! Don't be irritated when you don't see a download, the PDF will be saved to the path you specified nevertheless.",
+        "server_needed": "PDFs will be generated on a server. If you want to have faster downloads and a smaller likelihood of running into limits, consider using Chrome/Chromium Desktop, which support generating the PDFs in the browser."
     },
     "buttons": {
         "generate": "Generate PDF",
@@ -20,6 +22,11 @@
     },
     "settings": {
         "img_width": "Image size"
+    },
+    "links": {
+        "source": "Source Code",
+        "question": "Ask a question",
+        "problem": "Report a problem"
     },
     "estimated_pdf_size": "Estimated PDF size."
 }

@@ -10,12 +10,15 @@
   import Preview from './Preview.svelte';
   import Settings from './Settings.svelte';
   import Notification from './Notification.svelte';
+  import GitHubIcon from './icons/GitHub.svelte';
+  import QuestionIcon from './icons/Question.svelte';
 
   import logoSvgUrl from '../assets/logo.svg';
+  import ErrorIcon from './icons/Exclamation.svelte';
 
   export let apiEndpoint: string = 'http://localhost:31337/api';
   export let coverPageEndpoint: string = `${apiEndpoint}/coverpage`;
-  export let onError: ((err: Error) => void) | undefined;
+  export let onError: ((err: ErrorIcon) => void) | undefined = undefined;
 
   let manifestUrl: string = '';
   let manifestUrlIsValid: boolean | undefined;
@@ -32,6 +35,7 @@
   let manifestInfo: ManifestInfo | undefined;
   let infoPromise: Promise<ManifestInfo | void> | undefined;
   let scaleFactor = 1;
+  let isFirstVisit = window.localStorage.getItem('firstVisit') === null;
 
   $: progressPercent = currentProgress
     ? (currentProgress.bytesWritten /
@@ -68,10 +72,24 @@
   }
 
   onMount(async () => {
-    if (!supportsClientSideGeneration) {
+    if (!isFirstVisit) {
+      return;
+    }
+    const onClose = () => {
+      localStorage.setItem('firstVisit', 'false');
+      isFirstVisit = false;
+    };
+    if (supportsClientSideGeneration) {
       addNotification({
-        type: 'warn',
-        message: $_('errors.no_clientside'),
+        type: 'info',
+        message: $_('notifications.filesystem_supported'),
+        onClose,
+      });
+    } else {
+      addNotification({
+        type: 'info',
+        message: $_('notifications.server_needed'),
+        onClose,
       });
     }
   });
@@ -101,7 +119,9 @@
     }
   }
 
-  const onManifestInput: svelte.JSX.FormEventHandler<HTMLInputElement> = (evt) => {
+  const onManifestInput: svelte.JSX.FormEventHandler<HTMLInputElement> = (
+    evt
+  ) => {
     const inp = evt.target as HTMLInputElement;
     clearNotifications('validation');
     if (inp.validity.typeMismatch || inp.validity.patternMismatch) {
@@ -264,6 +284,7 @@
     addNotification({
       type: 'success',
       message: $_('notifications.success'),
+      onClose: () => resetState(),
     });
     pdfFinished = true;
   }
@@ -278,7 +299,7 @@
   }
 </script>
 
-<div class="w-full md:w-1/2">
+<div class="w-full md:w-2/3 xl:w-1/2">
   <img
     src={logoSvgUrl}
     alt="pdiiif logo"
@@ -289,9 +310,7 @@
       <Notification
         type={notification.type}
         on:close={() => {
-          if (notification.type === 'success') {
-            resetState();
-          }
+          notification.onClose?.();
           notifications = without(notifications, notification);
         }}
       >
@@ -333,7 +352,11 @@
         </button>
       </div>
       {#if manifestInfo}
-        <Settings bind:scaleFactor {manifestInfo} disabled={!!currentProgress} />
+        <Settings
+          bind:scaleFactor
+          {manifestInfo}
+          disabled={!!currentProgress}
+        />
       {/if}
     </form>
     {#if currentProgress && !pdfFinished && !cancelled}
@@ -373,6 +396,36 @@
         </button>
       {/if}
     {/if}
+  </div>
+  <div class="flex justify-start items-start mt-2 text-gray-500">
+    <div class="mx-2">
+      <a
+        href="https://github.com/jbaiter/pdiiif"
+        target="_blank"
+        class="hover:text-gray-800"
+        ><GitHubIcon classes="text-gray-500 inline align-text-top w-4 h-4" />
+        {$_('links.source')}</a
+      >
+    </div>
+    <div class="mx-2">
+      <a
+        href="https://github.com/jbaiter/pdiiif/discussions"
+        target="_blank"
+        class="hover:text-gray-800"
+      >
+        <QuestionIcon classes="text-gray-500 inline align-text-top w-4 h-4" />
+        {$_('links.question')}</a
+      >
+    </div>
+    <div class="mx-2">
+      <a
+        href="https://github.com/jbaiter/pdiiif/issues/new"
+        target="_blank"
+        class="hover:text-gray-800"
+        ><ErrorIcon classes="text-gray-500 inline align-text-top w-4 h-4" />
+        {$_('links.problem')}</a
+      >
+    </div>
   </div>
 </div>
 

@@ -246,6 +246,8 @@ app.get(
           const buf = await coverPageGenerator.render(params);
           return new Uint8Array(buf.buffer);
         },
+        // Reduce chance of accidental DoS on image servers, one concurrent download per requested PDF
+        concurrency: 1
       });
     } catch (err) {
       log.error(log.exceptions.getAllInfo(err));

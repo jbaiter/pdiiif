@@ -10,7 +10,9 @@
     },
     "notifications": {
         "success": "PDF erfolgreich erstellt.",
-        "cancel": "PDF-Erstellung abgebrochen."
+        "cancel": "PDF-Erstellung abgebrochen.",
+        "filesystem_supported": "Glückwunsch, Ihr Browser kann PDFs erzeugen! Wundern Sie sich nicht wenn Sie keinen Download sehen, das PDF wird trotzdem an den Ort geschrieben, den Sie ausgewählt haben.",
+        "server_needed": "PDFs werden auf dem Server erzeugt. Wenn Sie schnellere Downloads und eine geringere Wahrscheinlichkeit für Nutzungsbeschränkungen wollen, können Sie Chrome oder Chromium für den Desktop verwenden, die die Erzeugung von PDFs direkt im Browser unterstützen."
     },
     "buttons": {
         "generate": "PDF erstellen",
@@ -20,6 +22,11 @@
     },
     "settings": {
         "img_width": "Bildgröße"
+    },
+    "links": {
+        "source": "Quelltext",
+        "question": "Fragen?",
+        "problem": "Probleme?"
     },
     "estimated_pdf_size": "Geschätzte Dateigröße."
 }
