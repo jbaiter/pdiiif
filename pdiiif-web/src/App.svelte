@@ -43,33 +43,6 @@
       100
     : undefined;
   $: progressStyle = currentProgress ? `width: ${progressPercent}%` : undefined;
-  $: if (manifestUrl && manifestUrlIsValid && !infoPromise) {
-    infoPromise = fetchManifestInfo(manifestUrl)
-      .then((info) => {
-        manifestInfo = info;
-        if (supportsClientSideGeneration && !manifestInfo.imageApiHasCors) {
-          notifications.push({
-            type: 'warn',
-            message: $_('errors.cors'),
-          });
-        }
-        return info;
-      })
-      .catch((err) => {
-        onError?.(err);
-        addNotification({
-          type: 'error',
-          message: $_('errors.manifest_fetch', {
-            values: { manifestUrl, errorMsg: err.message },
-          }),
-        });
-        infoPromise = undefined;
-      });
-  }
-
-  $: if (manifestUrl.length === 0) {
-    resetState();
-  }
 
   onMount(async () => {
     if (!isFirstVisit) {
@@ -131,10 +104,33 @@
         message: inp.validationMessage,
         tags: ['validation'],
       });
+    } else if (evt.currentTarget.value.length === 0) {
+      resetState();
     } else {
       manifestUrlIsValid = true;
       // FIXME: Meh, shouldn't we have a separate state variable for validation messages?
       clearNotifications('validation');
+      infoPromise = fetchManifestInfo(manifestUrl)
+        .then((info) => {
+          manifestInfo = info;
+          if (supportsClientSideGeneration && !manifestInfo.imageApiHasCors) {
+            notifications.push({
+              type: 'warn',
+              message: $_('errors.cors'),
+            });
+          }
+          return info;
+        })
+        .catch((err) => {
+          onError?.(err);
+          addNotification({
+            type: 'error',
+            message: $_('errors.manifest_fetch', {
+              values: { manifestUrl, errorMsg: err.message },
+            }),
+            tags: ['validation'],
+          });
+        });
     }
   };
 
@@ -331,7 +327,7 @@
           name="manifest-url"
           disabled={currentProgress !== undefined && !pdfFinished}
           bind:value={manifestUrl}
-          on:input={onManifestInput}
+          on:change={onManifestInput}
         />
         <button
           type="submit"
@@ -397,7 +393,7 @@
       {/if}
     {/if}
   </div>
-  <div class="flex justify-start items-start mt-2 text-gray-500">
+  <div class="flex md:justify-start justify-center items-start mt-2 text-gray-500 text-xs">
     <div class="mx-2">
       <a
         href="https://github.com/jbaiter/pdiiif"

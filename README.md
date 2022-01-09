@@ -41,11 +41,12 @@ each canvas (ALTO or hOCR referenced from a canvas' `seeAlso` property).
 - [x] PDF Table of Contents from IIIF Ranges
 - [x] Cover page with metadata, attribution and licensing information
 - [x] Hidden text layer from ALTO or hOCR OCR
-- [ ] Optional rendering of IIIF Annotations as PDF annotations _(planned for v0.2, early 2022)_
-- [ ] Extraction of PDF annotations as IIIF anotations from PDFs generated with pdiiif _(planned for v0.2, early 2022)_
+- [ ] Optional rendering of IIIF Annotations as PDF annotations _(planned for v0.2, Q2 2022)_
+- [ ] Extraction of PDF annotations as IIIF anotations from PDFs generated with pdiiif _(planned for v0.2, Q2 2022)_
 - [ ] Rendering Canvases with multiple images _(planned for 2022)_
 
 **Quickstart**
+
 Besides using the public instance at https://pdiiif.jbaiter.de, you can also run the app yourself.
 The easiest way to do this is with Docker:
 
