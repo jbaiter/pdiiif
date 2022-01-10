@@ -32,7 +32,7 @@
   <div>
     <svelte:component this={Icon} classes="h-4 w-4 mr-2" />
   </div>
-  <p class="flex-grow overflow-scroll" style="hyphens: auto;"><slot /></p>
+  <p class="flex-grow overflow-auto" style="hyphens: auto;"><slot /></p>
   <button
     title="{$_('buttons.close')}"
     on:click={() => dispatch('close')}

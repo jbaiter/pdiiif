@@ -59,6 +59,7 @@
     "manifesto.js": "^4.2.4",
     "mnemonist": "^0.39.0",
     "node-fetch": "^2.6.1",
+    "p-queue": "6.6.2",
     "pdiiif": "workspace:../pdiiif-lib",
     "pdiiif-web": "workspace:../pdiiif-web",
     "prom-client": "^14.0.1",

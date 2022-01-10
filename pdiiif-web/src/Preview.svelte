@@ -40,7 +40,7 @@
             <Spinner />
           {:then size}
             <strong>{(size / 1024 / 1024).toFixed(2)} MiB</strong>
-          {:catch}
+          {:catch err}
             <strong>{$_('errors.estimate_failure')}</strong>
           {/await}
         </p>

@@ -129,7 +129,7 @@ export interface ConvertOptions {
    * conversion will not perform downscaling itself.
    * For Level 1 endpoints, the closest available lower width will be selected. */
   scaleFactor?: number;
-  /** Number of concurrent IIIF Image API requests to be performed, defaults to 1 */
+  /** Number of maximum concurrent IIIF Image API requests to be performed, defaults to 1 */
   concurrency?: number;
   /** Callback that gets called whenever a page has finished, useful to render a
       progress bar. */
@@ -168,7 +168,7 @@ export interface EstimationParams {
   filterCanvases?: readonly string[] | ((canvasId: string) => boolean);
   /** Number of canvses to sample for estimation, defaults to 8 */
   numSamples?: number;
-  /** Number of concurrent IIIF Image API requests to be performed, defaults to 1 */
+  /** Number of maximum concurrent IIIF Image API requests to be performed, defaults to 1 */
   concurrency?: number;
 }
 
@@ -227,7 +227,6 @@ export async function estimatePdfSize({
   const bpp = sampleBytes / samplePixels;
   return bpp * totalCanvasPixels;
 }
-
 
 /** Get a timestamp in milliseconds, prefereably high-resolution */
 function now(): number {
@@ -493,7 +492,7 @@ export async function convertManifest(
     metadata = {},
     onProgress,
     ppi,
-    concurrency = 4,
+    concurrency = 1,
     cancelToken = new CancelToken(),
     coverPageCallback,
     coverPageEndpoint,

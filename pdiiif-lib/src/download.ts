@@ -21,13 +21,13 @@ class RateLimitingRegistry {
   limitHost(host: string): Mutex {
     const mutex = new Mutex();
     this.hostMutexes.set(host, mutex);
-    this.callbacks.forEach(cb => cb(host, true));
+    this.callbacks.forEach((cb) => cb(host, true));
     return mutex;
   }
 
   unlimitHost(host: string): void {
     this.hostMutexes.delete(host);
-    this.callbacks.forEach(cb => cb(host, false));
+    this.callbacks.forEach((cb) => cb(host, false));
   }
 
   subscribe(cb: (host: string, limited: boolean) => void): number {
@@ -134,18 +134,19 @@ export type SizeInfo = {
   iiifSize: string;
   width: number;
   height: number;
-}
+};
 
 /** Calculate the image size to fetch, based on user constraints and available sizes
  *  in the Image API info.json response.
  */
 export function getImageSize(infoJson: any, scaleFactor = 1): SizeInfo {
   let sizeStr: string;
-  const isIIIFv3 = (Array.isArray(infoJson['@context'])
-    ? infoJson['@context'].slice(-1)[0]
-    : infoJson['@context']) === 'http://iiif.io/api/image/3/context.json'
+  const isIIIFv3 =
+    (Array.isArray(infoJson['@context'])
+      ? infoJson['@context'].slice(-1)[0]
+      : infoJson['@context']) === 'http://iiif.io/api/image/3/context.json';
   const maxWidth = infoJson.maxWidth ?? infoJson.width;
-  let requestedWidth = Math.floor(scaleFactor * maxWidth)
+  let requestedWidth = Math.floor(scaleFactor * maxWidth);
   const aspectRatio = infoJson.width / infoJson.height;
   const supportsScaleByWh =
     (infoJson.profile instanceof String &&
@@ -160,7 +161,8 @@ export function getImageSize(infoJson: any, scaleFactor = 1): SizeInfo {
     )!;
     sizeStr = `${requestedWidth},`;
   } else if (scaleFactor == 1) {
-    sizeStr = isIIIFv3 || infoJson.maxWidth || infoJson.maxArea ? 'max' : 'full';
+    sizeStr =
+      isIIIFv3 || infoJson.maxWidth || infoJson.maxArea ? 'max' : 'full';
     if (infoJson.maxWidth) {
       requestedWidth = infoJson.maxWidth;
     } else if (infoJson.maxHeight) {
@@ -229,7 +231,7 @@ export type ImageData = {
   ppi: number;
   numBytes: number;
   text?: OcrPage;
-}
+};
 
 /** Options for fetching image */
 export type FetchImageOptions = {
@@ -241,17 +243,12 @@ export type FetchImageOptions = {
   cancelToken?: CancelToken;
   /// Only obtain the size of the image, don't fetch any data
   sizeOnly?: boolean;
-}
+};
 
 /** Fetch the first image associated with a canvas. */
 export async function fetchImage(
   canvas: Canvas,
-  {
-    scaleFactor,
-    ppiOverride,
-    cancelToken,
-    sizeOnly = false,
-  }: FetchImageOptions
+  { scaleFactor, ppiOverride, cancelToken, sizeOnly = false }: FetchImageOptions
 ): Promise<ImageData | undefined> {
   if (cancelToken?.cancelled) {
     if (!cancelToken.isCancellationConfirmed) {
@@ -299,9 +296,10 @@ export async function fetchImage(
     return;
   }
   let imgSize = Number.parseInt(imgResp.headers.get('Content-Length') ?? '-1');
-  const imgData = sizeOnly && imgSize >= 0 ? undefined : await imgResp.arrayBuffer();
+  const imgData =
+    sizeOnly && imgSize >= 0 ? undefined : await imgResp.arrayBuffer();
   if (imgSize < 0) {
-    imgSize = imgData?.byteLength ?? - 1;
+    imgSize = imgData?.byteLength ?? -1;
   }
   return {
     data: imgData,

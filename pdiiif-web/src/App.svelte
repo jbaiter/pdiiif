@@ -2,7 +2,7 @@
   /// <reference types="wicg-file-system-access"/>
   import { onMount } from 'svelte';
   import { _ } from 'svelte-i18n';
-  import { without } from 'lodash';
+  import { debounce, without } from 'lodash';
   import { convertManifest, ProgressStatus, CancelToken } from 'pdiiif';
 
   import type { ManifestInfo } from './iiif';
@@ -15,6 +15,7 @@
 
   import logoSvgUrl from '../assets/logo.svg';
   import ErrorIcon from './icons/Exclamation.svelte';
+  import ProgressBar from './icons/ProgressBar.svelte';
 
   export let apiEndpoint: string = 'http://localhost:31337/api';
   export let coverPageEndpoint: string = `${apiEndpoint}/coverpage`;
@@ -37,12 +38,8 @@
   let scaleFactor = 1;
   let isFirstVisit = window.localStorage.getItem('firstVisit') === null;
 
-  $: progressPercent = currentProgress
-    ? (currentProgress.bytesWritten /
-        (currentProgress.estimatedFileSize ?? Number.MAX_SAFE_INTEGER)) *
-      100
-    : undefined;
-  $: progressStyle = currentProgress ? `width: ${progressPercent}%` : undefined;
+  // Only relevant for server-side generation
+  let queueState: { current: number; initial: number } | undefined;
 
   onMount(async () => {
     if (!isFirstVisit) {
@@ -69,6 +66,7 @@
 
   function resetState() {
     manifestUrl = '';
+    manifestUrlIsValid = undefined;
     currentProgress = undefined;
     pdfFinished = undefined;
     cancelRequested = false;
@@ -96,6 +94,12 @@
     evt
   ) => {
     const inp = evt.target as HTMLInputElement;
+    const value =
+      evt.type === 'paste'
+        ? (
+            (evt as any).clipboardData ?? (window as any).clipboardData
+          )?.getData?.('Text')
+        : inp.value;
     clearNotifications('validation');
     if (inp.validity.typeMismatch || inp.validity.patternMismatch) {
       manifestUrlIsValid = false;
@@ -104,17 +108,20 @@
         message: inp.validationMessage,
         tags: ['validation'],
       });
-    } else if (evt.currentTarget.value.length === 0) {
+    } else if (value.length === 0) {
       resetState();
+    } else if (manifestUrlIsValid) {
+      // URL was previously valid and is not newly invalid or empty, so no need to trigger anything!
+      return;
     } else {
       manifestUrlIsValid = true;
       // FIXME: Meh, shouldn't we have a separate state variable for validation messages?
       clearNotifications('validation');
-      infoPromise = fetchManifestInfo(manifestUrl)
+      infoPromise = fetchManifestInfo(value)
         .then((info) => {
           manifestInfo = info;
           if (supportsClientSideGeneration && !manifestInfo.imageApiHasCors) {
-            notifications.push({
+            addNotification({
               type: 'warn',
               message: $_('errors.cors'),
             });
@@ -250,6 +257,7 @@
     });
     const promise: Promise<void> = new Promise((resolve) =>
       progressSource.addEventListener('progress', (evt) => {
+        queueState = undefined;
         currentProgress = JSON.parse((evt as any).data);
         const isDone =
           currentProgress.pagesWritten === currentProgress.totalPages &&
@@ -260,6 +268,20 @@
         }
       })
     );
+    progressSource.addEventListener('queue', (evt) => {
+      const queuePosition = JSON.parse((evt as any).data).position;
+      if (!queueState) {
+        addNotification({
+          type: 'info',
+          message: $_('notifications.queued', {
+            values: { iiifHost: new URL(manifestUrl).host },
+          }),
+        });
+        queueState = { current: queuePosition, initial: queuePosition };
+      } else {
+        queueState.current = queuePosition;
+      }
+    });
     window.open(
       `${pdfEndpoint}?${new URLSearchParams({ manifestUrl, progressToken })}`
     );
@@ -319,7 +341,7 @@
       {#if infoPromise}
         <Preview {scaleFactor} {infoPromise} />
       {/if}
-      <div class="relative text-gray-700 mt-4">
+      <div class="relative text-gray-700">
         <input
           class="w-full h-10 pl-3 pr-10 text-base placeholder-gray-600 border rounded-lg focus:shadow-outline"
           type="url"
@@ -327,12 +349,13 @@
           name="manifest-url"
           disabled={currentProgress !== undefined && !pdfFinished}
           bind:value={manifestUrl}
+          on:paste={onManifestInput}
+          on:input={debounce(onManifestInput, 10000)}
           on:change={onManifestInput}
         />
         <button
           type="submit"
-          disabled={manifestUrl.length === 0 ||
-            (currentProgress && !pdfFinished)}
+          disabled={!manifestUrlIsValid || (currentProgress && !pdfFinished)}
           class="absolute inset-y-0 right-0 flex items-center px-1 font-bold text-white disabled:opacity-25 bg-indigo-600 rounded-r-lg hover:bg-indigo-500 focus:bg-indigo-700"
         >
           <svg
@@ -355,25 +378,30 @@
         />
       {/if}
     </form>
-    {#if currentProgress && !pdfFinished && !cancelled}
-      <div
-        class="relative mt-4 h-8 w-full rounded-md bg-gray-300 border-2 border-white"
+    {#if (currentProgress || queueState) && !pdfFinished && !cancelled}
+      <ProgressBar
+        currentProgress={{
+          current: queueState
+            ? queueState.initial - queueState.current
+            : currentProgress.bytesWritten,
+          total: queueState
+            ? queueState.initial
+            : currentProgress.estimatedFileSize,
+        }}
       >
-        <div style={progressStyle} class="h-full rounded-md bg-blue-600" />
-        {#if currentProgress.estimatedFileSize}
-          <div
-            class="absolute w-full top-0 pt-1 text-center text-white mix-blend-difference"
-          >
+        <span>
+          {#if queueState}
+            {$_('queue_position', {
+              values: { pos: queueState.current },
+            })}
+          {:else if currentProgress.estimatedFileSize}
             {(currentProgress.bytesWritten / (1024 * 1024)).toFixed(1)}MiB / ~{(
               currentProgress.estimatedFileSize /
               (1024 * 1024)
-            ).toFixed(1)}MiB ({(
-              currentProgress.writeSpeed /
-              (1024 * 1024)
-            ).toFixed(1)}MiB/s)
-          </div>
-        {/if}
-      </div>
+            ).toFixed(1)}MiB ({currentProgress.writeSpeed / (1024 * 1024)})
+          {/if}
+        </span>
+      </ProgressBar>
       {#if cancelToken && !cancelled}
         <button
           class="mx-auto mt-2 px-2 py-1 font-bold text-white disabled:opacity-25 bg-red-600 rounded-lg hover:bg-red-500 focus:bg-red-700"
@@ -393,7 +421,9 @@
       {/if}
     {/if}
   </div>
-  <div class="flex md:justify-start justify-center items-start mt-2 text-gray-500 text-xs">
+  <div
+    class="flex md:justify-start justify-center items-start mt-2 text-gray-500 text-xs"
+  >
     <div class="mx-2">
       <a
         href="https://github.com/jbaiter/pdiiif"

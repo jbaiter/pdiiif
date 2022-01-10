@@ -4,7 +4,7 @@ import range from 'lodash/range';
 import acceptLanguageParser from 'accept-language-parser';
 import cors from 'cors';
 import promBundle from 'express-prom-bundle';
-import { PropertyValue } from 'manifesto.js';
+import { Manifest, PropertyValue } from 'manifesto.js';
 
 import {
   middleware as openApiMiddleware,
@@ -15,7 +15,9 @@ import {
 import { convertManifest, ProgressStatus } from 'pdiiif';
 import log from './logger';
 import { CoverPageGenerator, CoverPageParams } from './coverpage';
-import { RateLimiter } from './ratelimit';
+import { RateLimiter } from './limit';
+import { maxBy } from 'lodash';
+import { GeneratorQueue } from './queue';
 
 async function validateManifest(res: Response, manifestUrl: any): Promise<any> {
   const badManifestUrl =
@@ -90,6 +92,7 @@ function buildCanvasFilter(manifestJson: any, indexSpec: string): string[] {
 const coverPageGenerator = new CoverPageGenerator(
   process.env.CFG_COVERPAGE_TEMPLATE
 );
+// Tracks rate limiting data for clients
 const rateLimiter = new RateLimiter({
   defaults: {
     cover: {
@@ -108,6 +111,8 @@ const rateLimiter = new RateLimiter({
 });
 // Tracks open progress reporting responses
 const progressClients: { [token: string]: Response } = {};
+// Controls concurrent fetching from Image API hosts to prevent accidental DoS
+const globalConvertQueue = new GeneratorQueue(2);
 
 const app = express();
 app.use(express.static('node_modules/pdiiif-web/dist'));
@@ -142,6 +147,10 @@ app.use(
 
 app.get('/api/progress/:token', progressPathSpec, (req, res) => {
   const { token } = req.params;
+  if (progressClients[token] !== undefined) {
+    res.status(423).send();
+    return;
+  }
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',
     Connection: 'keep-alive',
@@ -169,14 +178,6 @@ app.get(
     }
     const { manifestUrl, canvasNos, locale, progressToken, scaleFactor, ppi } =
       req.query;
-    log.info('Generating PDF for manifest', {
-      manifestUrl,
-      canvasNos,
-      locale,
-      progressToken,
-      scaleFactor,
-      ppi,
-    });
     const manifestJson = await validateManifest(res, manifestUrl);
     if (!manifestJson) {
       return;
@@ -209,7 +210,23 @@ app.get(
       canvasIds = buildCanvasFilter(manifestJson, canvasNos);
     }
 
+    // Get the primary image api host for queueing later on
+    const parsedManifest = new Manifest(manifestJson);
+    const imageHosts: { [hostname: string]: number } = parsedManifest
+      .getSequences()[0]
+      .getCanvases()
+      .map((c) => new URL(c.getImages()[0].getResource().id).hostname)
+      .reduce((counts, hostname) => {
+        counts[hostname] = (counts[hostname] ?? 0) + 1;
+        return counts;
+      }, {});
+    const primaryImageHost = maxBy(
+      Object.entries(imageHosts),
+      ([, count]) => count
+    )[0];
+
     // Register the progress tracker
+    let onQueueAdvance: (pos: number) => void | undefined;
     let onProgress: (status: ProgressStatus) => void | undefined;
     if (progressToken && typeof progressToken === 'string') {
       res.socket.on('close', () => {
@@ -230,25 +247,38 @@ app.get(
           clientResp.write(`data: ${JSON.stringify(progressStatus)}\n\n`);
         }
       };
+      onQueueAdvance = (pos) => {
+        const clientResp = progressClients[progressToken];
+        if (clientResp) {
+          clientResp.write('event: queue\n');
+          clientResp.write(`data: ${JSON.stringify({ position: pos })}\n\n`);
+        }
+      };
     }
 
+    const convertPromise = globalConvertQueue.add(
+      () =>
+        convertManifest(manifestJson, res, {
+          languagePreference,
+          filterCanvases: canvasIds,
+          scaleFactor:
+            scaleFactor === undefined
+              ? undefined
+              : Number.parseFloat(scaleFactor as string),
+          ppi: ppi === undefined ? undefined : Number.parseInt(ppi as string),
+          onProgress,
+          coverPageCallback: async (params) => {
+            const buf = await coverPageGenerator.render(params);
+            return new Uint8Array(buf.buffer);
+          },
+          // Reduce chance of accidental DoS on image servers, one concurrent download per requested PDF
+          concurrency: 2,
+        }),
+      primaryImageHost,
+      onQueueAdvance
+    );
     try {
-      await convertManifest(manifestJson, res, {
-        languagePreference,
-        filterCanvases: canvasIds,
-        scaleFactor:
-          scaleFactor === undefined
-            ? undefined
-            : Number.parseFloat(scaleFactor as string),
-        ppi: ppi === undefined ? undefined : Number.parseInt(ppi as string),
-        onProgress,
-        coverPageCallback: async (params) => {
-          const buf = await coverPageGenerator.render(params);
-          return new Uint8Array(buf.buffer);
-        },
-        // Reduce chance of accidental DoS on image servers, one concurrent download per requested PDF
-        concurrency: 1
-      });
+      await convertPromise;
     } catch (err) {
       log.error(log.exceptions.getAllInfo(err));
       if (progressToken && typeof progressToken === 'string') {
@@ -266,6 +296,14 @@ app.get(
       );
     }
     res.end();
+    log.info('Generated PDF for manifest', {
+      manifestUrl,
+      canvasNos,
+      locale,
+      progressToken,
+      scaleFactor,
+      ppi,
+    });
   },
   (err, _req, res, _next) => {
     log.info('Rejected PDF request due to validation errors:', {

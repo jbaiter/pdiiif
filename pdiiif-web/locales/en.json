@@ -12,7 +12,8 @@
         "success": "PDF successfully generated.",
         "cancel": "PDF generation cancelled.",
         "filesystem_supported": "Congratulations, your browser supports generating PDFs! Don't be irritated when you don't see a download, the PDF will be saved to the path you specified nevertheless.",
-        "server_needed": "PDFs will be generated on a server. If you want to have faster downloads and a smaller likelihood of running into limits, consider using Chrome/Chromium Desktop, which support generating the PDFs in the browser."
+        "server_needed": "PDFs will be generated on a server. If you want to have faster downloads and a smaller likelihood of running into limits, consider using Chrome/Chromium Desktop, which support generating the PDFs in the browser.",
+        "queued": "Looks like other users are also generating PDFs from the IIIF services at {iiifHost}, you'll have to wait until a spot in the queue becomes available. If you want to avoid this, use a browser that supports the File System Access API, like Chrome, Chromium or Edge."
     },
     "buttons": {
         "generate": "Generate PDF",
@@ -28,5 +29,6 @@
         "question": "Ask a question",
         "problem": "Report a problem"
     },
-    "estimated_pdf_size": "Estimated PDF size."
+    "estimated_pdf_size": "Estimated PDF size",
+    "queue_position": "Queue position: {pos}"
 }
