@@ -19,6 +19,8 @@ import { getLicenseInfo } from './res/licenses';
 import { getTextSeeAlso } from './ocr';
 import pdiiifVersion from './version';
 import { fetchImage, fetchRespectfully, ImageData } from './download';
+import metrics from './metrics';
+import { CancelToken, now } from './util';
 
 /** Progress information for rendering a progress bar or similar UI elements. */
 export interface ProgressStatus {
@@ -38,50 +40,6 @@ export interface ProgressStatus {
   writeSpeed: number;
   /** Estimated time in seconds until PDF has finished generating */
   remainingDuration: number;
-}
-
-// TODO: Use `AbortController` instead to improve responsiveness, since
-//       we can completely abort long-running `fetch` requests with it
-/** Function that gets triggered whenever a cancellation was successful. */
-export type CancelCallback = () => void;
-/** Token used for managing the cancellation of long processes. */
-export class CancelToken {
-  isCancellationRequested = false;
-  isCancellationConfirmed = false;
-  onCancelled: CancelCallback[] = [];
-
-  /** Request cancellation, promise resolved when cancellation has been confirmed. */
-  requestCancel(): Promise<void> {
-    const promise: Promise<void> = new Promise((resolve) =>
-      this.addOnCancelled(resolve)
-    );
-    this.isCancellationRequested = true;
-    return promise;
-  }
-
-  /** Confirm successful cancellation, call this when all resources have been cleaned up. */
-  confirmCancelled(): void {
-    if (this.isCancellationConfirmed) {
-      return;
-    }
-    this.isCancellationConfirmed = true;
-    this.onCancelled.forEach((cb) => cb());
-  }
-
-  /** Add a callback for when a cancellation is confirmed. */
-  addOnCancelled(cb: CancelCallback): void {
-    this.onCancelled.push(cb);
-  }
-
-  /** Check if the cancellation has been requested or confirmed. */
-  get cancelled(): boolean {
-    return this.isCancellationRequested || this.isCancellationConfirmed;
-  }
-
-  /** You can simply `await` this token to wait for the cancellation to be confirmed. */
-  then(resolve: () => void): void {
-    this.onCancelled.push(() => resolve());
-  }
 }
 
 /** Parameters for rendering a cover page, parsed from IIIF manifest. */
@@ -226,15 +184,6 @@ export async function estimatePdfSize({
     .reduce((size: number, data) => size + (data?.numBytes ?? 0), 0);
   const bpp = sampleBytes / samplePixels;
   return bpp * totalCanvasPixels;
-}
-
-/** Get a timestamp in milliseconds, prefereably high-resolution */
-function now(): number {
-  if (typeof window !== 'undefined' && window.performance) {
-    return window.performance.now();
-  } else {
-    return Date.now();
-  }
 }
 
 function buildOutlineFromRanges(
@@ -592,7 +541,9 @@ export async function convertManifest(
       if (imgData) {
         const { width, height, data, ppi, text } = imgData;
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        const stopMeasuring = metrics?.pageGenerationDuration.startTimer();
         await pdfGen.renderPage({ width, height }, data!, text, ppi);
+        stopMeasuring?.();
         progress.updatePixels(
           width * height,
           canvas.getWidth() * canvas.getHeight()

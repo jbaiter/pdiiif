@@ -4,7 +4,8 @@ import { Mutex } from 'async-mutex';
 import { Canvas } from 'manifesto.js';
 
 import { OcrPage, fetchAndParseText } from './ocr';
-import { CancelToken } from '.';
+import { CancelToken  } from './util';
+import metrics from './metrics';
 
 /// In absence of more detailed information (from physical dimensions service), use this resolution
 const FALLBACK_PPI = 300;
@@ -37,6 +38,10 @@ class RateLimitingRegistry {
 
   unsubscribe(ticket: number) {
     this.callbacks.splice(ticket, 1);
+  }
+
+  isLimited(url: string): boolean {
+    return this.hostMutexes.has(new URL(url).host);
   }
 }
 
@@ -263,9 +268,27 @@ export async function fetchImage(
   let infoJson: any;
   if (img.getServices().length > 0) {
     const imgService = img.getServices()[0];
-    infoJson = await (
-      await fetchRespectfully(`${imgService.id}/info.json`)
-    ).json();
+    const stopMeasuring = metrics?.imageFetchDuration.startTimer({
+      iiif_host: new URL(imgService.id).host,
+    });
+    try {
+      infoJson = await (
+        await fetchRespectfully(`${imgService.id}/info.json`)
+      ).json();
+      stopMeasuring?.({
+        status: 'success',
+        limited: rateLimitRegistry.isLimited(imgService.id).toString(),
+      });
+    } catch (err) {
+      stopMeasuring?.({
+        status: 'error',
+        limited: rateLimitRegistry.isLimited(imgService.id).toString(),
+      });
+      console.error(
+        `Failed to fetch image info from ${imgService.id}/info.json`
+      );
+      throw err;
+    }
     if (cancelToken?.isCancellationConfirmed) {
       return;
     } else if (cancelToken?.isCancellationRequested) {
@@ -283,23 +306,41 @@ export async function fetchImage(
     height = img.getHeight();
     infoJson = { width, height };
   }
-  const imgResp = await fetchRespectfully(imgUrl, {
-    method: 'GET',
+  let imgData: ArrayBuffer | undefined;
+  let imgSize: number;
+  const stopMeasuring = metrics?.imageFetchDuration.startTimer({
+    iiif_host: new URL(imgUrl).host,
   });
-  if (imgResp.status >= 400) {
-    throw new Error(
-      `Failed to fetch page image from ${imgUrl}, server returned status ${imgResp.status}`
-    );
-  }
-  if (cancelToken?.isCancellationRequested) {
-    cancelToken.confirmCancelled();
-    return;
-  }
-  let imgSize = Number.parseInt(imgResp.headers.get('Content-Length') ?? '-1');
-  const imgData =
-    sizeOnly && imgSize >= 0 ? undefined : await imgResp.arrayBuffer();
-  if (imgSize < 0) {
-    imgSize = imgData?.byteLength ?? -1;
+  try {
+    const imgResp = await fetchRespectfully(imgUrl, {
+      method: 'GET',
+    });
+    if (imgResp.status >= 400) {
+      throw new Error(
+        `Failed to fetch page image from ${imgUrl}, server returned status ${imgResp.status}`
+      );
+    }
+    if (cancelToken?.isCancellationRequested) {
+      cancelToken.confirmCancelled();
+      return;
+    }
+    imgSize = Number.parseInt(imgResp.headers.get('Content-Length') ?? '-1');
+    imgData =
+      sizeOnly && imgSize >= 0 ? undefined : await imgResp.arrayBuffer();
+    if (imgSize < 0) {
+      imgSize = imgData?.byteLength ?? -1;
+    }
+    stopMeasuring?.({
+      status: 'success',
+      limited: rateLimitRegistry.isLimited(imgUrl).toString(),
+    });
+  } catch (err) {
+    stopMeasuring?.({
+      status: 'error',
+      limited: rateLimitRegistry.isLimited(imgUrl).toString(),
+    });
+    console.error(`Failed to fetch image data from ${imgUrl}`);
+    throw err;
   }
   return {
     data: imgData,

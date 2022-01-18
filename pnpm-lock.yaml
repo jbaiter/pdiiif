@@ -108,6 +108,7 @@ importers:
       p-queue: 6.6.2
       pdf-lib: ^1.16.0
       prettier: ^2.1.1
+      prom-client: ^14.0.1
       tmp: ^0.2.1
       ts-jest: ^26.3.0
       ts-node: ^8.10.2
@@ -122,6 +123,7 @@ importers:
       lodash: 4.17.21
       manifesto.js: 4.2.4
       p-queue: 6.6.2
+      prom-client: 14.0.1
       tslib: 2.3.1
     devDependencies:
       '@types/common-tags': 1.8.1

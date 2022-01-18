@@ -8,6 +8,7 @@ import sanitizeHtml from 'sanitize-html';
 import sortBy from 'lodash/sortBy';
 
 import { version as serverVersion } from 'pdiiif';
+import metrics from './metrics';
 
 Handlebars.registerHelper('qrcode', function (value, options) {
   const {
@@ -125,8 +126,16 @@ export class CoverPageGenerator {
       // Preview image is 1.8in wide, at 300dpi
       const desiredWidthPx = 1.8 * 300;
       const baseUrl = params.thumbnail?.iiifImageService;
-      const infoResp = await fetch(`${baseUrl}/info.json`);
-      const infoJson = await infoResp.json();
+      const stopMeasuring = metrics.coverPageInfoDuration.startTimer({ iiif_host: new URL(baseUrl).host });
+      let infoJson;
+      try {
+        const infoResp = await fetch(`${baseUrl}/info.json`);
+        infoJson = await infoResp.json();
+        stopMeasuring({ status: 'success' });
+      } catch (err) {
+        stopMeasuring({ status: 'error' });
+        throw err;
+      }
       // Start out with the full width, just to be safe
       const maxWidth = infoJson.maxWidth ?? infoJson.width;
       let size = infoJson.type === 'ImageService3' ? 'max' : 'full';
@@ -146,23 +155,32 @@ export class CoverPageGenerator {
       }
       thumbUrl = `${baseUrl}/full/${size}/0/default.jpg`;
     }
-    const page = await this.browser.newPage();
-    const templateParams = {
-      thumbUrl,
-      title: params.title,
-      providerLogo: params.provider?.logo,
-      providerText: params.provider?.label,
-      providerLink: params.provider?.homepage,
-      rightsLogo: params.rights?.logo,
-      rightsText: params.rights?.text ?? params.rights?.url,
-      rightsLink: params.rights?.url,
-      requiredStatement: params.requiredStatement,
-      metadata: params.metadata,
-      manifestUrl: params.manifestUrl,
-      pdiiifVersion: params.pdiiifVersion ?? serverVersion,
-    };
-    const html = this.coverPageTemplate(templateParams);
-    await page.setContent(html, { waitUntil: 'load' });
-    return page.pdf();
+    const stopMeasuring = metrics.coverPageRenderDuration.startTimer();
+    try {
+      const page = await this.browser.newPage();
+      const templateParams = {
+        thumbUrl,
+        title: params.title,
+        providerLogo: params.provider?.logo,
+        providerText: params.provider?.label,
+        providerLink: params.provider?.homepage,
+        rightsLogo: params.rights?.logo,
+        rightsText: params.rights?.text ?? params.rights?.url,
+        rightsLink: params.rights?.url,
+        requiredStatement: params.requiredStatement,
+        metadata: params.metadata,
+        manifestUrl: params.manifestUrl,
+        pdiiifVersion: params.pdiiifVersion ?? serverVersion,
+      };
+      const html = this.coverPageTemplate(templateParams);
+      await page.setContent(html, { waitUntil: 'load' });
+      const pdf = await page.pdf();
+      await page.close();
+      stopMeasuring({ status: 'success' });
+      return pdf;
+    } catch (err) {
+      stopMeasuring({ status: 'error' });
+      throw err;
+    }
   }
 }

@@ -137,13 +137,17 @@ app.use('/metrics', (req, res, next) => {
 app.use(
   promBundle({
     includePath: true,
+    normalizePath: [
+      ['^/api/progress/.*', '/api/progress/#token'],
+      ['^/api/generate-pdf.*', '/api/generate-pdf'],
+      ['^/api/coverpage.*', '/api/coverpage'],
+    ],
     promClient: {
       collectDefaultMetrics: {},
     },
+    buckets: [0.05, 0.1, 0.5, 1, 1.5, 5, 10, 30, 60, 180, 300, 600]
   })
 );
-
-// TODO: Define some custom Prometheus metrics
 
 app.get('/api/progress/:token', progressPathSpec, (req, res) => {
   const { token } = req.params;

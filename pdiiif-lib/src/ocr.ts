@@ -3,6 +3,8 @@
 import max from 'lodash/max';
 import jsdom from 'jsdom';
 import { Annotation, Canvas, Resource } from 'manifesto.js';
+import metrics from './metrics';
+import { rateLimitRegistry } from './download';
 
 if (typeof window === 'undefined') {
   const nodeDom = new jsdom.JSDOM();
@@ -420,7 +422,10 @@ function getFallbackImageSize(lines: OcrSpan[]): Dimensions {
  * @param {object} referenceSize Reference size to scale coordinates to
  * @returns {OcrPage} the parsed OCR page
  */
-export function parseOcr(ocrText: string, referenceSize: Dimensions): OcrPage | null {
+export function parseOcr(
+  ocrText: string,
+  referenceSize: Dimensions
+): OcrPage | null {
   let parse: OcrPage | null;
   if (ocrText.indexOf('<alto') >= 0) {
     parse = parseAlto(ocrText, referenceSize);
@@ -540,10 +545,28 @@ export async function fetchAndParseText(
   //       save for later once text rendering is properly done.
   const seeAlso = getTextSeeAlso(canvas);
   if (seeAlso) {
-    const markup = await fetchOcrMarkup(seeAlso.id);
-    return parseOcr(markup, {
-      width: Math.floor(scaleFactor * canvas.getWidth()),
-      height: Math.floor(scaleFactor * canvas.getHeight()),
-    }) ?? undefined;
+    const stopMeasuring = metrics?.ocrFetchDuration.startTimer({
+      ocr_host: new URL(seeAlso.id).host,
+    });
+    let markup;
+    try {
+      markup = await fetchOcrMarkup(seeAlso.id);
+      stopMeasuring?.({
+        status: 'success',
+        limited: rateLimitRegistry.isLimited(seeAlso.id).toString(),
+      });
+    } catch (err) {
+      stopMeasuring?.({
+        status: 'error',
+        limited: rateLimitRegistry.isLimited(seeAlso.id).toString(),
+      });
+      throw err;
+    }
+    return (
+      parseOcr(markup, {
+        width: Math.floor(scaleFactor * canvas.getWidth()),
+        height: Math.floor(scaleFactor * canvas.getHeight()),
+      }) ?? undefined
+    );
   }
 }
