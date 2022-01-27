@@ -53,7 +53,7 @@ The easiest way to do this is with Docker:
 ```
 $ docker build . -t pdiiif
 # SYS_ADMIN capabilities are required (for Puppeteer's headless Chrome instance to generate cover page PDFs)
-$ docker run -p 8080:8080 --cap-add=SYS_ADMIN --name pdiiif
+$ docker run -p 8080:8080 --cap-add=SYS_ADMIN --name pdiiif pdiiif
 ```
 
 **Structure of the repository**
