@@ -1,3 +1,3 @@
 export * from './convert';
-export * from './util';
+export { CancelToken } from './util';
 export { default as version } from './version';
