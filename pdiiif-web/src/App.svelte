@@ -16,31 +16,42 @@
   import logoSvgUrl from '../assets/logo.svg';
   import ErrorIcon from './icons/Exclamation.svelte';
   import ProgressBar from './icons/ProgressBar.svelte';
+  import { getMaximumBlobSize } from './util';
 
   export let apiEndpoint: string = 'http://localhost:31337/api';
   export let coverPageEndpoint: string = `${apiEndpoint}/coverpage`;
   export let onError: ((err: ErrorIcon) => void) | undefined = undefined;
 
+  const supportsFilesystemAPI =
+    typeof window.showSaveFilePicker === 'function';
+  let isFirstVisit = window.localStorage.getItem('firstVisit') === null;
+
+  // Form input state
   let manifestUrl: string = '';
+  let scaleFactor = 1;
+
+  // Validation state
   let manifestUrlIsValid: boolean | undefined;
+
+  // Status state
   let pdfFinished: boolean | undefined;
   let currentProgress: ProgressStatus | undefined;
   let notifications: Array<NotificationMessage> = [];
-  const supportsClientSideGeneration =
-    typeof window.showSaveFilePicker === 'function';
+
+  // External resources
+  let manifestInfo: ManifestInfo | undefined;
+  let infoPromise: Promise<ManifestInfo | void> | undefined;
+  let estimatePromise: Promise<number> | undefined;
 
   // Only relevant for client-side generation
   let abortController: AbortController | undefined;
   let cancelRequested = false;
   let cancelled = false;
-  let manifestInfo: ManifestInfo | undefined;
-  let infoPromise: Promise<ManifestInfo | void> | undefined;
-  let scaleFactor = 1;
-  let isFirstVisit = window.localStorage.getItem('firstVisit') === null;
 
   // Only relevant for server-side generation
   let queueState: { current: number; initial: number } | undefined;
 
+  // Show notification if file system api is available
   onMount(async () => {
     if (!isFirstVisit) {
       return;
@@ -49,21 +60,16 @@
       localStorage.setItem('firstVisit', 'false');
       isFirstVisit = false;
     };
-    if (supportsClientSideGeneration) {
+    if (supportsFilesystemAPI) {
       addNotification({
         type: 'info',
         message: $_('notifications.filesystem_supported'),
         onClose,
       });
-    } else {
-      addNotification({
-        type: 'info',
-        message: $_('notifications.server_needed'),
-        onClose,
-      });
     }
   });
 
+  /** Reset all state variables to their defaults. */
   function resetState() {
     manifestUrl = '';
     manifestUrlIsValid = undefined;
@@ -73,13 +79,16 @@
     cancelled = false;
     manifestInfo = undefined;
     infoPromise = undefined;
+    estimatePromise = undefined;
     scaleFactor = 1;
   }
 
+  /** Show a new notification, making sure no more than 5 are ever shown. */
   function addNotification(msg: NotificationMessage): void {
     notifications = [msg, ...notifications.slice(0, 4)];
   }
 
+  /** Clear all notifications, optionally filtered by a tag. */
   function clearNotifications(tag?: string) {
     if (tag !== undefined) {
       notifications = notifications.filter(
@@ -94,13 +103,17 @@
     evt
   ) => {
     const inp = evt.target as HTMLInputElement;
+    // The callback is triggered for both input and paste events
     const value =
       evt.type === 'paste'
         ? (
             (evt as any).clipboardData ?? (window as any).clipboardData
           )?.getData?.('Text')
         : inp.value;
+    // New input means all old validation messages are no longer relevant
     clearNotifications('validation');
+
+    // Check the validity of the input
     if (inp.validity.typeMismatch || inp.validity.patternMismatch) {
       manifestUrlIsValid = false;
       addNotification({
@@ -109,21 +122,33 @@
         tags: ['validation'],
       });
     } else if (value.length === 0) {
+      // Deleting the input value causes a full state reset
       resetState();
     } else if (manifestUrlIsValid) {
       // URL was previously valid and is not newly invalid or empty, so no need to trigger anything!
       return;
     } else {
+      // URL was previoulsy invalid and is now valid, so we can start fetching the manifest info
       manifestUrlIsValid = true;
-      // FIXME: Meh, shouldn't we have a separate state variable for validation messages?
       clearNotifications('validation');
+      // No async/await, since we need to keep a reference to the promise around
       infoPromise = fetchManifestInfo(value)
         .then((info) => {
           manifestInfo = info;
-          if (supportsClientSideGeneration && !manifestInfo.imageApiHasCors) {
+          if (!manifestInfo.imageApiHasCors) {
+            // Show a warning if the Image API endpoint does not support CORS
             addNotification({
               type: 'warn',
               message: $_('errors.cors'),
+            });
+          } else {
+            // Otherwise we can safely fetch a few images to get an estimate
+            // of the final PDF size
+            estimatePromise = estimatePdfSize({
+              manifestJson: manifestInfo.manifestJson,
+              concurrency: 4,
+              scaleFactor,
+              numSamples: 8,
             });
           }
           return info;
@@ -142,7 +167,7 @@
   };
 
   /// Simply generate a random hex string
-  function generateProgressToken() {
+  function getRandomToken() {
     if (typeof window.crypto !== 'undefined') {
       const buf = new Uint32Array(2);
       crypto.getRandomValues(buf);
@@ -154,6 +179,7 @@
 
   /// Generate a PDF completely on the client side, using the
   /// File System Access API available in newer WebKit browsers
+  /// or via a Blob otherwise.
   async function generatePdfClientSide(): Promise<void> {
     let manifestResp: Response;
     try {
@@ -176,25 +202,28 @@
       // Prevent duplicate period characters in filename
       cleanLabel = cleanLabel.substring(0, cleanLabel.length - 1);
     }
-    abortController = new AbortController();
 
-    const handle = await showSaveFilePicker({
-      // @ts-ignore, only available in Chrome >= 91
-      suggestedName: `${cleanLabel}.pdf`,
-      types: [
-        {
-          description: 'PDF file',
-          accept: { 'application/pdf': ['.pdf'] },
-        },
-      ],
-    });
-    if ((await handle.queryPermission({ mode: 'readwrite' })) !== 'granted') {
-      addNotification({
-        type: 'error',
-        message: $_('errors.write_perm', { values: { fileName: handle.name } }),
+    abortController = new AbortController();
+    let webWritable: WritableStream | undefined;
+    if (supportsFilesystemAPI) {
+      const handle = await showSaveFilePicker({
+        // @ts-ignore, only available in Chrome >= 91
+        suggestedName: `${cleanLabel}.pdf`,
+        types: [
+          {
+            description: 'PDF file',
+            accept: { 'application/pdf': ['.pdf'] },
+          },
+        ],
       });
+      if ((await handle.queryPermission({ mode: 'readwrite' })) !== 'granted') {
+        addNotification({
+          type: 'error',
+          message: $_('errors.write_perm', { values: { fileName: handle.name } }),
+        });
+      }
+      webWritable = await handle.createWritable();
     }
-    const webWritable = await handle.createWritable();
     abortController.signal.addEventListener(
       'abort',
       async () => {
@@ -203,7 +232,7 @@
       },
       { once: true });
     try {
-      await convertManifest(manifestJson, webWritable, {
+      const res = await convertManifest(manifestJson, webWritable, {
         concurrency: 4,
         languagePreference: window.navigator.languages,
         onProgress: (status) => {
@@ -213,7 +242,20 @@
         coverPageEndpoint,
         scaleFactor,
       });
+      pdfFinished = true;
+      if (!webWritable) {
+        // FIXME: Why is the casting neccessary?
+        const objectURL = URL.createObjectURL(res as unknown as Blob);
+        const link = document.createElement('a');
+        link.download = `${cleanLabel}.pdf`;
+        link.rel = 'noopener';
+        link.href = objectURL;
+        // Clean up blob/object URL after 40 seconds
+        setTimeout(() => URL.revokeObjectURL(objectURL), 40 * 1000);
+        link.dispatchEvent(new MouseEvent('click'));
+      }
     } catch (err) {
+      console.error(err);
       onError?.(err);
       addNotification({
         type: 'error',
@@ -232,7 +274,7 @@
   /// File System Access API
   async function generatePdfServerSide(): Promise<void> {
     const pdfEndpoint = `${apiEndpoint}/generate-pdf`;
-    const progressToken = generateProgressToken();
+    const progressToken = getRandomToken();
     const progressEndpoint = `${apiEndpoint}/progress/${progressToken}`;
     const progressSource = new EventSource(progressEndpoint);
     progressSource.addEventListener('error', () => {
@@ -296,18 +338,54 @@
     evt.preventDefault();
     pdfFinished = false;
     let promise: Promise<void>;
-    if (supportsClientSideGeneration && manifestInfo.imageApiHasCors) {
+    let generateOnClient: boolean;
+    if (!manifestInfo.imageApiHasCors) {
+      generateOnClient = false;
+    } else if (supportsFilesystemAPI) {
+      generateOnClient = true;
+    } else {
+      const sizeEstimate = await estimatePromise;
+      generateOnClient = sizeEstimate <= getMaximumBlobSize();
+      if (!generateOnClient) {
+        try {
+          generateOnClient = await new Promise((resolve, reject) => {
+            const tag = getRandomToken();
+            addNotification({
+              type: 'info',
+              message: $_('notifications.large_pdf'),
+              choices: {
+                'buttons.use_server': () => resolve(false),
+                'buttons.force_client': () => resolve(true),
+              },
+              onClose: () => reject(),
+              tags: [tag],
+            })
+          })
+        } catch {
+          // User cancelled by closing the notification
+          resetState();
+          return;
+        }
+      }
+    }
+
+    if (generateOnClient) {
       promise = generatePdfClientSide();
     } else {
+      addNotification({
+        type: 'info',
+        message: $_('notifications.server_generation'),
+      });
       promise = generatePdfServerSide();
     }
     await promise;
-    addNotification({
-      type: 'success',
-      message: $_('notifications.success'),
-      onClose: () => resetState(),
-    });
-    pdfFinished = true;
+    if (pdfFinished) {
+      addNotification({
+        type: 'success',
+        message: $_('notifications.success'),
+        onClose: () => resetState(),
+      });
+    }
   }
 
   async function cancelGeneration(): Promise<void> {
@@ -330,6 +408,7 @@
     {#each notifications as notification}
       <Notification
         type={notification.type}
+        choices={notification.choices}
         on:close={() => {
           notification.onClose?.();
           notifications = without(notifications, notification);
@@ -342,7 +421,7 @@
   <div class="flex flex-col bg-blue-400 m-auto p-4 rounded-md shadow-lg">
     <form on:submit={generatePdf}>
       {#if infoPromise}
-        <Preview {scaleFactor} {infoPromise} />
+        <Preview {infoPromise} {estimatePromise} />
       {/if}
       <div class="relative text-gray-700">
         <input
@@ -377,7 +456,7 @@
         <Settings
           bind:scaleFactor
           {manifestInfo}
-          disabled={!!currentProgress}
+          disabled={currentProgress && !pdfFinished}
         />
       {/if}
     </form>

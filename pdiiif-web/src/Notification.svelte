@@ -6,6 +6,7 @@
   import Close from './icons/Close.svelte';
 
   export let type: 'success' | 'error' | 'info' | 'warn';
+  export let choices: {[labelKey: string]: () => void} | undefined = undefined;
 
   $: colorClass = {
     'success': 'bg-green-600',
@@ -32,7 +33,24 @@
   <div>
     <svelte:component this={Icon} classes="h-4 w-4 mr-2" />
   </div>
-  <p class="flex-grow overflow-auto" style="hyphens: auto;"><slot /></p>
+  <div class="flex-grow">
+    <p class="flex-grow overflow-auto" style="hyphens: auto;"><slot /></p>
+    {#if choices}
+      <div class="flex items-center mt-4">
+        {#each Object.entries(choices) as [labelKey, action]}
+          <button
+            class="px-2 py-1 mr-2 border border-blue-400 bg-white rounded-lg hover:border-green-400 text-black hover:font-bold"
+            on:click={() => {
+              action();
+              dispatch('close');
+            }}
+          >
+            {$_(labelKey)}
+          </button>
+        {/each}
+      </div>
+    {/if}
+  </div>
   <button
     title="{$_('buttons.close')}"
     on:click={() => dispatch('close')}

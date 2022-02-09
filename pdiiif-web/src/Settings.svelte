@@ -46,8 +46,9 @@
     {:else}
       <button
         type="button"
-        class="bg-green-200 rounded-lg items-center p-1 text-gray-700"
+        class="bg-green-200 disabled:bg-gray-500 rounded-lg items-center p-1 text-gray-700"
         title={$_('buttons.settings')}
+        disabled={disabled}
         on:click={() => {
           showSettings = true;
         }}

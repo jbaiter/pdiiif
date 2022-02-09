@@ -8,6 +8,7 @@
     "declarationDir": "lib/types",
     "rootDir": "src",
     "strict": true,
+    "strictNullChecks": true,
     "target": "es2015",
     "resolveJsonModule": true,
     "esModuleInterop": true

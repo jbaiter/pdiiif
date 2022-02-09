@@ -9,4 +9,5 @@ declare module "*.svg" {
     message: string;
     tags?: string[];
     onClose?: () => void;
+    choices?: {[labelKey: string]: () => void};
   }
