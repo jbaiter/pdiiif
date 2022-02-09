@@ -12,7 +12,7 @@
         "success": "PDF successfully generated.",
         "cancel": "PDF generation cancelled.",
         "filesystem_supported": "Congratulations, your browser supports generating PDFs! Don't be irritated when you don't see a download, the PDF will be saved to the path you specified nevertheless.",
-        "large_pdf": "PDF is likely too large to be generated in this browser. You can force client-side generation (at the risk of crashing your browser tab), or have the PDF be generated on the server.",
+        "large_pdf": "PDF might be too large to be generated in this browser. You can force client-side generation (faster, at the risk of possibly crashing your browser tab), or have the PDF be generated on the server (slower, subject to limits).",
         "server_generation": "PDF is being generated on the server. If you want to have faster downloads and a smaller likelihood of running into limits, consider using Chrome/Chromium Desktop or Edge, which support generating large PDFs in the browser.",
         "queued": "Looks like other users are also generating PDFs from the IIIF services at {iiifHost}, you'll have to wait until a spot in the queue becomes available. If you want to avoid this, use a browser that supports the File System Access API, like Chrome, Chromium or Edge."
     },

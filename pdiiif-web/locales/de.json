@@ -12,8 +12,8 @@
         "success": "PDF erfolgreich erstellt.",
         "cancel": "PDF-Erstellung abgebrochen.",
         "filesystem_supported": "Glückwunsch, Ihr Browser kann PDFs erzeugen! Wundern Sie sich nicht wenn Sie keinen Download sehen, das PDF wird trotzdem an den Ort geschrieben, den Sie ausgewählt haben.",
-        "large_pdf": "Das PDF ist sehr wahrscheinlich zu groß um im Browser generiert zu werden. Sie können trotzdem die browser-seitige Generierung erzwingen (mit dem Risiko dass Ihr Browser-Tab abstürzt) oder das PDF auf dem Server erzeugen lassen.",
-        "server_generation": "PDFs werden auf dem Server erzeugt. Wenn Sie schnellere Downloads und eine geringere Wahrscheinlichkeit für Nutzungsbeschränkungen wollen, können Sie Chrome oder Chromium für den Desktop verwenden, die die Erzeugung von großen PDFs direkt im Browser unterstützen.",
+        "large_pdf": "Das PDF ist möglicherweise zu groß um in diesem Browser generiert zu werden. Sie können trotzdem die browser-seitige Generierung erzwingen (schneller, mit dem Risiko dass Ihr Browser-Tab abstürzt) oder das PDF auf dem Server erzeugen lassen (langsamer, begrenzte Kapazitäten).",
+        "server_generation": "PDFs werden auf dem Server erzeugt. Wenn Sie schnellere Downloads und eine geringere Wahrscheinlichkeit für Nutzungsbeschränkungen wollen, können Sie Chrome/Chromium für den Desktop, Edge oder Safari verwenden, die die Erzeugung von großen PDFs direkt im Browser unterstützen.",
         "queued": "Andere Benutzer erzeugen ebenfalls gerade PDFs von den IIIF-Diensten auf {iiifHost}, Sie müssen sich etwas gedulden bis Sie an der Reihe sind. Wenn Sie das vermeiden wollen, benutzen Sie einen Browser der die File Syste Access API unterstützt, wie Chrome, Chromium oder Edge."
     },
     "buttons": {
