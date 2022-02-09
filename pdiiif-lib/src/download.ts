@@ -4,8 +4,8 @@ import { Mutex } from 'async-mutex';
 import { Canvas } from 'manifesto.js';
 
 import { OcrPage, fetchAndParseText } from './ocr';
-import { CancelToken  } from './util';
 import metrics from './metrics';
+import { abort } from 'process';
 
 /// In absence of more detailed information (from physical dimensions service), use this resolution
 const FALLBACK_PPI = 300;
@@ -244,8 +244,8 @@ export type FetchImageOptions = {
   scaleFactor?: number;
   /// PPI override, will be fetched from physical dimensions serivce by default
   ppiOverride?: number;
-  // Optional token to use for cancelling the image fetching
-  cancelToken?: CancelToken;
+  // Optional signal to use for aborting the image fetching
+  abortSignal?: AbortSignal;
   /// Only obtain the size of the image, don't fetch any data
   sizeOnly?: boolean;
 };
@@ -253,13 +253,11 @@ export type FetchImageOptions = {
 /** Fetch the first image associated with a canvas. */
 export async function fetchImage(
   canvas: Canvas,
-  { scaleFactor, ppiOverride, cancelToken, sizeOnly = false }: FetchImageOptions
+  { scaleFactor, ppiOverride, abortSignal, sizeOnly = false }: FetchImageOptions
 ): Promise<ImageData | undefined> {
-  if (cancelToken?.cancelled) {
-    if (!cancelToken.isCancellationConfirmed) {
-      cancelToken.confirmCancelled();
-    }
-    return undefined;
+  if (abortSignal?.aborted) {
+    console.debug('Abort signalled, aborting before initiating image data fetching.');
+    return;
   }
   const img = canvas.getImages()[0].getResource();
   let imgUrl: string;
@@ -273,7 +271,7 @@ export async function fetchImage(
     });
     try {
       infoJson = await (
-        await fetchRespectfully(`${imgService.id}/info.json`)
+        await fetchRespectfully(`${imgService.id}/info.json`, { signal: abortSignal })
       ).json();
       stopMeasuring?.({
         status: 'success',
@@ -289,10 +287,7 @@ export async function fetchImage(
       );
       throw err;
     }
-    if (cancelToken?.isCancellationConfirmed) {
-      return;
-    } else if (cancelToken?.isCancellationRequested) {
-      cancelToken.confirmCancelled();
+    if (abortSignal?.aborted) {
       return;
     }
     const sizeInfo = getImageSize(infoJson, scaleFactor);
@@ -314,14 +309,14 @@ export async function fetchImage(
   try {
     const imgResp = await fetchRespectfully(imgUrl, {
       method: 'GET',
+      signal: abortSignal,
     });
     if (imgResp.status >= 400) {
       throw new Error(
         `Failed to fetch page image from ${imgUrl}, server returned status ${imgResp.status}`
       );
     }
-    if (cancelToken?.isCancellationRequested) {
-      cancelToken.confirmCancelled();
+    if (abortSignal?.aborted) {
       return;
     }
     imgSize = Number.parseInt(imgResp.headers.get('Content-Length') ?? '-1');
@@ -339,8 +334,8 @@ export async function fetchImage(
       status: 'error',
       limited: rateLimitRegistry.isLimited(imgUrl).toString(),
     });
-    console.error(`Failed to fetch image data from ${imgUrl}`);
-    throw err;
+    console.error(`Failed to fetch image data from ${imgUrl}: ${err}`);
+    return undefined;
   }
   return {
     data: imgData,

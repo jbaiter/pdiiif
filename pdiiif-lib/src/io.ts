@@ -72,11 +72,9 @@ export class CountingWriter implements Writer {
 
 /** A Writer that can be used with e.g. a file system stream in the browser. */
 export class WebWriter implements Writer {
-  private _stream: WritableStream;
   private _writer: WritableStreamDefaultWriter<any>;
 
   constructor(stream: WritableStream) {
-    this._stream = stream;
     this._writer = stream.getWriter();
   }
 
@@ -90,6 +88,49 @@ export class WebWriter implements Writer {
 
   close(): Promise<void> {
     return this._writer.close();
+  }
+}
+
+// TODO: A good reference seems to be the mega.nz implementation, which has always worked great for me on desktops at least:
+// https://github.com/meganz/webclient/blob/f19289127b68ceaf19a5e884f2f48f15078304da/js/transfers/meths/memory.js
+
+export class BlobWriter implements Writer {
+  private _parts: Array<Uint8Array | string>;
+  private _blob?: Blob;
+
+  constructor() {
+    this._parts = [];
+  }
+
+  write(buffer: string | Uint8Array): Promise<void> {
+    if (this._blob) {
+      return Promise.reject('Cannot write to closed BlobWriter.');
+    }
+    this._parts.push(buffer);
+    return Promise.resolve();
+  }
+
+  waitForDrain(): Promise<void> {
+    if (this._blob) {
+      return Promise.reject('Cannot wait on a closed BlobWriter.');
+    }
+    return Promise.resolve();
+  }
+
+  close(): Promise<void> {
+    if (this._blob) {
+      return Promise.reject('BlobWriter is already closed');
+    }
+    this._blob = new Blob(this._parts);
+    this._parts = [];
+    return Promise.resolve();
+  }
+
+  get blob(): Blob {
+    if (!this._blob) {
+      throw 'BlobWriter must be closed first!';
+    }
+    return this._blob;
   }
 }
 

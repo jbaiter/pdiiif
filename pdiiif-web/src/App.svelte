@@ -3,7 +3,7 @@
   import { onMount } from 'svelte';
   import { _ } from 'svelte-i18n';
   import { debounce, without } from 'lodash';
-  import { convertManifest, ProgressStatus, CancelToken } from 'pdiiif';
+  import { convertManifest, estimatePdfSize, ProgressStatus } from 'pdiiif';
 
   import type { ManifestInfo } from './iiif';
   import { fetchManifestInfo } from './iiif';
@@ -30,7 +30,7 @@
     typeof window.showSaveFilePicker === 'function';
 
   // Only relevant for client-side generation
-  let cancelToken: CancelToken | undefined;
+  let abortController: AbortController | undefined;
   let cancelRequested = false;
   let cancelled = false;
   let manifestInfo: ManifestInfo | undefined;
@@ -176,6 +176,7 @@
       // Prevent duplicate period characters in filename
       cleanLabel = cleanLabel.substring(0, cleanLabel.length - 1);
     }
+    abortController = new AbortController();
 
     const handle = await showSaveFilePicker({
       // @ts-ignore, only available in Chrome >= 91
@@ -194,11 +195,13 @@
       });
     }
     const webWritable = await handle.createWritable();
-    cancelToken = new CancelToken();
-    cancelToken.addOnCancelled(async () => {
-      await webWritable.abort();
-      cancelled = true;
-    });
+    abortController.signal.addEventListener(
+      'abort',
+      async () => {
+        await webWritable.abort();
+        cancelled = true;
+      },
+      { once: true });
     try {
       await convertManifest(manifestJson, webWritable, {
         concurrency: 4,
@@ -206,7 +209,7 @@
         onProgress: (status) => {
           currentProgress = status;
         },
-        cancelToken,
+        abortController,
         coverPageEndpoint,
         scaleFactor,
       });
@@ -220,7 +223,7 @@
       });
       currentProgress = undefined;
     } finally {
-      cancelToken = undefined;
+      abortController = undefined;
     }
   }
 
@@ -309,7 +312,7 @@
 
   async function cancelGeneration(): Promise<void> {
     cancelRequested = true;
-    await cancelToken.requestCancel();
+    abortController.abort();
     addNotification({
       type: 'info',
       message: $_('notifications.cancel'),
@@ -398,11 +401,11 @@
             {(currentProgress.bytesWritten / (1024 * 1024)).toFixed(1)}MiB / ~{(
               currentProgress.estimatedFileSize /
               (1024 * 1024)
-            ).toFixed(1)}MiB ({currentProgress.writeSpeed / (1024 * 1024)})
+            ).toFixed(1)}MiB ({(currentProgress.writeSpeed / (1024 * 1024)).toFixed(1)} MiB/s)
           {/if}
         </span>
       </ProgressBar>
-      {#if cancelToken && !cancelled}
+      {#if abortController && !cancelled}
         <button
           class="mx-auto mt-2 px-2 py-1 font-bold text-white disabled:opacity-25 bg-red-600 rounded-lg hover:bg-red-500 focus:bg-red-700"
           on:click={cancelGeneration}

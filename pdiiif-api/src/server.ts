@@ -259,6 +259,13 @@ app.get(
         }
       };
     }
+    let abortController: AbortController | undefined = new AbortController();
+    res.addListener("close", () => {
+      if (abortController) {
+        log.info('Connection closed prematurely, aborting conversion.');
+        abortController.abort()
+      }
+    });
 
     const convertPromise = globalConvertQueue.add(
       () =>
@@ -275,8 +282,9 @@ app.get(
             const buf = await coverPageGenerator.render(params);
             return new Uint8Array(buf.buffer);
           },
-          // Reduce chance of accidental DoS on image servers, one concurrent download per requested PDF
+          // Reduce chance of accidental DoS on image servers, two concurrent downloads per requested PDF
           concurrency: 2,
+          abortController,
         }),
       primaryImageHost,
       onQueueAdvance
@@ -293,6 +301,7 @@ app.get(
         }
       }
     }
+    abortController = undefined;
     if (progressToken && typeof progressToken === 'string') {
       progressClients[progressToken]?.end(
         undefined,
@@ -376,19 +385,12 @@ coverPageGenerator.start().then(() => {
   );
 });
 
-// FIXME: There surely must be a better way to handle connections that are
-//        terminated by the peer?
-process.on('uncaughtException', function (err: Error) {
-  const errCode = (err as any).code;
-  switch (errCode) {
-    case 'EPIPE':
-    case 'ECONNRESET':
-      // Happens when cliens terminate their download, ignore
-      return;
-    default:
-      log.error('Uncaught exception', { error: err });
-      throw err;
+process.on('unhandledRejection', function (err: Error) {
+  if ((err as any).type === 'aborted' || (err as any).code == 'ERR_STREAM_DESTROYED') {
+    // FIXME: Where do these unhandled promise rejections come from?
+    return;
   }
+  log.error('Uncaught exception', { error: err });
 });
 
 // Terminate cover page generator before exiting, closes the underlying

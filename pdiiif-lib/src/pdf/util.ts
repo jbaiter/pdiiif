@@ -68,7 +68,7 @@ export async function tryDeflateStream(
     pdfStream instanceof Uint8Array ? pdfStream : textEncoder.encode(pdfStream);
   let compressed: Uint8Array;
   if (typeof window !== 'undefined') {
-    if (typeof (window as any).CompressionStream !== 'undefined') {
+    if (typeof (window as any).CompressionStream === 'undefined') {
       // Browser doesn't support CompressionStream API, no deflate possible
       return Promise.resolve({
         stream: pdfStream,

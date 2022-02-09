@@ -13,14 +13,15 @@ import orderBy from 'lodash/orderBy';
 import PQueue from 'p-queue';
 
 import PDFGenerator from './pdf/generator';
-import { CountingWriter, WebWriter, NodeWriter, Writer } from './io';
+import { CountingWriter, WebWriter, NodeWriter, Writer, BlobWriter } from './io';
 import { TocItem } from './pdf/util';
 import { getLicenseInfo } from './res/licenses';
 import { getTextSeeAlso } from './ocr';
 import pdiiifVersion from './version';
 import { fetchImage, fetchRespectfully, ImageData } from './download';
 import metrics from './metrics';
-import { CancelToken, now } from './util';
+import { now } from './util';
+import { abort } from 'process';
 
 /** Progress information for rendering a progress bar or similar UI elements. */
 export interface ProgressStatus {
@@ -92,10 +93,10 @@ export interface ConvertOptions {
   /** Callback that gets called whenever a page has finished, useful to render a
       progress bar. */
   onProgress?: (status: ProgressStatus) => void;
-  /** Token that allows cancelling the PDF generation. All pending
+  /** Controller that allows aborting the PDF generation. All pending
       downloads will be terminated. The caller is responsible for
       removing underlying partial files and/or other user signaling. */
-  cancelToken?: CancelToken;
+  abortController?: AbortController;
   /** Set PDF metadata, by default `Title` will be the manifest's label. */
   metadata?: {
     CreationDate?: Date;
@@ -415,7 +416,7 @@ async function getCoverPagePdf(
     })
     .filter((x): x is [string, string | string[]] => x !== undefined);
   if (callback) {
-    return callback(params);
+    return await callback(params);
   } else if (endpoint) {
     const resp = await fetchRespectfully(endpoint, {
       method: 'POST',
@@ -429,11 +430,13 @@ async function getCoverPagePdf(
   }
 }
 
+export async function convertManifest(manifestJson: any, outputStream: Writable | WritableStream, options: ConvertOptions): Promise<void>;
+export async function convertManifest(manifestJson: any, outputStream: undefined, options: ConvertOptions): Promise<Blob>;
 /** Convert a IIIF manifest to a PDF,  */
 export async function convertManifest(
   /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
   manifestJson: any,
-  outputStream: Writable | WritableStream,
+  outputStream: Writable | WritableStream | undefined,
   {
     filterCanvases = () => true,
     languagePreference = [Intl.DateTimeFormat().resolvedOptions().locale],
@@ -442,15 +445,17 @@ export async function convertManifest(
     onProgress,
     ppi,
     concurrency = 1,
-    cancelToken = new CancelToken(),
+    abortController = new AbortController(),
     coverPageCallback,
     coverPageEndpoint,
   }: ConvertOptions
-): Promise<void> {
+): Promise<void | Blob> {
   let writer: Writer;
+  if (!outputStream) {
+    writer = new BlobWriter();
   // Can't use `instanceof` since we don't have the Node class in the
   // browser and vice versa, so examine the shape of the object
-  if (typeof (outputStream as WritableStream).close === 'function') {
+  } else if (typeof (outputStream as WritableStream).close === 'function') {
     writer = new WebWriter(outputStream as WritableStream);
   } else {
     writer = new NodeWriter(outputStream as Writable);
@@ -458,7 +463,7 @@ export async function convertManifest(
     // This will only have an effect if the PDF has not finished generating
     // yet (i.e. when the client terminates the connection prematurely),
     // otherwise all processing will long have stopped
-    (outputStream as Writable).on('close', () => cancelToken.requestCancel());
+    (outputStream as Writable).on('close', () => abortController.abort());
   }
   const countingWriter = new CountingWriter(writer);
 
@@ -489,10 +494,11 @@ export async function convertManifest(
 
   // Fetch images concurrently, within limits specified by user
   const queue = new PQueue({ concurrency });
-  cancelToken.addOnCancelled(() => queue.clear());
+  abortController.signal.addEventListener(
+    'abort', () => queue.clear(), { once: true });
   const imgFuts = canvases.map((c) => {
     return queue.add(() =>
-      fetchImage(c, { scaleFactor, ppiOverride: ppi, cancelToken })
+      fetchImage(c, { scaleFactor, ppiOverride: ppi, abortSignal: abortController.signal })
     );
   });
 
@@ -520,18 +526,24 @@ export async function convertManifest(
 
   if (coverPageCallback || coverPageEndpoint) {
     progress.emitProgress(0, 'Generating cover page');
-    const coverPageData = await getCoverPagePdf(
-      manifest,
-      languagePreference as string[],
-      coverPageEndpoint,
-      coverPageCallback
-    );
-    await pdfGen.insertCoverPages(coverPageData);
+    try {
+      const coverPageData = await getCoverPagePdf(
+        manifest,
+        languagePreference as string[],
+        coverPageEndpoint,
+        coverPageCallback
+      );
+      await pdfGen.insertCoverPages(coverPageData);
+    } catch (err) {
+      abortController.abort();
+      throw err;
+    }
   }
 
   progress.emitProgress(0, 'Downloading images and generating PDF pages');
   for (let canvasIdx = 0; canvasIdx < canvases.length; canvasIdx++) {
-    if (cancelToken.isCancellationConfirmed) {
+    if (abortController.signal.aborted) {
+      console.debug('Abort signalled, aborting while waiting for image data.');
       break;
     }
     const canvas = canvases[canvasIdx];
@@ -553,7 +565,9 @@ export async function convertManifest(
       // Clear queue, cancel all ongoing image fetching
       console.error(err);
       queue.clear();
-      await cancelToken.requestCancel();
+      if (!abortController.signal.aborted) {
+        abortController.abort();
+      }
       throw err;
     } finally {
       delete imgFuts[canvasIdx];
@@ -567,7 +581,7 @@ export async function convertManifest(
   // At this point the PDF data might still be incomplete, so we wait for
   // drain events on the writer and continue updating our progress tracker
   // until the writer is actually closed
-  if (!cancelToken.cancelled) {
+  if (!abortController.signal.aborted) {
     let closed = false;
     endPromise.then(() => (closed = true));
     const progressOnDrain = () => {
@@ -588,4 +602,8 @@ export async function convertManifest(
 
   // Wait for the writer to be closed
   await endPromise;
+
+  if (writer instanceof BlobWriter) {
+    return writer.blob;
+  }
 }

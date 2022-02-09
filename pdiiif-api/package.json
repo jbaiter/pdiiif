@@ -68,6 +68,10 @@
     "sanitize-html": "^2.5.3",
     "winston": "^3.3.3"
   },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "engineStrict": true,
   "main": "./dist/server.js",
   "prettier": {
     "trailingComma": "es5",

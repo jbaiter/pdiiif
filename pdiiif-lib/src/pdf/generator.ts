@@ -610,7 +610,7 @@ export default class PDFGenerator {
       data = textEncoder.encode(data);
     }
     this._offset += data.byteLength;
-    this._writer.write(data);
+    await this._writer.write(data);
   }
 
   async end(): Promise<void> {

@@ -83,6 +83,7 @@ export type CoverPageParams = {
   };
   metadata?: Array<[string, string | Array<string>]>;
   pdiiifVersion?: string;
+  abortSignal?: AbortSignal;
 };
 
 export class CoverPageGenerator {
@@ -121,6 +122,9 @@ export class CoverPageGenerator {
     if (this.browser == null) {
       throw 'CoverPageGenerator must be started before it can render cover pages.';
     }
+    if (params.abortSignal?.aborted) {
+      throw 'aborted';
+    }
     let thumbUrl = params.thumbnail?.url;
     if (params.thumbnail?.iiifImageService) {
       // Preview image is 1.8in wide, at 300dpi
@@ -129,7 +133,7 @@ export class CoverPageGenerator {
       const stopMeasuring = metrics.coverPageInfoDuration.startTimer({ iiif_host: new URL(baseUrl).host });
       let infoJson;
       try {
-        const infoResp = await fetch(`${baseUrl}/info.json`);
+        const infoResp = await fetch(`${baseUrl}/info.json`, { signal: params.abortSignal });
         infoJson = await infoResp.json();
         stopMeasuring({ status: 'success' });
       } catch (err) {
@@ -156,6 +160,9 @@ export class CoverPageGenerator {
       thumbUrl = `${baseUrl}/full/${size}/0/default.jpg`;
     }
     const stopMeasuring = metrics.coverPageRenderDuration.startTimer();
+    if (params.abortSignal?.aborted) {
+      throw 'aborted';
+    }
     try {
       const page = await this.browser.newPage();
       const templateParams = {
@@ -173,8 +180,17 @@ export class CoverPageGenerator {
         pdiiifVersion: params.pdiiifVersion ?? serverVersion,
       };
       const html = this.coverPageTemplate(templateParams);
-      await page.setContent(html, { waitUntil: 'load' });
+      if (params.abortSignal?.aborted) {
+        throw 'aborted';
+      }
+      await page.setContent(html, { waitUntil: 'load', timeout: 30 * 1000 });
+      if (params.abortSignal?.aborted) {
+        throw 'aborted';
+      }
       const pdf = await page.pdf();
+      if (params.abortSignal?.aborted) {
+        throw 'aborted';
+      }
       await page.close();
       stopMeasuring({ status: 'success' });
       return pdf;
