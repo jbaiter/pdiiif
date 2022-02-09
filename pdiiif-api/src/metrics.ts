@@ -13,6 +13,11 @@ const metrics = {
     buckets: [0.1, 0.3, 0.5, 1, 2, 4, 8],
     labelNames: ['status', 'iiif_host'],
   }),
+  generatorQueueSize: new prometheus.Gauge({
+    name: 'pdiiif_generator_queue_size',
+    help: 'Number of items in the generator queue',
+    labelNames: ['iiif_host'],
+  }),
 }
 
 export default metrics;
