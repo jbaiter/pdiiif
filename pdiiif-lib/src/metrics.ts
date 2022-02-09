@@ -1,10 +1,11 @@
+import type { Histogram } from 'prom-client';
 import prometheus from 'prom-client';
 
 type Metrics = {
-  pageGenerationDuration: prometheus.Histogram<string>
-  imageFetchDuration: prometheus.Histogram<string>
-  imageInfoDuration: prometheus.Histogram<string>
-  ocrFetchDuration: prometheus.Histogram<string>
+  pageGenerationDuration: Histogram<string>
+  imageFetchDuration: Histogram<string>
+  imageInfoDuration: Histogram<string>
+  ocrFetchDuration: Histogram<string>
 } | undefined;
 
 let metrics: Metrics;

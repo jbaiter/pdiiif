@@ -75,14 +75,9 @@ export async function tryDeflateStream(
         dict: { Length: pdfStream.length },
       });
     }
-    const stream = new ReadableStream({
-      start(controller) {
-        controller.enqueue(data);
-      },
-    }).pipeThrough(new (window as any).CompressionStream('deflate'));
-    compressed = await new Response(stream)
-      .arrayBuffer()
-      .then((buf) => new Uint8Array(buf));
+    const compStream = new (window as any).CompressionStream('deflate');
+    const c = new Blob([data]).stream().pipeThrough(compStream);
+    compressed = new Uint8Array(await new Response(c).arrayBuffer());
   } else {
     compressed = await new Promise((resolve, reject) =>
       zlib.deflate(data, (err, buf) => (err ? reject(err) : resolve(buf)))
