@@ -1,6 +1,7 @@
 /** Types for writing to an output stream, with support for Node and Browsers. */
 import type { Writable as NodeWritable } from 'stream';
 import type nodeFs from 'fs';
+import log from './log';
 
 export interface Reader {
   read(
@@ -169,6 +170,7 @@ export class NodeWriter implements Writer {
   constructor(writable: NodeWritable) {
     this._writable = writable;
     this._writable.on('drain', () => {
+      log.debug('Drained writer.');
       for (const waiter of this._drainWaiters) {
         waiter();
       }
@@ -185,6 +187,7 @@ export class NodeWriter implements Writer {
         ))
     );
     if (waitForDrain) {
+      log.debug('Waiting for writer to drain');
       return this.waitForDrain();
     } else {
       return out;

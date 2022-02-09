@@ -1,5 +1,6 @@
 import { omit } from 'lodash';
 import winston from 'winston';
+import { Logger, setLogger } from 'pdiiif';
 
 function createLogger(level: string, logToFiles = true): winston.Logger {
   const transports = [];
@@ -30,9 +31,40 @@ function createLogger(level: string, logToFiles = true): winston.Logger {
   });
 }
 
-export default createLogger(
+class WinstonLogger implements Logger {
+  private logger: winston.Logger;
+  constructor(logger: winston.Logger) {
+    this.logger = logger;
+  }
+
+  setLevel(level: 'debug' | 'info' | 'error' | 'warn'): void {
+    this.logger.level = level;
+  }
+
+  debug(msg, ...args): void {
+    this.logger.debug(msg, ...args);
+  }
+
+  info(msg, ...args): void {
+    this.logger.info(msg, ...args);
+  }
+
+  warn(msg, ...args): void {
+    this.logger.warn(msg, ...args);
+  }
+
+  error(msg, ...args): void {
+    this.logger.error(msg, ...args);
+  }
+}
+
+const logger = createLogger(
   process.env.CFG_LOG_LEVEL ?? process.env.NODE_ENV === 'production'
-    ? 'info'
-    : 'debug',
+    ? 'warn'
+    : 'info',
   process.env.CFG_LOG_TOFILES !== 'false'
 );
+
+setLogger(new WinstonLogger(logger));
+
+export default logger;

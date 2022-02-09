@@ -25,6 +25,7 @@ import { sRGBIEC1966_21 as srgbColorspace } from '../res/srgbColorspace';
 import { PdfParser } from './parser';
 import { OcrPage } from '../ocr';
 import pdiiifVersion from '../version';
+import log from '../log';
 
 const PRODUCER = `pdiiif v${pdiiifVersion}`;
 /// If the font is 10 pts, nominal character width is 5 pts
@@ -398,6 +399,7 @@ export default class PDFGenerator {
     ppi = 300,
   ): Promise<void> {
     if (!this._pagesStarted) {
+      log.debug('Initial page, finalizing PDF header structures.');
       if (this._pageLabels) {
         const catalog = this._objects[this._objRefs.Catalog.refObj]
           .data as PdfDictionary;
@@ -462,6 +464,7 @@ export default class PDFGenerator {
       /Im1 Do
       Q${ocrText ? '\n' + this._renderOcrText(ocrText, unitScale) : ''}
     `;
+    log.debug('Trying to compress content stream.');
     const contentStreamComp = await tryDeflateStream(contentOps);
     const contentsObj = this._addObject(
       contentStreamComp.dict,
@@ -470,6 +473,7 @@ export default class PDFGenerator {
     );
     (page.data as PdfDictionary).Contents = makeRef(contentsObj);
 
+    log.debug('Creating image object.');
     const image = PdfImage.open(new Uint8Array(imgData));
     const imageObjs = image.toObjects(this._nextObjNo);
     this._nextObjNo += imageObjs.length;
@@ -479,7 +483,9 @@ export default class PDFGenerator {
     };
 
     // Write out all of the objects
-    return this._flush();
+    log.debug('Flushing data for page');
+    await this._flush();
+    log.debug('Finished rendering page');
   }
 
   /** Get PDF instructions to render a hidden text layer with the page's OCR.
@@ -574,12 +580,14 @@ export default class PDFGenerator {
 
   async _flush(): Promise<void> {
     if (this._offsets.length === 0) {
+      log.debug('Writing PDF header');
       await this._write(`%PDF-1.5\n%\xde\xad\xbe\xef\n`);
     }
     for (const obj of this._objects) {
       if (!obj) {
         continue;
       }
+      log.debug(`Serializing object #${obj.num}`);
       await this._serializeObject(obj);
     }
     this._objects = [];

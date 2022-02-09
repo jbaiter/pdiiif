@@ -21,7 +21,7 @@ import pdiiifVersion from './version';
 import { fetchImage, fetchRespectfully, ImageData } from './download';
 import metrics from './metrics';
 import { now } from './util';
-import { abort } from 'process';
+import log from './log';
 
 /** Progress information for rendering a progress bar or similar UI elements. */
 export interface ProgressStatus {
@@ -452,12 +452,15 @@ export async function convertManifest(
 ): Promise<void | Blob> {
   let writer: Writer;
   if (!outputStream) {
+    log.debug('Writing to Blob')
     writer = new BlobWriter();
   // Can't use `instanceof` since we don't have the Node class in the
   // browser and vice versa, so examine the shape of the object
   } else if (typeof (outputStream as WritableStream).close === 'function') {
+    log.debug('Writing to file system')
     writer = new WebWriter(outputStream as WritableStream);
   } else {
+    log.debug('Writing to Node writable stream')
     writer = new NodeWriter(outputStream as Writable);
     // Cancel further processing once the underlying stream has been closed
     // This will only have an effect if the PDF has not finished generating
@@ -493,6 +496,7 @@ export async function convertManifest(
   );
 
   // Fetch images concurrently, within limits specified by user
+  log.debug(`Setting up queue with ${concurrency} concurrent downloads.`);
   const queue = new PQueue({ concurrency });
   abortController.signal.addEventListener(
     'abort', () => queue.clear(), { once: true });
@@ -515,6 +519,7 @@ export async function convertManifest(
     outline,
     hasText
   );
+  log.debug(`Initialising PDF generator.`);
   await pdfGen.setup();
   const progress = new ProgressTracker(
     canvases,
@@ -525,6 +530,7 @@ export async function convertManifest(
   progress.emitProgress(0);
 
   if (coverPageCallback || coverPageEndpoint) {
+    log.debug(`Generating cover page`);
     progress.emitProgress(0, 'Generating cover page');
     try {
       const coverPageData = await getCoverPagePdf(
@@ -533,8 +539,10 @@ export async function convertManifest(
         coverPageEndpoint,
         coverPageCallback
       );
+      log.debug('Inserting cover page into PDF');
       await pdfGen.insertCoverPages(coverPageData);
     } catch (err) {
+      log.error('Error while generating cover page', err);
       abortController.abort();
       throw err;
     }
@@ -543,27 +551,32 @@ export async function convertManifest(
   progress.emitProgress(0, 'Downloading images and generating PDF pages');
   for (let canvasIdx = 0; canvasIdx < canvases.length; canvasIdx++) {
     if (abortController.signal.aborted) {
-      console.debug('Abort signalled, aborting while waiting for image data.');
+      log.debug('Abort signalled, aborting while waiting for image data.');
       break;
     }
     const canvas = canvases[canvasIdx];
     try {
+      log.debug(`Waiting for data for canvas #${canvasIdx}`)
       const imgData = await imgFuts[canvasIdx];
       // This means the task was aborted, do nothing
-      if (imgData) {
-        const { width, height, data, ppi, text } = imgData;
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        const stopMeasuring = metrics?.pageGenerationDuration.startTimer();
-        await pdfGen.renderPage({ width, height }, data!, text, ppi);
-        stopMeasuring?.();
-        progress.updatePixels(
-          width * height,
-          canvas.getWidth() * canvas.getHeight()
-        );
+      if (!imgData) {
+        throw 'Aborted';
       }
+      const { width, height, data, ppi, text } = imgData;
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      const stopMeasuring = metrics?.pageGenerationDuration.startTimer();
+      log.debug(`Rendering canvas #${canvasIdx} into PDF`)
+      await pdfGen.renderPage({ width, height }, data!, text, ppi);
+      stopMeasuring?.();
+      progress.updatePixels(
+        width * height,
+        canvas.getWidth() * canvas.getHeight()
+      );
     } catch (err) {
       // Clear queue, cancel all ongoing image fetching
-      console.error(err);
+      if (err !== 'Aborted') {
+        log.error('Failed to render page', err);
+      }
       queue.clear();
       if (!abortController.signal.aborted) {
         abortController.abort();
@@ -576,6 +589,7 @@ export async function convertManifest(
   }
 
   // Finish writing PDF, resulting Promise is resolved once the writer is closed
+  log.debug('Finalizing PDF');
   const endPromise = pdfGen.end();
 
   // At this point the PDF data might still be incomplete, so we wait for
@@ -601,6 +615,7 @@ export async function convertManifest(
   }
 
   // Wait for the writer to be closed
+  log.debug('Waiting for writer to close.');
   await endPromise;
 
   if (writer instanceof BlobWriter) {

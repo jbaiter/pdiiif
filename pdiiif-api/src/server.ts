@@ -182,6 +182,16 @@ app.get(
     }
     const { manifestUrl, canvasNos, locale, progressToken, scaleFactor, ppi } =
       req.query;
+
+    log.info('Generating PDF for manifest', {
+      manifestUrl,
+      canvasNos,
+      locale,
+      progressToken,
+      scaleFactor,
+      ppi,
+    });
+
     const manifestJson = await validateManifest(res, manifestUrl);
     if (!manifestJson) {
       return;
@@ -309,14 +319,6 @@ app.get(
       );
     }
     res.end();
-    log.info('Generated PDF for manifest', {
-      manifestUrl,
-      canvasNos,
-      locale,
-      progressToken,
-      scaleFactor,
-      ppi,
-    });
   },
   (err, _req, res, _next) => {
     log.info('Rejected PDF request due to validation errors:', {

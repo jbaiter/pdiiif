@@ -5,6 +5,7 @@ import jsdom from 'jsdom';
 import { Annotation, Canvas, Resource } from 'manifesto.js';
 import metrics from './metrics';
 import { rateLimitRegistry } from './download';
+import log from './log';
 
 if (typeof window === 'undefined') {
   const nodeDom = new jsdom.JSDOM();
@@ -152,7 +153,7 @@ export function parseHocr(
       scaledWidth !== referenceSize.width ||
       scaledHeight !== referenceSize.height
     ) {
-      console.warn(
+      log.debug(
         `Differing scale factors for x and y axis: x=${scaleFactorX}, y=${scaleFactorY}`
       );
     }

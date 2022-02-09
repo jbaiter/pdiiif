@@ -5,7 +5,7 @@ import { Canvas } from 'manifesto.js';
 
 import { OcrPage, fetchAndParseText } from './ocr';
 import metrics from './metrics';
-import { abort } from 'process';
+import log from './log';
 
 /// In absence of more detailed information (from physical dimensions service), use this resolution
 const FALLBACK_PPI = 300;
@@ -256,7 +256,7 @@ export async function fetchImage(
   { scaleFactor, ppiOverride, abortSignal, sizeOnly = false }: FetchImageOptions
 ): Promise<ImageData | undefined> {
   if (abortSignal?.aborted) {
-    console.debug('Abort signalled, aborting before initiating image data fetching.');
+    log.debug('Abort signalled, aborting before initiating image data fetching.');
     return;
   }
   const img = canvas.getImages()[0].getResource();
@@ -282,12 +282,15 @@ export async function fetchImage(
         status: 'error',
         limited: rateLimitRegistry.isLimited(imgService.id).toString(),
       });
-      console.error(
-        `Failed to fetch image info from ${imgService.id}/info.json`
-      );
+      if ((err as Error).name !== 'AbortError') {
+        log.error(
+          `Failed to fetch image info from ${imgService.id}/info.json`
+        );
+      }
       throw err;
     }
     if (abortSignal?.aborted) {
+      log.debug('Abort signalled, aborting before fetching image size.');
       return;
     }
     const sizeInfo = getImageSize(infoJson, scaleFactor);
@@ -317,6 +320,7 @@ export async function fetchImage(
       );
     }
     if (abortSignal?.aborted) {
+      log.debug('Abort signalled, aborting before fetching image data.');
       return;
     }
     imgSize = Number.parseInt(imgResp.headers.get('Content-Length') ?? '-1');
@@ -334,7 +338,9 @@ export async function fetchImage(
       status: 'error',
       limited: rateLimitRegistry.isLimited(imgUrl).toString(),
     });
-    console.error(`Failed to fetch image data from ${imgUrl}: ${err}`);
+    if ((err as Error).name !== 'AbortError') {
+      log.error(`Failed to fetch image data from ${imgUrl}: ${err}`);
+    }
     return undefined;
   }
   return {
