@@ -176,21 +176,29 @@ export class NodeWriter implements Writer {
       }
       this._drainWaiters = [];
     });
+    this._writable.on('close', () => {
+      for (const waiter of this._drainWaiters) {
+        waiter();
+      }
+      this._drainWaiters = [];
+    })
   }
 
-  write(buffer: string | Uint8Array): Promise<void> {
+  async write(buffer: string | Uint8Array): Promise<void> {
     let waitForDrain = false;
-    const out = new Promise<void>(
-      (resolve, reject) =>
-        (waitForDrain = this._writable.write(buffer, (err) =>
-          err ? reject(err) : resolve()
-        ))
-    );
+    const out = new Promise<void>((resolve, reject) => {
+      if (!this._writable.writable) {
+        reject('Cannot write to closed NodeWriter.');
+      }
+      waitForDrain = !this._writable.write(buffer, (err) =>
+        err ? reject(err) : resolve()
+      );
+    });
     if (waitForDrain) {
       log.debug('Waiting for writer to drain');
-      return this.waitForDrain();
+      return await this.waitForDrain();
     } else {
-      return out;
+      return await out;
     }
   }
 
