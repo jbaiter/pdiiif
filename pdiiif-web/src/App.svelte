@@ -22,13 +22,13 @@
   export let coverPageEndpoint: string = `${apiEndpoint}/coverpage`;
   export let onError: ((err: ErrorIcon) => void) | undefined = undefined;
 
-  const supportsFilesystemAPI =
-    typeof window.showSaveFilePicker === 'function';
+  const supportsFilesystemAPI = typeof window.showSaveFilePicker === 'function';
   let isFirstVisit = window.localStorage.getItem('firstVisit') === null;
 
   // Form input state
   let manifestUrl: string = '';
   let scaleFactor = 1;
+  let notifyWhenDone = false;
 
   // Validation state
   let manifestUrlIsValid: boolean | undefined;
@@ -50,6 +50,21 @@
 
   // Only relevant for server-side generation
   let queueState: { current: number; initial: number } | undefined;
+
+  $: if (manifestInfo?.imageApiHasCors) {
+    estimatePromise = estimatePdfSize({
+      manifestJson: manifestInfo.manifestJson,
+      concurrency: 4,
+      scaleFactor,
+      numSamples: 8,
+    });
+  }
+
+  $: if (notifyWhenDone && window.Notification.permission === 'default') {
+    window.Notification.requestPermission().then(status => {
+      notifyWhenDone = status === 'granted'
+    });
+  }
 
   // Show notification if file system api is available
   onMount(async () => {
@@ -85,6 +100,9 @@
 
   /** Show a new notification, making sure no more than 5 are ever shown. */
   function addNotification(msg: NotificationMessage): void {
+    if (notifyWhenDone && (msg.type === 'error' || msg.type === 'success')) {
+      new window.Notification(msg.message);
+    }
     notifications = [msg, ...notifications.slice(0, 4)];
   }
 
@@ -124,9 +142,6 @@
     } else if (value.length === 0) {
       // Deleting the input value causes a full state reset
       resetState();
-    } else if (manifestUrlIsValid) {
-      // URL was previously valid and is not newly invalid or empty, so no need to trigger anything!
-      return;
     } else {
       // URL was previoulsy invalid and is now valid, so we can start fetching the manifest info
       manifestUrlIsValid = true;
@@ -140,15 +155,6 @@
             addNotification({
               type: 'warn',
               message: $_('errors.cors'),
-            });
-          } else {
-            // Otherwise we can safely fetch a few images to get an estimate
-            // of the final PDF size
-            estimatePromise = estimatePdfSize({
-              manifestJson: manifestInfo.manifestJson,
-              concurrency: 4,
-              scaleFactor,
-              numSamples: 8,
             });
           }
           return info;
@@ -219,7 +225,9 @@
       if ((await handle.queryPermission({ mode: 'readwrite' })) !== 'granted') {
         addNotification({
           type: 'error',
-          message: $_('errors.write_perm', { values: { fileName: handle.name } }),
+          message: $_('errors.write_perm', {
+            values: { fileName: handle.name },
+          }),
         });
       }
       webWritable = await handle.createWritable();
@@ -227,10 +235,15 @@
     abortController.signal.addEventListener(
       'abort',
       async () => {
-        await webWritable.abort();
+        try {
+          await webWritable.abort();
+        } catch {
+          // NOP
+        }
         cancelled = true;
       },
-      { once: true });
+      { once: true }
+    );
     try {
       const res = await convertManifest(manifestJson, webWritable, {
         concurrency: 4,
@@ -359,8 +372,8 @@
               },
               onClose: () => reject(),
               tags: [tag],
-            })
-          })
+            });
+          });
         } catch {
           // User cancelled by closing the notification
           resetState();
@@ -379,7 +392,7 @@
       promise = generatePdfServerSide();
     }
     await promise;
-    if (pdfFinished) {
+    if (pdfFinished && !cancelled) {
       addNotification({
         type: 'success',
         message: $_('notifications.success'),
@@ -419,71 +432,79 @@
     {/each}
   </div>
   <div class="flex flex-col bg-blue-400 m-auto p-4 rounded-md shadow-lg">
-    <form on:submit={generatePdf}>
-      {#if infoPromise}
-        <Preview {infoPromise} {estimatePromise} />
-      {/if}
-      <div class="relative text-gray-700">
-        <input
-          class="w-full h-10 pl-3 pr-10 text-base placeholder-gray-600 border rounded-lg focus:shadow-outline"
-          type="url"
-          placeholder="Manifest URL"
-          name="manifest-url"
-          disabled={currentProgress !== undefined && !pdfFinished}
-          bind:value={manifestUrl}
-          on:paste={onManifestInput}
-          on:input={debounce(onManifestInput, 10000)}
-          on:change={onManifestInput}
-        />
-        <button
-          type="submit"
-          disabled={!manifestUrlIsValid || (currentProgress && !pdfFinished)}
-          class="absolute inset-y-0 right-0 flex items-center px-1 font-bold text-white disabled:opacity-25 bg-indigo-600 rounded-r-lg hover:bg-indigo-500 focus:bg-indigo-700"
-        >
-          <svg
-            viewBox="0 0 24 24"
-            aria-hidden="true"
-            class="w-7 h-7 fill-current"
-          >
-            <title>{$_('buttons.generate')}</title>
-            <path
-              d="M20 2H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-8.5 7.5c0 .83-.67 1.5-1.5 1.5H9v2H7.5V7H10c.83 0 1.5.67 1.5 1.5v1zm5 2c0 .83-.67 1.5-1.5 1.5h-2.5V7H15c.83 0 1.5.67 1.5 1.5v3zm4-3H19v1h1.5V11H19v2h-1.5V7h3v1.5zM9 9.5h1v-1H9v1zM4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm10 5.5h1v-3h-1v3z"
-            />
-          </svg>
-        </button>
-      </div>
-      {#if manifestInfo}
-        <Settings
-          bind:scaleFactor
-          {manifestInfo}
-          disabled={currentProgress && !pdfFinished}
-        />
-      {/if}
-    </form>
-    {#if (currentProgress || queueState) && !pdfFinished && !cancelled}
-      <ProgressBar
-        currentProgress={{
-          current: queueState
-            ? queueState.initial - queueState.current
-            : currentProgress.bytesWritten,
-          total: queueState
-            ? queueState.initial
-            : currentProgress.estimatedFileSize,
-        }}
+    {#if infoPromise}
+      <Preview {infoPromise} {estimatePromise} />
+    {/if}
+    <div class="relative text-gray-700">
+      <input
+        class="w-full h-10 pl-3 pr-10 text-base placeholder-gray-600 border rounded-lg focus:shadow-outline"
+        type="url"
+        placeholder="Manifest URL"
+        name="manifest-url"
+        disabled={currentProgress !== undefined && !pdfFinished}
+        bind:value={manifestUrl}
+        on:paste={onManifestInput}
+        on:change={onManifestInput}
+      />
+      <button
+        on:click={generatePdf}
+        disabled={!manifestUrlIsValid || (currentProgress && !pdfFinished)}
+        class="absolute inset-y-0 right-0 flex items-center px-1 font-bold text-white disabled:opacity-25 bg-indigo-600 rounded-r-lg hover:bg-indigo-500 focus:bg-indigo-700"
       >
-        <span>
-          {#if queueState}
-            {$_('queue_position', {
-              values: { pos: queueState.current },
-            })}
-          {:else if currentProgress.estimatedFileSize}
-            {(currentProgress.bytesWritten / (1024 * 1024)).toFixed(1)}MiB / ~{(
-              currentProgress.estimatedFileSize /
-              (1024 * 1024)
-            ).toFixed(1)}MiB ({(currentProgress.writeSpeed / (1024 * 1024)).toFixed(1)} MiB/s)
-          {/if}
-        </span>
-      </ProgressBar>
+        <svg
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+          class="w-7 h-7 fill-current"
+        >
+          <title>{$_('buttons.generate')}</title>
+          <path
+            d="M20 2H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-8.5 7.5c0 .83-.67 1.5-1.5 1.5H9v2H7.5V7H10c.83 0 1.5.67 1.5 1.5v1zm5 2c0 .83-.67 1.5-1.5 1.5h-2.5V7H15c.83 0 1.5.67 1.5 1.5v3zm4-3H19v1h1.5V11H19v2h-1.5V7h3v1.5zM9 9.5h1v-1H9v1zM4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm10 5.5h1v-3h-1v3z"
+          />
+        </svg>
+      </button>
+    </div>
+    {#if manifestInfo}
+      <Settings
+        bind:scaleFactor
+        {manifestInfo}
+        disabled={currentProgress && !pdfFinished}
+      />
+    {/if}
+    {#if (currentProgress || queueState) && !pdfFinished && !cancelled}
+      <div>
+        {#if window.Notification && window.Notification.permission !== 'denied'}
+          <label
+            ><input type="checkbox" bind:checked={notifyWhenDone} />
+            {$_('buttons.notify')}</label
+          >
+        {/if}
+        <ProgressBar
+          currentProgress={{
+            current: queueState
+              ? queueState.initial - queueState.current
+              : currentProgress.bytesWritten,
+            total: queueState
+              ? queueState.initial
+              : currentProgress.estimatedFileSize,
+          }}
+        >
+          <span>
+            {#if queueState}
+              {$_('queue_position', {
+                values: { pos: queueState.current },
+              })}
+            {:else if currentProgress.estimatedFileSize}
+              {(currentProgress.bytesWritten / (1024 * 1024)).toFixed(1)}MiB / ~{(
+                currentProgress.estimatedFileSize /
+                (1024 * 1024)
+              ).toFixed(1)}MiB ({(
+                currentProgress.writeSpeed /
+                (1024 * 1024)
+              ).toFixed(1)} MiB/s)
+            {/if}
+          </span>
+        </ProgressBar>
+      </div>
       {#if abortController && !cancelled}
         <button
           class="mx-auto mt-2 px-2 py-1 font-bold text-white disabled:opacity-25 bg-red-600 rounded-lg hover:bg-red-500 focus:bg-red-700"

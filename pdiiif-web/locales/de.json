@@ -22,7 +22,8 @@
         "close": "Schließen",
         "settings": "Einstellungen",
         "use_server": "Server verwenden",
-        "force_client": "Browser-seitig erzeugen"
+        "force_client": "Browser-seitig erzeugen",
+        "notify": "Benachrichtigung, wenn PDF ist fertig"
     },
     "settings": {
         "img_width": "Bildgröße"

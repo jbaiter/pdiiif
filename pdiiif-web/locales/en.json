@@ -22,7 +22,8 @@
         "close": "Close",
         "settings": "Settings",
         "use_server": "Use server",
-        "force_client": "Force client"
+        "force_client": "Force client",
+        "notify": "Notify me when the PDF is ready"
     },
     "settings": {
         "img_width": "Image size"
