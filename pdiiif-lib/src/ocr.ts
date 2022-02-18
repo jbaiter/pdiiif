@@ -31,7 +31,9 @@ export interface OcrSpan {
 export interface OcrPage {
   width: number;
   height: number;
-  lines: OcrSpan[];
+  blocks?: Array<{ paragraphs: Array<{ lines: Array<OcrSpan> }> }>;
+  paragraphs?: Array<{ lines: Array<OcrSpan> }>;
+  lines?: Array<OcrSpan>;
 }
 
 export interface Dimensions {
@@ -123,6 +125,49 @@ function parseHocrNode(
   return spans;
 }
 
+function parseHocrLineNode(lineNode: Element, scaleFactor: number): OcrSpan {
+    const wordNodes = lineNode.querySelectorAll('span.ocrx_word');
+    if (wordNodes.length === 0) {
+      return parseHocrNode(lineNode as HTMLDivElement, true, scaleFactor)[0]
+    } else {
+      const line = parseHocrNode(
+        lineNode as HTMLDivElement,
+        true,
+        scaleFactor
+      )[0];
+      const spans = [];
+      // eslint-disable-next-line no-unused-vars
+      for (const [i, wordNode] of wordNodes.entries()) {
+        const textSpans = parseHocrNode(
+          wordNode as HTMLSpanElement,
+          i === wordNodes.length - 1,
+          scaleFactor
+        );
+
+        // Calculate width of previous extra span
+        const previousExtraSpan = spans.slice(-1).filter((s) => s.isExtra)?.[0];
+        if (previousExtraSpan) {
+          previousExtraSpan.width = textSpans[0].x - previousExtraSpan.x;
+        }
+
+        spans.push(...textSpans);
+      }
+
+      // Update with of extra span at end of line
+      const endExtraSpan = spans.slice(-1).filter((s) => s.isExtra)?.[0];
+      if (endExtraSpan) {
+        endExtraSpan.width = line.x + (line.width ?? 0) - endExtraSpan.x;
+      }
+
+      line.spans = spans;
+      line.text = spans
+        .map((w) => w.text)
+        .join('')
+        .trim();
+      return line;
+    }
+}
+
 /** Parse an hOCR document
  *
  * @param {string} hocrText the raw hOCR markup
@@ -159,55 +204,54 @@ export function parseHocr(
     }
     scaleFactor = scaleFactorX;
   }
-  const lines = [];
-  for (const lineNode of pageNode.querySelectorAll(
-    'span.ocr_line, span.ocrx_line'
-  )) {
-    const wordNodes = lineNode.querySelectorAll('span.ocrx_word');
-    if (wordNodes.length === 0) {
-      lines.push(
-        parseHocrNode(lineNode as HTMLDivElement, true, scaleFactor)[0]
-      );
-    } else {
-      const line = parseHocrNode(
-        lineNode as HTMLDivElement,
-        true,
-        scaleFactor
-      )[0];
-      const spans = [];
-      // eslint-disable-next-line no-unused-vars
-      for (const [i, wordNode] of wordNodes.entries()) {
-        const textSpans = parseHocrNode(
-          wordNode as HTMLSpanElement,
-          i === wordNodes.length - 1,
-          scaleFactor
-        );
-
-        // Calculate width of previous extra span
-        const previousExtraSpan = spans.slice(-1).filter((s) => s.isExtra)?.[0];
-        if (previousExtraSpan) {
-          previousExtraSpan.width = textSpans[0].x - previousExtraSpan.x;
-        }
-
-        spans.push(...textSpans);
+  let blocks: Array<{ paragraphs: Array<{ lines: Array<OcrSpan> }> }> | undefined = [];
+  for (const blockNode of pageNode.querySelectorAll('div.ocr_carea, div.ocrx_block')) {
+    const block: { paragraphs: Array<{ lines: Array<OcrSpan> }> } = { paragraphs: [] };
+    for (const paragraphNode of blockNode.querySelectorAll('p.ocr_par')) {
+      const paragraph: { lines: Array<OcrSpan> } = { lines: [] };
+      for (const lineNode of paragraphNode.querySelectorAll(
+        'span.ocr_line, span.ocrx_line'
+      )) {
+        paragraph.lines.push(parseHocrLineNode(lineNode as HTMLElement, scaleFactor));
       }
-
-      // Update with of extra span at end of line
-      const endExtraSpan = spans.slice(-1).filter((s) => s.isExtra)?.[0];
-      if (endExtraSpan) {
-        endExtraSpan.width = line.x + (line.width ?? 0) - endExtraSpan.x;
-      }
-
-      line.spans = spans;
-      line.text = spans
-        .map((w) => w.text)
-        .join('')
-        .trim();
-      lines.push(line);
+      block.paragraphs.push(paragraph);
     }
+    blocks.push(block);
+  }
+  if (blocks.length === 0) {
+    blocks = undefined;
+  }
+  let paragraphs: Array<{ lines: Array<OcrSpan> }> | undefined = [];
+  if (!blocks) {
+    for (const paragraphNode of pageNode.querySelectorAll('p.ocr_par')) {
+      const paragraph: { lines: Array<OcrSpan> } = { lines: [] };
+      for (const lineNode of paragraphNode.querySelectorAll(
+        'span.ocr_line, span.ocrx_line'
+      )) {
+        paragraph.lines.push(parseHocrLineNode(lineNode as HTMLElement, scaleFactor));
+      }
+      paragraphs.push(paragraph);
+    }
+  }
+  if (paragraphs.length === 0) {
+    paragraphs = undefined;
+  }
+
+  let lines: Array<OcrSpan> | undefined = [];
+  if (!blocks && !paragraphs) {
+    for (const lineNode of pageNode.querySelectorAll(
+      'span.ocr_line, span.ocrx_line'
+    )) {
+      lines.push(parseHocrLineNode(lineNode, scaleFactor));
+    }
+  }
+  if(lines.length === 0) {
+    lines = undefined;
   }
   return {
     height: Math.round(scaleFactor * pageSize[3]),
+    blocks,
+    paragraphs,
     lines,
     width: Math.round(scaleFactor * pageSize[2]),
   };
@@ -287,119 +331,123 @@ export function parseAlto(altoText: string, imgSize: Dimensions): OcrPage {
   }
 
   const hasSpaces = doc.querySelector('SP') !== null;
-  const lines: OcrSpan[] = [];
+  const paragraphs: Array<{ lines: OcrSpan[] }> = [];
   let lineEndsHyphenated = false;
-  for (const lineNode of doc.querySelectorAll('TextLine')) {
-    const line: OcrSpan = {
-      height:
-        Number.parseInt(lineNode.getAttribute('HEIGHT') ?? '0', 10) *
-        scaleFactorY,
-      text: '',
-      width:
-        Number.parseInt(lineNode.getAttribute('WIDTH') ?? '0', 10) *
-        scaleFactorX,
-      spans: [],
-      x:
-        Number.parseInt(lineNode.getAttribute('HPOS') ?? '0', 10) *
-        scaleFactorX,
-      y:
-        Number.parseInt(lineNode.getAttribute('VPOS') ?? '0', 10) *
-        scaleFactorY,
-    };
-    const textNodes = lineNode.querySelectorAll('String, SP, HYP');
-    for (const [textIdx, textNode] of textNodes.entries()) {
-      const endOfLine = textIdx === textNodes.length - 1;
-      const styleRefs = textNode.getAttribute('STYLEREFS');
-      let style = null;
-      if (styleRefs !== null) {
-        style = styleRefs
-          .split(' ')
-          .map((refId) => styles[refId])
-          .filter((s) => s !== undefined)
-          .join('');
-      }
-
-      const width =
-        Number.parseInt(textNode.getAttribute('WIDTH') ?? '0', 10) *
-        scaleFactorX;
-      let height =
-        Number.parseInt(textNode.getAttribute('HEIGHT') ?? '0', 10) *
-        scaleFactorY;
-      if (Number.isNaN(height)) {
-        height = line.height;
-      }
-      const x =
-        Number.parseInt(textNode.getAttribute('HPOS') ?? '0', 10) *
-        scaleFactorX;
-      let y =
-        Number.parseInt(textNode.getAttribute('VPOS') ?? '0', 10) *
-        scaleFactorY;
-      if (Number.isNaN(y)) {
-        y = line.y;
-      }
-
-      if (textNode.tagName === 'String' || textNode.tagName === 'HYP') {
-        const text = textNode.getAttribute('CONTENT');
-
-        // Update the width of a preceding extra space span to fill the area
-        // between the previous word and this one.
-        const previousExtraSpan = line.spans
-          .slice(-1)
-          .filter((s) => s.isExtra)?.[0];
-        if (previousExtraSpan) {
-          previousExtraSpan.width = x - previousExtraSpan.x;
+  for (const blockNode of doc.querySelectorAll('TextBlock')) {
+    const block: { lines: OcrSpan[] } = { lines: [] };
+    for (const lineNode of blockNode.querySelectorAll('TextLine')) {
+      const line: OcrSpan = {
+        height:
+          Number.parseInt(lineNode.getAttribute('HEIGHT') ?? '0', 10) *
+          scaleFactorY,
+        text: '',
+        width:
+          Number.parseInt(lineNode.getAttribute('WIDTH') ?? '0', 10) *
+          scaleFactorX,
+        spans: [],
+        x:
+          Number.parseInt(lineNode.getAttribute('HPOS') ?? '0', 10) *
+          scaleFactorX,
+        y:
+          Number.parseInt(lineNode.getAttribute('VPOS') ?? '0', 10) *
+          scaleFactorY,
+      };
+      const textNodes = lineNode.querySelectorAll('String, SP, HYP');
+      for (const [textIdx, textNode] of textNodes.entries()) {
+        const endOfLine = textIdx === textNodes.length - 1;
+        const styleRefs = textNode.getAttribute('STYLEREFS');
+        let style = null;
+        if (styleRefs !== null) {
+          style = styleRefs
+            .split(' ')
+            .map((refId) => styles[refId])
+            .filter((s) => s !== undefined)
+            .join('');
         }
 
-        line.spans.push({
-          isExtra: false,
-          x,
-          y,
-          width,
-          height,
-          text: text ?? undefined,
-          style: style ?? undefined,
-          spans: [],
-        });
+        const width =
+          Number.parseInt(textNode.getAttribute('WIDTH') ?? '0', 10) *
+          scaleFactorX;
+        let height =
+          Number.parseInt(textNode.getAttribute('HEIGHT') ?? '0', 10) *
+          scaleFactorY;
+        if (Number.isNaN(height)) {
+          height = line.height;
+        }
+        const x =
+          Number.parseInt(textNode.getAttribute('HPOS') ?? '0', 10) *
+          scaleFactorX;
+        let y =
+          Number.parseInt(textNode.getAttribute('VPOS') ?? '0', 10) *
+          scaleFactorY;
+        if (Number.isNaN(y)) {
+          y = line.y;
+        }
 
-        // Add extra space span if ALTO does not encode spaces itself
-        if (!hasSpaces && !endOfLine) {
+        if (textNode.tagName === 'String' || textNode.tagName === 'HYP') {
+          const text = textNode.getAttribute('CONTENT');
+
+          // Update the width of a preceding extra space span to fill the area
+          // between the previous word and this one.
+          const previousExtraSpan = line.spans
+            .slice(-1)
+            .filter((s) => s.isExtra)?.[0];
+          if (previousExtraSpan) {
+            previousExtraSpan.width = x - previousExtraSpan.x;
+          }
+
           line.spans.push({
-            isExtra: true,
-            x: x + width,
+            isExtra: false,
+            x,
             y,
+            width,
+            height,
+            text: text ?? undefined,
+            style: style ?? undefined,
+            spans: [],
+          });
+
+          // Add extra space span if ALTO does not encode spaces itself
+          if (!hasSpaces && !endOfLine) {
+            line.spans.push({
+              isExtra: true,
+              x: x + width,
+              y,
+              height,
+              text: ' ',
+              spans: [],
+              // NOTE: Does not have width initially, will be set when we encounter
+              //       the next proper word span
+            });
+          }
+          lineEndsHyphenated = textNode.tagName === 'HYP';
+        } else if (textNode.tagName === 'SP') {
+          line.spans.push({
+            isExtra: false,
+            x,
+            y,
+            width,
             height,
             text: ' ',
             spans: [],
-            // NOTE: Does not have width initially, will be set when we encounter
-            //       the next proper word span
           });
         }
-        lineEndsHyphenated = textNode.tagName === 'HYP';
-      } else if (textNode.tagName === 'SP') {
-        line.spans.push({
-          isExtra: false,
-          x,
-          y,
-          width,
-          height,
-          text: ' ',
-          spans: [],
-        });
       }
+      if (line.spans.length === 0) {
+        continue;
+      }
+      if (!lineEndsHyphenated) {
+        line.spans.slice(-1)[0].text += '\n';
+      }
+      lineEndsHyphenated = false;
+      line.text = line.spans.map(({ text }) => text).join('');
+      block.lines.push(line);
     }
-    if (line.spans.length === 0) {
-      continue;
-    }
-    if (!lineEndsHyphenated) {
-      line.spans.slice(-1)[0].text += '\n';
-    }
-    lineEndsHyphenated = false;
-    line.text = line.spans.map(({ text }) => text).join('');
-    lines.push(line);
+    paragraphs.push(block);
   }
   return {
     height: pageHeight,
-    lines,
+    paragraphs,
     width: pageWidth,
   };
 }
@@ -437,7 +485,16 @@ export function parseOcr(
     return null;
   }
   if (!parse.width || !parse.height) {
-    parse = { ...parse, ...getFallbackImageSize(parse.lines) };
+    let lines = parse.lines;
+    if (!lines) {
+      lines = parse.paragraphs?.flatMap(p => p.lines);
+    }
+    if (!lines) {
+      lines = parse.blocks
+        ?.flatMap(b => b.paragraphs)
+        ?.flatMap(p => p.lines);
+    }
+    parse = { ...parse, ...getFallbackImageSize(lines || []) };
   }
   return parse;
 }

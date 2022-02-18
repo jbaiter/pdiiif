@@ -2,6 +2,8 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 
 /// PDF generation code
+// FIXME: This is currently one hell of a mess, learning about PDF and coming up
+// with good abstractions at the same time was too much of a challenge for me 🙈
 import flatten from 'lodash/flatten';
 import range from 'lodash/range';
 import pad from 'lodash/padStart';
@@ -17,19 +19,22 @@ import {
   serialize,
   PdfValue,
   toUTF16BE,
+  StructTreeEntry,
 } from './common';
 import { TocItem, textEncoder, randomData, tryDeflateStream } from './util';
 import { ArrayReader, Writer } from '../io';
 import PdfImage from './image';
 import { sRGBIEC1966_21 as srgbColorspace } from '../res/srgbColorspace';
 import { PdfParser } from './parser';
-import { OcrPage } from '../ocr';
+import { OcrPage, OcrSpan } from '../ocr';
 import pdiiifVersion from '../version';
 import log from '../log';
 
 const PRODUCER = `pdiiif v${pdiiifVersion}`;
 /// If the font is 10 pts, nominal character width is 5 pts
 const CHAR_WIDTH = 2;
+/// Page, Contents and Image objects
+const OBJECTS_PER_PAGE = 3;
 /// Taken from tesseract@2d6f38eebf9a14d9fbe65d785f0d7bd898ff46cb, tessdata/pdf.ttf
 const FONTDATA = new Uint8Array([
   0, 1, 0, 0, 0, 10, 0, 128, 0, 3, 0, 32, 79, 83, 47, 50, 86, 222, 200, 148, 0,
@@ -60,20 +65,39 @@ const FONTDATA = new Uint8Array([
 ]);
 
 export default class PDFGenerator {
+  // Keep track of how many bytes have been written so far
   _offset = 0;
+  // PDF objects that are scheduled for writing, will be written on _flush()
   _objects: Array<PdfObject> = [];
-  // Page, Contents and Image objects
-  _objectsPerPage = 3;
+  // Number of the next PDF object
   _nextObjNo = 1;
+  // References to various central objects
   _objRefs: Record<string, PdfRef> = {};
+  // Tracks offset of every XObject
   _offsets: number[] = [];
+  // Writer used for outputting the PDF
   _writer: Writer | undefined;
+  // Have we already started writing the IIIF pages?
   _pagesStarted = false;
+  // Number of IIIF canvases in this PDF
   _numCanvases: number;
+  // Labels for every page in the PDF
   _pageLabels?: string[];
+  // Number of cover pages inserted at the beginning of the PDF
   _numCoverPages = 0;
+  // PDF outline
   _outline: TocItem[] = [];
+  // Is the PDF supposed to have a hidden text layer?
   _hasText = false;
+  // List of top-level entries in the PDF's logical structure tree
+  _strucTree: StructTreeEntry[] = [];
+  // Maps a page's object number to the marked content sequence IDs its content
+  // stream has
+  _pageMCIds: Map<number, Array<number>> = new Map();
+  // Identifier of the next structure parent entry
+  _nextStructParentId = 0;
+  // For every page, its corresponding parent ID for the parent tree
+  _pageParentIds: Map<number, number> = new Map();
 
   constructor(
     writer: Writer,
@@ -116,6 +140,13 @@ export default class PDFGenerator {
     );
     catalog.Pages = makeRef(pagesObj);
 
+    if (this._hasText) {
+      catalog.MarkInfo = {
+        Type: '/MarkInfo',
+        Marked: true,
+      }
+    }
+
     if (this._outline.length > 0) {
       catalog.PageMode = 'UseOutlines';
       const outlines: PdfDictionary = {
@@ -141,14 +172,7 @@ export default class PDFGenerator {
     }
 
     // Add output color space for PDF/A compliance
-    // FIXME: For some reason VeraPDF thinks our color space is invalid,
-    //        since we don't seem to match this rule:
-    //        (N != null &&
-    //          ((N == 1 && colorSpace == "GRAY")
-    //           || (N == 3 && (colorSpace == "RGB " || colorSpace == "Lab "))
-    //           || (N == 4 && colorSpace == "CMYK")))
-    //        But N == 3 and the ICC's colorSpace value is RGB, as confirmed with
-    //        Argyll's iccdump tool, so I don't know what the problem is ¯\_(ツ)_/¯
+    // FIXME: Seems our ICC color space is invalid? Check PDFBox source code for what is failing!
     const comp = await tryDeflateStream(srgbColorspace);
     const colorSpace = this._addObject(
       {
@@ -200,11 +224,7 @@ export default class PDFGenerator {
       cidtoGidMapData[i] = i % 2 ? 1 : 0;
     }
     const comp = await tryDeflateStream(cidtoGidMapData);
-    const cidToGidMap = this._addObject(
-      comp.dict,
-      undefined,
-      comp.stream
-    );
+    const cidToGidMap = this._addObject(comp.dict, undefined, comp.stream);
     (typeTwoFont.data as PdfDictionary).CIDToGIDMap = makeRef(cidToGidMap);
 
     const cmapStream = dedent`
@@ -297,7 +317,7 @@ export default class PDFGenerator {
   }
 
   _addObject(
-    val: PdfDictionary,
+    val: PdfValue,
     refName?: string,
     stream?: Uint8Array | string
   ): PdfObject {
@@ -364,6 +384,11 @@ export default class PDFGenerator {
       return value;
     };
     const ref = new PdfRef(obj.num);
+    // TODO: Special case: if the object is a page, we need to check for
+    //       a /StructParents key, check for the /StructTreeRoot key in
+    //       the catalog, and then transplant that to our _strucTree
+    //       and _pageMCIDs structures. Quite the handful!!
+    //       
     return (await handleValue(ref)) as PdfRef;
   }
 
@@ -376,6 +401,8 @@ export default class PDFGenerator {
     const pagesDict = this._objects[this._objRefs.Pages.refObj]
       .data as PdfDictionary;
     pagesDict.Kids = [];
+    // TODO: Parse and transplant the section and parent trees from
+    //       the catalog into our own structures.
     for await (const page of parser.pages()) {
       const dict = page.data as PdfDictionary;
       // Ignore associated structured content for now
@@ -396,13 +423,13 @@ export default class PDFGenerator {
     }: { width: number; height: number },
     imgData: ArrayBuffer,
     ocrText?: OcrPage,
-    ppi = 300,
+    ppi = 300
   ): Promise<void> {
     if (!this._pagesStarted) {
       log.debug('Initial page, finalizing PDF header structures.');
+      const catalog = this._objects[this._objRefs.Catalog.refObj]
+        .data as PdfDictionary;
       if (this._pageLabels) {
-        const catalog = this._objects[this._objRefs.Catalog.refObj]
-          .data as PdfDictionary;
         catalog.PageLabels = makeRef(
           this._addObject({
             Nums: flatten(
@@ -417,6 +444,11 @@ export default class PDFGenerator {
           })
         );
       }
+      if (this._hasText) {
+        catalog.StructTreeRoot = makeRef(
+          this._nextObjNo + this._numCanvases  * OBJECTS_PER_PAGE
+        );
+      }
       const pagesObj = this._objects[this._objRefs.Pages.refObj];
       // Now that we know from which object number the pages start, we can set the
       // /Kids entry in the Pages object and update the outline destinations.
@@ -425,8 +457,8 @@ export default class PDFGenerator {
       pageDict.Kids = pageRefs.concat(
         range(
           this._nextObjNo,
-          this._nextObjNo + this._numCanvases * this._objectsPerPage,
-          this._objectsPerPage
+          this._nextObjNo + this._numCanvases * OBJECTS_PER_PAGE,
+          OBJECTS_PER_PAGE
         ).map(makeRef)
       );
       this._objects
@@ -436,14 +468,14 @@ export default class PDFGenerator {
           if (typeof dest[0] !== 'number') {
             return;
           }
-          dest[0] = makeRef(this._nextObjNo + dest[0] * this._objectsPerPage);
+          dest[0] = makeRef(this._nextObjNo + dest[0] * OBJECTS_PER_PAGE);
         });
 
       this._pagesStarted = true;
     }
     // Factor to multiply pixels by to get equivalent PDF units (72 pdf units === 1 inch)
     const unitScale = 72 / ppi;
-    const pageDict = {
+    const pageDict: PdfDictionary = {
       Type: '/Page',
       Parent: this._objRefs.Pages,
       MediaBox: [0, 0, unitScale * canvasWidth, unitScale * canvasHeight],
@@ -451,6 +483,11 @@ export default class PDFGenerator {
         ProcSet: ['/PDF', '/Text', '/ImageB', '/ImageI', '/ImageC'],
       },
     };
+    if (this._hasText) {
+      pageDict.StructParents = this._nextStructParentId;
+      this._pageParentIds.set(this._nextObjNo, this._nextStructParentId);
+      this._nextStructParentId++;
+    }
     if (ocrText && this._objRefs.Type0Font) {
       (pageDict.Resources as PdfDictionary).Font = {
         'f-0-0': this._objRefs.Type0Font,
@@ -489,10 +526,10 @@ export default class PDFGenerator {
   }
 
   /** Get PDF instructions to render a hidden text layer with the page's OCR.
-   * 
+   *
    * This owes *a lot* to Tesseract's PDF renderer[1] and the IA's `pdf-tools`[2]
    * that ported it to Python. Accordingly, the license of this method is Apache 2.0.
-   * 
+   *
    * [1] https://github.com/tesseract-ocr/tesseract/blob/5.0.0-beta-20210916/src/api/pdfrenderer.cpp
    * [2] https://github.com/internetarchive/archive-pdf-tools/blob/master/internetarchivepdf/pdfrenderer.py
    *
@@ -505,73 +542,152 @@ export default class PDFGenerator {
     // TODO: Handle baselines, at least the simple ``cx+d` skewed-line-type, proper polyline support
     //       requires a per-character transformation matrix, which is a bit much for the current
     //       MVP-ish state
-    const fontRef = '/f-0-0';
+    const pageHeight = ocr.height;
     const ops: Array<string> = [];
-    ops.push('BT');  // Begin text rendering
-    ops.push('3 Tr');  // Use "invisible ink" (no fill, no stroke)
+    ops.push('BT'); // Begin text rendering
+    ops.push('3 Tr'); // Use "invisible ink" (no fill, no stroke)
+    const pageObjNum = this._nextObjNo - 1;
+    let lineIdx = 0;
+    if (ocr.blocks) {
+      for (const block of ocr.blocks) {
+        const blockEntry: StructTreeEntry = {
+          type: 'Sect',
+          children: [],
+          pageObjNum,
+          mcs: [],
+        };
+        for (const paragraph of block.paragraphs) {
+          const paragraphEntry: StructTreeEntry = {
+            type: 'P',
+            children: [],
+            pageObjNum,
+            mcs: [],
+          };
+          for (const line of paragraph.lines) {
+            ops.push(...this.renderOcrLine(line, lineIdx, unitScale, pageHeight, pageObjNum));
+            paragraphEntry.children.push({
+              type: 'Span',
+              children: [],
+              pageObjNum,
+              mcs: [lineIdx],
+            });
+            lineIdx++;
+          }
+          blockEntry.children.push(paragraphEntry);
+        }
+        this._strucTree.push(blockEntry);
+      }
+    } else if (ocr.paragraphs) {
+      for (const paragraph of ocr.paragraphs) {
+        const paragraphEntry: StructTreeEntry = {
+          type: 'P',
+          children: [],
+          pageObjNum,
+          mcs: [],
+        };
+        for (const line of paragraph.lines) {
+          ops.push(...this.renderOcrLine(line, lineIdx, unitScale, pageHeight, pageObjNum));
+          paragraphEntry.children.push({
+            type: 'Span',
+            children: [],
+            pageObjNum,
+            mcs: [lineIdx],
+          });
+          lineIdx++;
+        }
+        this._strucTree.push(paragraphEntry);
+      }
+    } else if (ocr.lines) {
+      for (const line of ocr.lines) {
+        ops.push(...this.renderOcrLine(line, lineIdx, unitScale, pageHeight, pageObjNum));
+        this._strucTree.push({
+          type: 'Span',
+          children: [],
+          pageObjNum,
+          mcs: [lineIdx],
+        });
+        lineIdx++;
+      }
+    }
+    ops.push('ET');
+    return ops.join('\n');
+  }
+
+  renderOcrLine(
+    line: OcrSpan,
+    lineIdx: number,
+    unitScale: number,
+    pageHeight: number,
+    pageObjNum: number,
+  ): string[] {
+    const fontRef = '/f-0-0';
     const scaleX = 1;
     const scaleY = 1;
     const shearX = 0;
     const shearY = 0;
-    const pageHeight = ocr.height;
-    /*
-    ops.push(`${fontRef} 32 Tf`);
-    ops.push(`${scaleX} ${shearX} ${shearY} ${scaleY} 0 ${pageHeight * unitScale - 0.78 * 32} Tm`);
-    ops.push(`${serialize(toUTF16BE("TOP LEFT OF HOCR PAGE"))} TJ`);
-    */
-    for (const line of ocr.lines) {
-      // Approximated font size for western scripts, PDF font size is specified in multiples of
-      // 'user units', which default to 1/72inch. The `userScale` gives us the units per pixel.
-      const fontSize = line.height * unitScale * 0.75;
-      //const fontSize = 8; // TODO: This is what Tesseract uses, why does this work?
-      ops.push(`${fontRef} ${fontSize} Tf`);
-      // We use a text matrix for every line. Tesseract uses a per-paragraph matrix, but we don't
-      // neccesarily have block/paragraph information available, so we'll use the next-closest
-      // thing. This means that every word on the line is positioned relative to the line, not
-      // relative to the page as in the markup.
-      const xPos = line.x * unitScale;
-      const lineY = pageHeight - line.y - line.height * 0.75
-      const yPos = lineY * unitScale;
-      ops.push(`${scaleX} ${shearX} ${shearY} ${scaleY} ${xPos} ${yPos} Tm`);
-      let xOld = 0;
-      let yOld = 0;
-      for (const word of line.spans) {
-        if (!word.text) {
-          continue;
-        }
-        if (word.isExtra || !word.width) {
-        // TODO: What to do if word.isExtra?
-          continue;
-        }
-        // Position drawing with relative moveto
-        const wordX = (word.x - line.x) * unitScale;
-        // Convert beween different y-origins in OCR and PDF
-        const wordYAbsolute = pageHeight - word.y - word.height * 0.75;
-        const wordY = (wordYAbsolute - lineY) * unitScale;
-        const wordWidth = word.width * unitScale;
-        const wordHeight = word.height * unitScale;
-        const dx = wordX - xOld;
-        const dy = wordY - yOld;
-        ops.push(`${dx * scaleX + dy * shearX} ${dx * shearY + dy * scaleY} Td`);
-        xOld = wordX;
-        yOld = wordY;
-        // Calculate horizontal stretch
-        // FIXME: This is ripped straight from Tesseract, I have no clue what it does
-        // FIXME: The end of the line seems to be too far to the left sometimes,
-        // while the start seems to match
-        const wordLength = Math.pow(Math.pow(wordWidth, 2) + Math.pow(wordHeight, 2), 0.5);
-        const pdfWordLen = word.text.length;
-        ops.push(`${CHAR_WIDTH * (100 * wordLength / (fontSize * pdfWordLen))} Tz`);
-        // FIXME: Account for trailing space in width calculation to prevent readers
-        //        from inserting a line break
-        const textBytes = serialize(toUTF16BE(word.text + ' ', false));
-        ops.push(`[ ${textBytes} ] TJ`);
+    const ops: Array<string> = [];
+    // Begin of marked content sequence that wraps the line in a Span
+    ops.push(`/Span << /MCID ${lineIdx} >> BDC`);
+    // Approximated font size for western scripts, PDF font size is specified in multiples of
+    // 'user units', which default to 1/72inch. The `userScale` gives us the units per pixel.
+    const fontSize = line.height * unitScale * 0.75;
+    //const fontSize = 8; // TODO: This is what Tesseract uses, why does this work?
+    ops.push(`${fontRef} ${fontSize} Tf`);
+    // We use a text matrix for every line. Tesseract uses a per-paragraph matrix, but we don't
+    // neccesarily have block/paragraph information available, so we'll use the next-closest
+    // thing. This means that every word on the line is positioned relative to the line, not
+    // relative to the page as in the markup.
+    const xPos = line.x * unitScale;
+    const lineY = pageHeight - line.y - line.height * 0.75;
+    const yPos = lineY * unitScale;
+    ops.push(`${scaleX} ${shearX} ${shearY} ${scaleY} ${xPos} ${yPos} Tm`);
+    let xOld = 0;
+    let yOld = 0;
+    for (const word of line.spans) {
+      if (!word.text) {
+        continue;
       }
-      // Add a newline to visually group together all statements belonging to a line
-      ops.push('')
+      if (word.isExtra || !word.width) {
+        // TODO: What to do if word.isExtra?
+        continue;
+      }
+      // Position drawing with relative moveto
+      const wordX = (word.x - line.x) * unitScale;
+      // Convert beween different y-origins in OCR and PDF
+      const wordYAbsolute = pageHeight - word.y - word.height * 0.75;
+      const wordY = (wordYAbsolute - lineY) * unitScale;
+      const wordWidth = word.width * unitScale;
+      const wordHeight = word.height * unitScale;
+      const dx = wordX - xOld;
+      const dy = wordY - yOld;
+      ops.push(`${dx * scaleX + dy * shearX} ${dx * shearY + dy * scaleY} Td`);
+      xOld = wordX;
+      yOld = wordY;
+      // Calculate horizontal stretch
+      // FIXME: This is ripped straight from Tesseract, I have no clue what it does
+      // FIXME: The end of the line seems to be too far to the left sometimes,
+      // while the start seems to match
+      const wordLength = Math.pow(
+        Math.pow(wordWidth, 2) + Math.pow(wordHeight, 2),
+        0.5
+      );
+      const pdfWordLen = word.text.length;
+      ops.push(
+        `${CHAR_WIDTH * ((100 * wordLength) / (fontSize * pdfWordLen))} Tz`
+      );
+      // FIXME: Account for trailing space in width calculation to prevent readers
+      //        from inserting a line break
+      const textBytes = serialize(toUTF16BE(word.text + ' ', false));
+      ops.push(`[ ${textBytes} ] TJ`);
     }
-    ops.push('ET');
-    return ops.join('\n');
+    ops.push('EMC');
+    // Add a newline to visually group together all statements belonging to a line
+    ops.push('');
+    if (!this._pageMCIds.has(pageObjNum)) {
+      this._pageMCIds.set(pageObjNum, []);
+    }
+    this._pageMCIds.get(pageObjNum)!.push(lineIdx);
+    return ops;
   }
 
   get bytesWritten(): number {
@@ -621,9 +737,64 @@ export default class PDFGenerator {
     await this._writer.write(data);
   }
 
+  async _writeStructureTree(): Promise<void> {
+    const parentRoot: PdfDictionary = {
+      Nums: [],
+    };
+    const parentRootRef = makeRef(this._addObject(parentRoot));
+    const root: PdfDictionary = {
+      Type: '/StructTreeRoot',
+      K: [],
+      ParentTree: parentRootRef,
+      ParentTreeNextKey: this._nextStructParentId,
+    };
+    const pageParents: Map<number, Array<PdfRef>> = new Map();
+    const rootRef = makeRef(this._addObject(root));
+    const visitEntry = (
+      entry: StructTreeEntry,
+      parent: PdfDictionary,
+      parentRef: PdfRef
+    ) => {
+      const obj: PdfDictionary = {
+        Type: '/StructElem',
+        S: `/${entry.type}`,
+        P: parentRef,
+        Pg: makeRef(entry.pageObjNum),
+        K: [],
+      };
+      if (!pageParents.has(entry.pageObjNum)) {
+        pageParents.set(entry.pageObjNum, []);
+      }
+      const objRef = makeRef(this._addObject(obj));
+      (parent.K as PdfRef[]).push(objRef);
+      if (entry.children.length > 0) {
+        entry.children.forEach((i) => visitEntry(i, obj, objRef));
+      } else if (entry.mcs.length == 1) {
+        obj.K = entry.mcs[0];
+      } else if (entry.mcs.length > 0) {
+        obj.K = entry.mcs;
+      }
+      if (entry.mcs.length > 0) {
+        const parents = pageParents.get(entry.pageObjNum)!;
+        for (const mcId of entry.mcs) {
+          parents[mcId] = objRef;
+        }
+      }
+    };
+    this._strucTree.forEach((i) => visitEntry(i, root, rootRef));
+    for (const [pageObjNum, parents] of pageParents) {
+      const pidx = this._pageParentIds.get(pageObjNum)!;
+      (parentRoot.Nums as PdfArray).push(pidx, makeRef(this._addObject(parents)))
+    }
+    await this._flush();
+  }
+
   async end(): Promise<void> {
     if (!this._writer) {
       return;
+    }
+    if (this._strucTree.length > 0) {
+      await this._writeStructureTree();
     }
     type XrefEntry = [number, number, 'f' | 'n'];
     const xrefEntries: Array<XrefEntry> = [

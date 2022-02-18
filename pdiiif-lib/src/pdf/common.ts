@@ -47,9 +47,13 @@ export interface PdfAnnotation {
   AS?: string,
   Border?: [number, number, number] | [number, number, number, number],
   C?: [] | [number] | [number, number, number] | [number, number, number, number],
+}
 
-
-
+export interface StructTreeEntry {
+  type: 'Sect' | 'P' | 'Span',
+  children: Array<StructTreeEntry>,  // Only for `Sect` and `P` entries
+  pageObjNum: number,
+  mcs: Array<number>  // Only for `Span` entries
 }
 
 export function makeRef(target: number | PdfObject): PdfRef {

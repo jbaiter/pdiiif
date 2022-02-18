@@ -162,6 +162,7 @@ importers:
       '@types/ua-parser-js': ^0.7.36
       '@types/wicg-file-system-access': ^2020.9.4
       autoprefixer: ^10.4.2
+      classnames: ^2.3.1
       cross-env: ^7.0.3
       lodash: ^4.17.21
       npm-run-all: ^4.1.5
@@ -180,6 +181,7 @@ importers:
       vite: ^2.7.12
     dependencies:
       '@types/ua-parser-js': 0.7.36
+      classnames: 2.3.1
       lodash: 4.17.21
       pdiiif: link:../pdiiif-lib
       svelte-i18n: 3.3.13_svelte@3.46.2
