@@ -23,7 +23,7 @@
         "settings": "Einstellungen",
         "use_server": "Server verwenden",
         "force_client": "Browser-seitig erzeugen",
-        "notify": "Benachrichtigung, wenn PDF ist fertig"
+        "notify": "Benachrichtigung wenn PDF fertig ist"
     },
     "settings": {
         "img_width": "Bildgröße"

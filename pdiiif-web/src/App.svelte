@@ -2,7 +2,8 @@
   /// <reference types="wicg-file-system-access"/>
   import { onMount } from 'svelte';
   import { _ } from 'svelte-i18n';
-  import { debounce, without } from 'lodash';
+  import { without } from 'lodash';
+  import classNames from 'classnames';
   import { convertManifest, estimatePdfSize, ProgressStatus } from 'pdiiif';
 
   import type { ManifestInfo } from './iiif';
@@ -51,6 +52,9 @@
   // Only relevant for server-side generation
   let queueState: { current: number; initial: number } | undefined;
 
+  // Ref to manifest input
+  let manifestInput: HTMLInputElement | undefined;
+
   $: if (manifestInfo?.imageApiHasCors) {
     estimatePromise = estimatePdfSize({
       manifestJson: manifestInfo.manifestJson,
@@ -61,9 +65,26 @@
   }
 
   $: if (notifyWhenDone && window.Notification.permission === 'default') {
-    window.Notification.requestPermission().then(status => {
-      notifyWhenDone = status === 'granted'
+    window.Notification.requestPermission().then((status) => {
+      notifyWhenDone = status === 'granted';
     });
+  }
+
+  $: if (manifestUrl) {
+    // Updated manifest URL means all old validation messages are no longer relevant
+    clearNotifications('validation');
+
+    if (
+      manifestInput.validity.typeMismatch ||
+      manifestInput.validity.patternMismatch
+    ) {
+      manifestUrlIsValid = false;
+    } else {
+      manifestUrlIsValid = true;
+      onValidManifestUrl();
+    }
+  } else {
+    resetState()
   }
 
   // Show notification if file system api is available
@@ -98,6 +119,34 @@
     scaleFactor = 1;
   }
 
+  function onValidManifestUrl() {
+    // No async/await, since we need to keep a reference to the promise around
+    infoPromise = fetchManifestInfo(manifestUrl)
+      .then((info) => {
+        manifestInfo = info;
+        if (!manifestInfo.imageApiHasCors) {
+          // Show a warning if the Image API endpoint does not support CORS
+          addNotification({
+            type: 'warn',
+            message: $_('errors.cors'),
+          });
+        }
+        return info;
+      })
+      .catch((err) => {
+        infoPromise = undefined;
+        onError?.(err);
+        addNotification({
+          type: 'error',
+          message: $_('errors.manifest_fetch', {
+            values: { manifestUrl, errorMsg: err.message },
+          }),
+          tags: ['validation'],
+        });
+      });
+
+  }
+
   /** Show a new notification, making sure no more than 5 are ever shown. */
   function addNotification(msg: NotificationMessage): void {
     if (notifyWhenDone && (msg.type === 'error' || msg.type === 'success')) {
@@ -116,61 +165,6 @@
       notifications = [];
     }
   }
-
-  const onManifestInput: svelte.JSX.FormEventHandler<HTMLInputElement> = (
-    evt
-  ) => {
-    const inp = evt.target as HTMLInputElement;
-    // The callback is triggered for both input and paste events
-    const value =
-      evt.type === 'paste'
-        ? (
-            (evt as any).clipboardData ?? (window as any).clipboardData
-          )?.getData?.('Text')
-        : inp.value;
-    // New input means all old validation messages are no longer relevant
-    clearNotifications('validation');
-
-    // Check the validity of the input
-    if (inp.validity.typeMismatch || inp.validity.patternMismatch) {
-      manifestUrlIsValid = false;
-      addNotification({
-        type: 'error',
-        message: inp.validationMessage,
-        tags: ['validation'],
-      });
-    } else if (value.length === 0) {
-      // Deleting the input value causes a full state reset
-      resetState();
-    } else {
-      // URL was previoulsy invalid and is now valid, so we can start fetching the manifest info
-      manifestUrlIsValid = true;
-      clearNotifications('validation');
-      // No async/await, since we need to keep a reference to the promise around
-      infoPromise = fetchManifestInfo(value)
-        .then((info) => {
-          manifestInfo = info;
-          if (!manifestInfo.imageApiHasCors) {
-            // Show a warning if the Image API endpoint does not support CORS
-            addNotification({
-              type: 'warn',
-              message: $_('errors.cors'),
-            });
-          }
-          return info;
-        })
-        .catch((err) => {
-          onError?.(err);
-          addNotification({
-            type: 'error',
-            message: $_('errors.manifest_fetch', {
-              values: { manifestUrl, errorMsg: err.message },
-            }),
-            tags: ['validation'],
-          });
-        });
-    }
-  };
 
   /// Simply generate a random hex string
   function getRandomToken() {
@@ -437,14 +431,19 @@
     {/if}
     <div class="relative text-gray-700">
       <input
-        class="w-full h-10 pl-3 pr-10 text-base placeholder-gray-600 border rounded-lg focus:shadow-outline"
+        bind:this={manifestInput}
+        class={classNames(
+          'w-full h-10 pl-3 pr-10 text-base placeholder-gray-600 rounded-lg',
+          {
+            'border-4 border-red-500':
+              manifestUrl.length > 0 && !manifestUrlIsValid,
+          }
+        )}
         type="url"
         placeholder="Manifest URL"
         name="manifest-url"
         disabled={currentProgress !== undefined && !pdfFinished}
         bind:value={manifestUrl}
-        on:paste={onManifestInput}
-        on:change={onManifestInput}
       />
       <button
         on:click={generatePdf}
@@ -485,7 +484,7 @@
               : currentProgress.bytesWritten,
             total: queueState
               ? queueState.initial
-              : currentProgress.estimatedFileSize,
+              : currentProgress.estimatedFileSize ?? Number.MAX_SAFE_INTEGER,
           }}
         >
           <span>
