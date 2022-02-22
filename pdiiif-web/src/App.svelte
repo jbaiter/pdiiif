@@ -71,8 +71,8 @@
   }
 
   $: if (manifestUrl) {
-    // Updated manifest URL means all old validation messages are no longer relevant
-    clearNotifications('validation');
+    // Updated manifest URL means all old messages are no longer relevant
+    clearNotifications();
 
     if (
       manifestInput.validity.typeMismatch ||

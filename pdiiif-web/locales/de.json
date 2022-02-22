@@ -34,5 +34,6 @@
         "problem": "Probleme?"
     },
     "estimated_pdf_size": "Geschätzte Dateigröße",
-    "queue_position": "Warteschlagenposition: {pos}"
+    "queue_position": "Warteschlagenposition: {pos}",
+    "number_of_pages": "Seiten"
 }

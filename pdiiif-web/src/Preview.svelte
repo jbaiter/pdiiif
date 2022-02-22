@@ -20,18 +20,24 @@
       />
       <div>
         <h2 class="font-bold text-lg mt-4">{manifestInfo.label}</h2>
-        {#if estimatePromise}
-        <p class="mt-4">
-          {$_('estimated_pdf_size')}:
-          {#await estimatePromise}
-            <Spinner />
-          {:then size}
-            <strong>{(size / 1024 / 1024).toFixed(2)} MiB</strong>
-          {:catch}
-            <strong>{$_('errors.estimate_failure')}</strong>
-          {/await}
-        </p>
-        {/if}
+        <ul class="mt-4">
+          <li>
+            {manifestInfo.numPages}
+            {$_('number_of_pages')}
+          </li>
+          {#if estimatePromise}
+            <li>
+              {$_('estimated_pdf_size')}:
+              {#await estimatePromise}
+                <Spinner />
+              {:then size}
+                <strong>{(size / 1024 / 1024).toFixed(2)} MiB</strong>
+              {:catch}
+                <strong>{$_('errors.estimate_failure')}</strong>
+              {/await}
+            </li>
+          {/if}
+        </ul>
       </div>
     {/if}
   {/await}

@@ -7,6 +7,7 @@ export interface ManifestInfo {
   maximumImageWidth: number;
   supportsDownscale: boolean;
   imageApiHasCors: boolean;
+  numPages: number;
 }
 
 // TODO: Use manifesto.js for i18n and better 2/3 cross-compatibility
@@ -70,9 +71,11 @@ export async function fetchManifestInfo(
         i.service?.profile?.some?.(p => p.supports?.indexOf('sizeByWh') >= 0) ||
         i.service?.profile?.endsWith?.('level2.json') ||
         i.service?.profile?.[0]?.endsWith?.('level2.json') ||
+        i.service?.profile?.endsWith?.('compliance.html#level2') ||
         i.service?.[0]?.profile === 'level2' ||
-        i.service?.profile?.[0]?.endsWith?.('level2.json') ||
+        i.service?.profile?.[0]?.endsWith?.('level1.json') ||
         i.service?.profile?.endsWith?.('level1.json') ||
+        i.service?.profile?.endsWith?.('compliance.html#level1') ||
         i.service?.[0]?.profile === 'level1'
     ) !== undefined;
 
@@ -92,5 +95,6 @@ export async function fetchManifestInfo(
     manifestJson,
     supportsDownscale,
     imageApiHasCors,
+    numPages: canvasIds.length,
   };
 }

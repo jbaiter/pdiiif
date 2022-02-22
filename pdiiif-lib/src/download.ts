@@ -154,7 +154,8 @@ export function getImageSize(infoJson: any, scaleFactor = 1): SizeInfo {
   let requestedWidth = Math.floor(scaleFactor * maxWidth);
   const aspectRatio = infoJson.width / infoJson.height;
   const supportsScaleByWh =
-    (infoJson.profile instanceof String &&
+    ((typeof infoJson.profile === 'string' ||
+      infoJson.profile instanceof String) &&
       infoJson.profile.indexOf('level2') >= 0) ||
     infoJson.profile[0].indexOf('level2') >= 0 ||
     infoJson.profile[1]?.supports?.indexOf('sizeByWh') >= 0;
@@ -256,7 +257,9 @@ export async function fetchImage(
   { scaleFactor, ppiOverride, abortSignal, sizeOnly = false }: FetchImageOptions
 ): Promise<ImageData | undefined> {
   if (abortSignal?.aborted) {
-    log.debug('Abort signalled, aborting before initiating image data fetching.');
+    log.debug(
+      'Abort signalled, aborting before initiating image data fetching.'
+    );
     return;
   }
   const img = canvas.getImages()[0].getResource();
@@ -271,7 +274,9 @@ export async function fetchImage(
     });
     try {
       infoJson = await (
-        await fetchRespectfully(`${imgService.id}/info.json`, { signal: abortSignal })
+        await fetchRespectfully(`${imgService.id}/info.json`, {
+          signal: abortSignal,
+        })
       ).json();
       stopMeasuring?.({
         status: 'success',
@@ -283,9 +288,7 @@ export async function fetchImage(
         limited: rateLimitRegistry.isLimited(imgService.id).toString(),
       });
       if ((err as Error).name !== 'AbortError') {
-        log.error(
-          `Failed to fetch image info from ${imgService.id}/info.json`
-        );
+        log.error(`Failed to fetch image info from ${imgService.id}/info.json`);
       }
       throw err;
     }

@@ -11,7 +11,7 @@
   let showSettings = false;
 
   $: settingsAvailable = manifestInfo.supportsDownscale;
-  $: showSettings = !disabled
+  $: showSettings = showSettings && !disabled
 </script>
 
 {#if settingsAvailable}

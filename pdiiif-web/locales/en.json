@@ -34,5 +34,6 @@
         "problem": "Report a problem"
     },
     "estimated_pdf_size": "Estimated PDF size",
-    "queue_position": "Queue position: {pos}"
+    "queue_position": "Queue position: {pos}",
+    "number_of_pages": "pages"
 }
