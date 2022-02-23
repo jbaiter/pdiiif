@@ -5,6 +5,8 @@ import acceptLanguageParser from 'accept-language-parser';
 import cors from 'cors';
 import promBundle from 'express-prom-bundle';
 import { Manifest, PropertyValue } from 'manifesto.js';
+import * as Sentry from '@sentry/node';
+import * as Tracing from '@sentry/tracing';
 
 import {
   middleware as openApiMiddleware,
@@ -145,9 +147,22 @@ app.use(
     promClient: {
       collectDefaultMetrics: {},
     },
-    buckets: [0.05, 0.1, 0.5, 1, 1.5, 5, 10, 30, 60, 180, 300, 600]
+    buckets: [0.05, 0.1, 0.5, 1, 1.5, 5, 10, 30, 60, 180, 300, 600],
   })
 );
+
+if (process.env.CFG_SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.CFG_SENTRY_DSN,
+    integrations: [
+      new Sentry.Integrations.Http({ tracing: true }),
+      new Tracing.Integrations.Express({ app }),
+    ],
+    tracesSampleRate: 1.0,
+  });
+  app.use(Sentry.Handlers.requestHandler());
+  app.use(Sentry.Handlers.tracingHandler());
+}
 
 app.get('/api/progress/:token', progressPathSpec, (req, res) => {
   const { token } = req.params;
@@ -270,10 +285,10 @@ app.get(
       };
     }
     let abortController: AbortController | undefined = new AbortController();
-    res.addListener("close", () => {
+    res.addListener('close', () => {
       if (abortController) {
         log.info('Connection closed prematurely, aborting conversion.');
-        abortController.abort()
+        abortController.abort();
       }
     });
 
@@ -379,6 +394,11 @@ app.post(
   }
 );
 
+if (process.env.CFG_SENTRY_DSN) {
+  // The error handler must be before any other error middleware and after all controllers
+  app.use(Sentry.Handlers.errorHandler());
+}
+
 coverPageGenerator.start().then(() => {
   const port = Number.parseInt(process.env.CFG_PORT ?? '31337', 10);
   const host = process.env.CFG_HOST ?? '127.0.0.1';
@@ -388,11 +408,14 @@ coverPageGenerator.start().then(() => {
 });
 
 process.on('unhandledRejection', function (err: Error) {
-  if ((err as any).type === 'aborted' || (err as any).code == 'ERR_STREAM_DESTROYED') {
+  if (
+    (err as any).type === 'aborted' ||
+    (err as any).code == 'ERR_STREAM_DESTROYED'
+  ) {
     // FIXME: Where do these unhandled promise rejections come from?
     return;
   }
-  log.error('Uncaught exception', { error: err });
+  log.error(err);
 });
 
 // Terminate cover page generator before exiting, closes the underlying

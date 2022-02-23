@@ -27,6 +27,7 @@ export default defineConfig(({ command, mode }) => {
       postcss: postssConfig,
     },
     rollupdedupe: ['svelte'],
+    envPrefix: 'PDIIIF_',
     define: {
       __APP_VERSION__: JSON.stringify(process.env.npm_package_version),
     },

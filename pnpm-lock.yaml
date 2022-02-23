@@ -4,6 +4,8 @@ importers:
 
   pdiiif-api:
     specifiers:
+      '@sentry/node': ^6.17.9
+      '@sentry/tracing': ^6.17.9
       '@types/accept-language-parser': ^1.5.2
       '@types/express': ^4.17.13
       '@types/jsbn': ^1.2.29
@@ -41,6 +43,8 @@ importers:
       typescript: ^4.5.2
       winston: ^3.3.3
     dependencies:
+      '@sentry/node': 6.17.9
+      '@sentry/tracing': 6.17.9
       '@wesleytodd/openapi': 0.1.0
       accept-language-parser: 1.5.0
       cors: 2.8.5
@@ -157,6 +161,8 @@ importers:
 
   pdiiif-web:
     specifiers:
+      '@sentry/browser': ^6.17.9
+      '@sentry/tracing': ^6.17.9
       '@sveltejs/vite-plugin-svelte': ^1.0.0-next.34
       '@tsconfig/svelte': ^2.0.1
       '@types/ua-parser-js': ^0.7.36
@@ -180,6 +186,8 @@ importers:
       ua-parser-js: ^1.0.2
       vite: ^2.7.12
     dependencies:
+      '@sentry/browser': 6.17.9
+      '@sentry/tracing': 6.17.9
       '@types/ua-parser-js': 0.7.36
       classnames: 2.3.1
       lodash: 4.17.21
@@ -606,7 +614,7 @@ packages:
     engines: {node: ^10.12.0 || >=12.0.0}
     dependencies:
       ajv: 6.12.6
-      debug: 4.3.2
+      debug: 4.3.3
       espree: 7.3.1
       globals: 13.12.0
       ignore: 4.0.6
@@ -661,7 +669,7 @@ packages:
     engines: {node: '>=10.10.0'}
     dependencies:
       '@humanwhocodes/object-schema': 1.2.1
-      debug: 4.3.2
+      debug: 4.3.3
       minimatch: 3.0.4
     transitivePeerDependencies:
       - supports-color
@@ -955,6 +963,86 @@ packages:
       estree-walker: 2.0.2
       picomatch: 2.3.1
     dev: true
+
+  /@sentry/browser/6.17.9:
+    resolution: {integrity: sha512-RsC8GBZmZ3YfBTaIOJ06RlFp5zG7BkUoquNJmf4YhRUZeihT9osrn8qUYGFWSV/UduwKUIlSGJA/rATWWhwPRQ==}
+    engines: {node: '>=6'}
+    dependencies:
+      '@sentry/core': 6.17.9
+      '@sentry/types': 6.17.9
+      '@sentry/utils': 6.17.9
+      tslib: 1.14.1
+    dev: false
+
+  /@sentry/core/6.17.9:
+    resolution: {integrity: sha512-14KalmTholGUtgdh9TklO+jUpyQ/D3OGkhlH1rnGQGoJgFy2eYm+s+MnUEMxFdGIUCz5kOteuNqYZxaDmFagpQ==}
+    engines: {node: '>=6'}
+    dependencies:
+      '@sentry/hub': 6.17.9
+      '@sentry/minimal': 6.17.9
+      '@sentry/types': 6.17.9
+      '@sentry/utils': 6.17.9
+      tslib: 1.14.1
+    dev: false
+
+  /@sentry/hub/6.17.9:
+    resolution: {integrity: sha512-34EdrweWDbBV9EzEFIXcO+JeoyQmKzQVJxpTKZoJA6PUwf2NrndaUdjlkDEtBEzjuLUTxhLxtOzEsYs1O6RVcg==}
+    engines: {node: '>=6'}
+    dependencies:
+      '@sentry/types': 6.17.9
+      '@sentry/utils': 6.17.9
+      tslib: 1.14.1
+    dev: false
+
+  /@sentry/minimal/6.17.9:
+    resolution: {integrity: sha512-T3PMCHcKk6lkZq6zKgANrYJJxXBXKOe+ousV1Fas1rVBMv7dtKfsa4itqQHszcW9shusPDiaQKIJ4zRLE5LKmg==}
+    engines: {node: '>=6'}
+    dependencies:
+      '@sentry/hub': 6.17.9
+      '@sentry/types': 6.17.9
+      tslib: 1.14.1
+    dev: false
+
+  /@sentry/node/6.17.9:
+    resolution: {integrity: sha512-jbn+q7qPGOh6D7nYoYGaAlmuvMDpQmyMwBtUVYybuZp2AALe43O3Z4LtoJ+1+F31XowpsIPZx1mwNs4ZrILskA==}
+    engines: {node: '>=6'}
+    dependencies:
+      '@sentry/core': 6.17.9
+      '@sentry/hub': 6.17.9
+      '@sentry/tracing': 6.17.9
+      '@sentry/types': 6.17.9
+      '@sentry/utils': 6.17.9
+      cookie: 0.4.2
+      https-proxy-agent: 5.0.0
+      lru_map: 0.3.3
+      tslib: 1.14.1
+    transitivePeerDependencies:
+      - supports-color
+    dev: false
+
+  /@sentry/tracing/6.17.9:
+    resolution: {integrity: sha512-5Rb/OS4ryNJLvz2nv6wyjwhifjy6veqaF9ffLrwFYij/WDy7m62ASBblxgeiI3fbPLX0aBRFWIJAq1vko26+AQ==}
+    engines: {node: '>=6'}
+    dependencies:
+      '@sentry/hub': 6.17.9
+      '@sentry/minimal': 6.17.9
+      '@sentry/types': 6.17.9
+      '@sentry/utils': 6.17.9
+      tslib: 1.14.1
+    dev: false
+
+  /@sentry/types/6.17.9:
+    resolution: {integrity: sha512-xuulX6qUCL14ayEOh/h6FUIvZtsi1Bx34dSOaWDrjXUOJHJAM7214uiqW1GZxPJ13YuaUIubjTSfDmSQ9CBzTw==}
+    engines: {node: '>=6'}
+    dev: false
+
+  /@sentry/utils/6.17.9:
+    resolution: {integrity: sha512-4eo9Z3JlJCGlGrQRbtZWL+L9NnlUXgTbfK3Lk7oO8D1ev8R5b5+iE6tZHTvU5rQRcq6zu+POT+tK5u9oxc/rnQ==}
+    engines: {node: '>=6'}
+    dependencies:
+      '@sentry/types': 6.17.9
+      tslib: 1.14.1
+    dev: false
 
   /@sindresorhus/is/0.14.0:
     resolution: {integrity: sha512-9NET910DNaIPngYnLLPeg+Ogzqsi9uM4mSboU5y6p8S5DzMTVEsJZrawi+BoDNUVBa2DhJqQYUFvMDfgU062LQ==}
@@ -1446,7 +1534,7 @@ packages:
     resolution: {integrity: sha512-RZNwNclF7+MS/8bDg70amg32dyeZGZxiDuQmZxKLAlQjr3jGyLx+4Kkk58UO7D2QdgFIQCovuSuZESne6RG6XQ==}
     engines: {node: '>= 6.0.0'}
     dependencies:
-      debug: 4.3.2
+      debug: 4.3.3
     transitivePeerDependencies:
       - supports-color
 
@@ -2234,6 +2322,11 @@ packages:
     engines: {node: '>= 0.6'}
     dev: false
 
+  /cookie/0.4.2:
+    resolution: {integrity: sha512-aSWTXFzaKWkvHO1Ny/s+ePFpvKsPnjc551iI41v3ny/ow6tBG5Vd+FuqGNhh1LxOmVzOlGUriIlOaokOvhaStA==}
+    engines: {node: '>= 0.6'}
+    dev: false
+
   /copy-descriptor/0.1.1:
     resolution: {integrity: sha1-Z29us8OZl8LuGsOpJP1hJHSPV40=}
     engines: {node: '>=0.10.0'}
@@ -2379,7 +2472,6 @@ packages:
         optional: true
     dependencies:
       ms: 2.1.2
-    dev: true
 
   /decamelize/1.2.0:
     resolution: {integrity: sha1-9lNNFRSCabIDUue+4m9QH5oZEpA=}
@@ -3364,7 +3456,7 @@ packages:
     engines: {node: '>= 10.17.0'}
     hasBin: true
     dependencies:
-      debug: 4.3.2
+      debug: 4.3.3
       get-stream: 5.2.0
       yauzl: 2.10.0
     optionalDependencies:
@@ -3942,7 +4034,7 @@ packages:
     engines: {node: '>= 6'}
     dependencies:
       agent-base: 6.0.2
-      debug: 4.3.2
+      debug: 4.3.3
     transitivePeerDependencies:
       - supports-color
 
@@ -5240,6 +5332,10 @@ packages:
     dependencies:
       yallist: 4.0.0
     dev: true
+
+  /lru_map/0.3.3:
+    resolution: {integrity: sha1-tcg1G5Rky9dQM1p5ZQoOwOVhGN0=}
+    dev: false
 
   /lunr/2.3.9:
     resolution: {integrity: sha512-zTU3DaZaF3Rt9rhN3uBMGQD3dD2/vFQqnvZCDv4dl5iOzq2IZQqTxu90r4E5J+nP70J3ilqVCrbho2eWaeW8Ow==}
@@ -7777,7 +7873,6 @@ packages:
 
   /tslib/1.14.1:
     resolution: {integrity: sha512-Xni35NKzjgMrwevysHTCArtLDpPvye8zV/0E4EyYn43P7/7qvQwPh9BGkHewbMulVntbigmcT7rdX3BNo9wRJg==}
-    dev: true
 
   /tslib/2.3.1:
     resolution: {integrity: sha512-77EbyPPpMz+FRFRuAFlWMtmgUWGe9UOG2Z25NqCwiIjRhOf5iKGuzSe5P2w1laq+FkRy4p+PCuVkJSGkzTEKVw==}

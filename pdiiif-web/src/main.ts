@@ -1,4 +1,7 @@
 import { addMessages, init, getLocaleFromNavigator } from 'svelte-i18n';
+import * as Sentry from "@sentry/browser";
+import { Integrations } from "@sentry/tracing";
+
 import App from './App.svelte';
 import de from '../locales/de.json';
 import en from '../locales/en.json';
@@ -22,6 +25,14 @@ export function render(
   return new App({
     props: { apiEndpoint, coverPageEndpoint },
     target,
+  });
+}
+
+if (import.meta.env.PDIIIF_SENTRY_DSN) {
+  Sentry.init({
+    dsn: import.meta.env.PDIIIF_SENTRY_DSN as string,
+    integrations: [new Integrations.BrowserTracing()],
+    tracesSampleRate: 1.0,
   });
 }
 

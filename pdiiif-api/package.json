@@ -48,6 +48,8 @@
     "typescript": "^4.5.2"
   },
   "dependencies": {
+    "@sentry/node": "^6.17.9",
+    "@sentry/tracing": "^6.17.9",
     "@wesleytodd/openapi": "^0.1.0",
     "accept-language-parser": "^1.5.0",
     "cors": "^2.8.5",
