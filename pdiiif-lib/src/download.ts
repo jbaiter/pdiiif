@@ -67,7 +67,7 @@ export async function fetchRespectfully(
     do {
       resp = await fetch(url, init);
       numRetries++;
-      if (resp.ok || resp.status >= 500) {
+      if (resp.ok) {
         break;
       }
 
