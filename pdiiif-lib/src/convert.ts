@@ -1,27 +1,41 @@
 /// <reference types="wicg-file-system-access"/>
 import type { Writable } from 'stream';
 import {
-  Canvas,
   Manifest,
-  PropertyValue,
-  Range as IIIFRange,
-  TreeNode,
-} from 'manifesto.js';
+  RangeItems,
+  ManifestNormalized,
+  CanvasNormalized,
+  RangeNormalized,
+  Reference,
+  IIIFExternalWebResource,
+  ContentResource,
+  Service,
+  ImageService,
+} from '@iiif/presentation-3';
+import { Manifest as ManifestV2 } from '@iiif/presentation-2';
 import meanBy from 'lodash/meanBy';
 import sampleSize from 'lodash/sampleSize';
 import orderBy from 'lodash/orderBy';
 import PQueue from 'p-queue';
 
 import PDFGenerator from './pdf/generator';
-import { CountingWriter, WebWriter, NodeWriter, Writer, BlobWriter } from './io';
+import {
+  CountingWriter,
+  WebWriter,
+  NodeWriter,
+  Writer,
+  BlobWriter,
+} from './io';
 import { TocItem } from './pdf/util';
 import { getLicenseInfo } from './res/licenses';
 import { getTextSeeAlso } from './ocr';
 import pdiiifVersion from './version';
-import { fetchImage, fetchRespectfully, ImageData } from './download';
+import { fetchCanvasData, fetchRespectfully, CanvasData } from './download';
 import metrics from './metrics';
-import { now } from './util';
+import { isDefined, now } from './util';
 import log from './log';
+import { getI18nValue, getThumbnail, getCanvasImages, vault } from './iiif';
+import { ResourceProviderNormalized } from '@iiif/presentation-3/resources/provider';
 
 /** Progress information for rendering a progress bar or similar UI elements. */
 export interface ProgressStatus {
@@ -81,7 +95,7 @@ export interface ConvertOptions {
   /** List of languages to use for metadata, page labels and table of contents, in
       descending order of preference. Will use the environment's locale settings by
       default. */
-  languagePreference?: readonly string[] | string;
+  languagePreference?: readonly string[];
   /** Restrict the image size to include in the PDF by downscaling by a fixed factor.
    * The value must be a number between 0.1 and 1.
    * Only works with Level 2 Image API services that allow arbitrary downscaling, the
@@ -115,7 +129,7 @@ export interface ConvertOptions {
 /** Parameters for size estimation */
 export interface EstimationParams {
   /** The manifest to determine the PDF size for */
-  manifestJson: any;
+  manifest: Manifest | ManifestNormalized | ManifestV2;
   /** Restrict the image size to include in the PDF by downscaling by a fixed factor.
    * The value must be a number between 0.1 and 1.
    * Only works with Level 2 Image API services that allow arbitrary downscaling, the
@@ -137,13 +151,18 @@ export interface EstimationParams {
  * check their size in bytes and extrapolate from that to all canvases.
  */
 export async function estimatePdfSize({
-  manifestJson,
+  manifest: inputManifest,
   concurrency = 1,
   scaleFactor,
   filterCanvases = () => true,
   numSamples = 8,
 }: EstimationParams): Promise<number> {
-  const manifest = new Manifest(manifestJson);
+  const manifestId =
+    (inputManifest as Manifest).id ?? (inputManifest as ManifestV2)['@id'];
+  const manifest = await vault.loadManifest(manifestId, inputManifest);
+  if (!manifest) {
+    throw new Error(`Failed to load manifest from ${manifestId}`);
+  }
   let canvasPredicate: (canvasId: string) => boolean;
   if (Array.isArray(filterCanvases)) {
     canvasPredicate = (canvasId) => filterCanvases.indexOf(canvasId) >= 0;
@@ -151,47 +170,44 @@ export async function estimatePdfSize({
     canvasPredicate = filterCanvases as (id: string) => boolean;
   }
 
-  const canvases = manifest
-    .getSequenceByIndex(0)
-    .getCanvases()
-    .filter((c) => canvasPredicate(c.id));
+  const canvases = vault.get<CanvasNormalized>(
+    manifest.items.filter((c) => canvasPredicate(c.id))
+  );
 
   // Select some representative canvases that are close to the mean in terms
   // of their pixel area to avoid small images distorting the estimate too much
-  const meanPixels = meanBy(canvases, (c) => c.getWidth() * c.getHeight());
+  const meanPixels = meanBy(canvases, (c) => c.width * c.height);
   const candidateCanvases = canvases.filter(
-    (c) =>
-      Math.abs(meanPixels - c.getWidth() * c.getHeight()) <= 0.25 * meanPixels
+    (c) => Math.abs(meanPixels - c.width * c.height) <= 0.25 * meanPixels
   );
   const sampleCanvases = sampleSize(candidateCanvases, numSamples);
   const totalCanvasPixels = canvases.reduce(
-    (sum, canvas) => sum + canvas.getWidth() * canvas.getHeight(),
+    (sum, canvas) => sum + canvas.width * canvas.height,
     0
   );
   const samplePixels = sampleCanvases.reduce(
-    (sum, canvas) => sum + canvas.getWidth() * canvas.getHeight(),
+    (sum, canvas) => sum + canvas.width * canvas.height,
     0
   );
   const queue = new PQueue({ concurrency });
-  const sizePromises: Array<Promise<ImageData | undefined>> =
+  const canvasData = await Promise.all(
     sampleCanvases.map((c) =>
-      queue.add(() =>
-        fetchImage(c, { scaleFactor, sizeOnly: true })
-      )
-    );
-  const imgData = await Promise.all(sizePromises);
-  const sampleBytes = imgData
-    .filter((i) => i !== undefined)
+      queue.add(() => fetchCanvasData(c, { scaleFactor, sizeOnly: true }))
+    )
+  );
+  const sampleBytes = canvasData
+    .filter(isDefined<CanvasData>)
+    .flatMap((c) => c.images)
     .reduce((size: number, data) => size + (data?.numBytes ?? 0), 0);
   const bpp = sampleBytes / samplePixels;
   return bpp * totalCanvasPixels;
 }
 
-function buildOutlineFromRanges(
-  manifest: Manifest,
-  canvases: Canvas[],
+async function buildOutlineFromRanges(
+  manifest: ManifestNormalized,
+  canvases: CanvasNormalized[],
   languagePreference: string[]
-): Array<TocItem> {
+): Promise<Array<TocItem>> {
   // ToC generation: IIIF's `Range` construct is so open, doing anything useful with it is a pain :-/
   // In our case, the pain comes from multiple directions:
   // - PDFs can only connect an outline node to a *single* page (IIIF connects ranges of pages)
@@ -202,60 +218,43 @@ function buildOutlineFromRanges(
   // All canvas identifiers in the order they appear as in the sequence
   const canvasIds = canvases.map((canvas) => canvas.id);
 
-  let tocTree = manifest.getDefaultTree();
-  if (!tocTree?.nodes?.length) {
-    tocTree = manifest.getTopRanges()[0]?.getTree(new TreeNode('root'));
-  }
-
   // We have to recurse, this small closure handles each node in the tree
-  const handleTocNode = (node: TreeNode): TocItem | undefined => {
-    if (!node.isRange()) {
-      return;
-    }
-    const range = node.data as IIIFRange;
-    // FIXME: When this code was written, Manifesto didn't yet support IIIFv3 ranges,
-    //        check if this is still the case
-    let firstCanvas;
-    if (range.__jsonld.canvases) {
-      firstCanvas = orderBy(range.__jsonld.canvases, (canvasId) =>
-        canvasIds.indexOf(canvasId)
-      )[0];
-    } else if (range.__jsonld.members) {
-      firstCanvas = orderBy(
-        range.__jsonld.members.filter((m: any) => m['@type'] === 'sc:Canvas'),
-        (canvas) => canvasIds.indexOf(canvas['@id'])
-      )[0];
-    } else if (range.__jsonld.items) {
-      firstCanvas = orderBy(
-        range.__jsonld.items.filter((m: any) => m.type === 'Canvas'),
-        (canvas) => canvasIds.indexOf(canvas.id)
-      )[0];
-    }
+  const isCanvas = (ri: RangeItems): ri is Reference<'Canvas'> =>
+    typeof ri !== 'string' && ri.type === 'Canvas';
+  const isRange = (ri: RangeItems): ri is Reference<'Range'> =>
+    typeof ri !== 'string' && ri.type == 'Range';
+
+  const handleTocRange = (range: RangeNormalized): TocItem | undefined => {
+    const firstCanvas = orderBy(range.items.filter(isCanvas), (c) =>
+      canvasIds.indexOf(c.id)
+    )[0];
     if (!firstCanvas) {
       return;
     }
-    const rangeLabel = range
-      .getLabel()
-      .getValue(languagePreference as string[]);
-    if (!rangeLabel) {
+    const rangeLabel = getI18nValue(
+      range.label ?? '<untitled>',
+      languagePreference,
+      ';'
+    );
+    if (rangeLabel.length === 0) {
       return;
     }
+    const childRanges = vault.get<RangeNormalized>(range.items.filter(isRange));
     return {
       label: rangeLabel,
-      startCanvasIdx: canvasIds.indexOf(firstCanvas),
-      children: node.nodes.map(handleTocNode).filter((n): n is TocItem => !!n),
+      startCanvasIdx: canvasIds.indexOf(firstCanvas.id),
+      children: childRanges
+        .map(handleTocRange)
+        .filter((t): t is TocItem => t !== undefined),
     };
   };
 
-  if (tocTree) {
-    // Descend into the tree
-    if (tocTree.isRange()) {
-      return handleTocNode(tocTree)?.children ?? [];
-    } else {
-      return tocTree.nodes.map(handleTocNode).filter((n): n is TocItem => !!n);
-    }
-  }
-  return [];
+  return (
+    vault
+      .get<RangeNormalized>(manifest.structures)
+      .map(handleTocRange)
+      .filter((t): t is TocItem => t !== undefined) ?? []
+  );
 }
 
 /** Tracks PDF generation progress and various statistics related to that. */
@@ -273,13 +272,13 @@ class ProgressTracker {
   onProgress?: (status: ProgressStatus) => void;
 
   constructor(
-    canvases: Canvas[],
+    canvases: CanvasNormalized[],
     countingStream: CountingWriter,
     pdfGen: PDFGenerator,
     onProgress?: (status: ProgressStatus) => void
   ) {
     this.totalCanvasPixels = canvases.reduce(
-      (sum, canvas) => sum + canvas.getWidth() * canvas.getHeight(),
+      (sum, canvas) => sum + canvas.width * canvas.height,
       0
     );
     this.totalPages = canvases.length;
@@ -337,7 +336,7 @@ class ProgressTracker {
 /** Generate a cover page PDF, either via user-provided callback, or by fetching
  * it from a remote endpoint. */
 async function getCoverPagePdf(
-  manifest: Manifest,
+  manifest: ManifestNormalized,
   languagePreference: Array<string>,
   endpoint?: string,
   callback?: (params: CoverPageParams) => Promise<Uint8Array>
@@ -345,52 +344,50 @@ async function getCoverPagePdf(
   const params: CoverPageParams = {
     // NOTE: Manifest label is mandatory, i.e. safe to assert non-null
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    title: manifest.getLabel().getValue(languagePreference)!,
+    title: getI18nValue(
+      manifest.label ?? '<untitled>',
+      languagePreference,
+      ';'
+    ),
     manifestUrl: manifest.id,
     pdiiifVersion,
   };
-  const thumb = manifest.getThumbnail();
-  if (thumb != null) {
-    params.thumbnail = {
-      url: thumb.id,
-      iiifImageService: thumb
-        .getServices()
-        .find((s) => s.getProfile().indexOf('/image/') > 0)?.id,
-    };
-  } else {
-    const firstCanvas = manifest
-      .getSequenceByIndex(0)
-      .getCanvasByIndex(0) as Canvas;
-    const canvasImg = firstCanvas.getImages()[0].getResource();
-    params.thumbnail = {
-      url: canvasImg.id,
-      iiifImageService: canvasImg
-        .getServices()
-        .find((s) => s.getProfile().indexOf('/image/') > 0)?.id,
-    };
+  const thumbUrl = await getThumbnail(manifest, 512);
+  if (thumbUrl) {
+    params.thumbnail = { url: thumbUrl };
+    const manifestThumb = vault.get<ContentResource>(manifest.thumbnail)[0];
+    if (manifestThumb && 'type' in manifestThumb) {
+      params.thumbnail.iiifImageService = (
+        manifestThumb as IIIFExternalWebResource
+      ).service?.find(
+        (s: Service): s is ImageService =>
+          (s as ImageService | undefined)?.type?.startsWith('ImageService') ??
+          false
+      )?.id;
+    }
   }
-  const provider = manifest.getProperty('provider');
-  const required = manifest.getRequiredStatement();
-  const logo = manifest.getLogo();
-  if (provider || (!required?.label && required?.value !== undefined)) {
+
+  const provider = vault.get<ResourceProviderNormalized>(manifest.provider)[0];
+  const required = manifest.requiredStatement;
+  if (provider) {
     params.provider = {
-      label: provider
-        ? (PropertyValue.parse(provider.label).getValue(
-            languagePreference
-          ) as string)
-        : required?.getValue(languagePreference) ?? '',
-      homepage: provider?.homepage?.[0]?.id,
-      logo: provider?.logo?.[0]?.id ?? logo,
+      label: getI18nValue(provider.label, languagePreference, ';'),
+      homepage: provider.homepage?.[0].id,
+      logo: provider.logo?.[0].id,
     };
+    // FIXME: Currently this is assigned by @iiif/parser when converting from v2 to v3
+    if (params.provider.label === 'Unknown') {
+      params.provider.label = '';
+    }
   }
   if (required != null && required.label) {
     params.requiredStatement = {
-      label: required.getLabel(languagePreference) ?? '',
-      value: required.getValues(languagePreference).join('\n'),
+      label: getI18nValue(required.label, languagePreference, ';'),
+      value: getI18nValue(required.value, languagePreference, ';'),
     };
   }
-  const license = manifest.getLicense() ?? manifest.getProperty('rights');
-  if (license != null) {
+  const license = manifest.rights;
+  if (license) {
     const licenseDef = getLicenseInfo(license);
     params.rights = {
       text: licenseDef?.text ?? license,
@@ -398,23 +395,23 @@ async function getCoverPagePdf(
       logo: licenseDef?.logo,
     };
   }
-  params.metadata = manifest
-    .getMetadata()
-    .map((lvp) => {
-      const label = lvp.getLabel(languagePreference);
-      const values = lvp
-        .getValues(languagePreference)
-        .filter((v): v is string => v !== null);
-      if (!label || values.length === 0) {
-        return;
-      }
-      if (values.length === 1) {
-        return [label, values[0]];
-      } else {
-        return [label, values];
-      }
-    })
-    .filter((x): x is [string, string | string[]] => x !== undefined);
+  params.metadata =
+    manifest.metadata
+      ?.map((itm) => {
+        const label = getI18nValue(itm.label, languagePreference, ';');
+        const values = getI18nValue(itm.value, languagePreference, '|||').split(
+          '|||'
+        );
+        if (!label || values.length === 0) {
+          return;
+        }
+        if (values.length === 1) {
+          return [label, values[0]];
+        } else {
+          return [label, values];
+        }
+      })
+      .filter((x): x is [string, string | string[]] => x !== undefined) ?? [];
   if (callback) {
     return await callback(params);
   } else if (endpoint) {
@@ -430,12 +427,20 @@ async function getCoverPagePdf(
   }
 }
 
-export async function convertManifest(manifestJson: any, outputStream: Writable | WritableStream, options: ConvertOptions): Promise<void>;
-export async function convertManifest(manifestJson: any, outputStream: undefined, options: ConvertOptions): Promise<Blob>;
+export async function convertManifest(
+  manifestJson: Manifest | ManifestNormalized | ManifestV2,
+  outputStream: Writable | WritableStream,
+  options: ConvertOptions
+): Promise<void>;
+export async function convertManifest(
+  manifestJson: Manifest | ManifestNormalized | ManifestV2,
+  outputStream: undefined,
+  options: ConvertOptions
+): Promise<Blob>;
 /** Convert a IIIF manifest to a PDF,  */
 export async function convertManifest(
   /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
-  manifestJson: any,
+  manifestJson: Manifest | ManifestNormalized | ManifestV2,
   outputStream: Writable | WritableStream | undefined,
   {
     filterCanvases = () => true,
@@ -452,21 +457,21 @@ export async function convertManifest(
 ): Promise<void | Blob> {
   let writer: Writer;
   if (!outputStream) {
-    log.debug('Writing to Blob')
+    log.debug('Writing to Blob');
     writer = new BlobWriter();
-  // Can't use `instanceof` since we don't have the Node class in the
-  // browser and vice versa, so examine the shape of the object
-  } else if (typeof (outputStream as WritableStream).close === 'function') {
-    log.debug('Writing to file system')
-    writer = new WebWriter(outputStream as WritableStream);
-  } else {
-    log.debug('Writing to Node writable stream')
+    // Can't use `instanceof` since we don't have the Node class in the
+    // browser and vice versa, so examine the shape of the object
+  } else if (typeof (outputStream as Writable).destroy === 'function') {
+    log.debug('Writing to Node writable stream');
     writer = new NodeWriter(outputStream as Writable);
     // Cancel further processing once the underlying stream has been closed
     // This will only have an effect if the PDF has not finished generating
     // yet (i.e. when the client terminates the connection prematurely),
     // otherwise all processing will long have stopped
     (outputStream as Writable).on('close', () => abortController.abort());
+  } else {
+    log.debug('Writing to file system');
+    writer = new WebWriter(outputStream as WritableStream);
   }
   const countingWriter = new CountingWriter(writer);
 
@@ -478,35 +483,47 @@ export async function convertManifest(
     canvasPredicate = filterCanvases as (id: string) => boolean;
   }
 
-  const manifest = new Manifest(manifestJson);
-
-  const pdfMetadata = { ...metadata };
-  if (!pdfMetadata.Title) {
-    pdfMetadata.Title =
-      manifest.getLabel().getValue(languagePreference as string[]) ?? undefined;
+  const manifestId =
+    (manifestJson as any)['@id'] ?? (manifestJson as Manifest).id;
+  const manifest = await vault.loadManifest(manifestId, manifestJson);
+  if (!manifest) {
+    throw new Error(`Failed to load manifest from ${manifestId}`);
   }
 
-  const canvases = manifest
-    .getSequenceByIndex(0)
-    .getCanvases()
-    .filter((c) => canvasPredicate(c.id));
+  const pdfMetadata = { ...metadata };
+  if (!pdfMetadata.Title && manifest.label) {
+    pdfMetadata.Title = getI18nValue(
+      manifest.label,
+      languagePreference as string[],
+      ';'
+    );
+  }
+
+  const canvases = vault.get<CanvasNormalized>(
+    manifest.items.filter((c) => canvasPredicate(c.id))
+  );
   const hasText = !!canvases.find((c) => !!getTextSeeAlso(c));
-  const labels = canvases.map(
-    (canvas) => canvas.getLabel().getValue(languagePreference as string[]) ?? ''
+  const labels = canvases.map((canvas) =>
+    canvas.label ? getI18nValue(canvas.label, languagePreference, ';') : ''
   );
 
   // Fetch images concurrently, within limits specified by user
-  log.debug(`Setting up queue with ${concurrency} concurrent downloads.`);
+  log.debug(`Setting up queue with ${concurrency} concurrent canvas fetches.`);
   const queue = new PQueue({ concurrency });
-  abortController.signal.addEventListener(
-    'abort', () => queue.clear(), { once: true });
-  const imgFuts = canvases.map((c) => {
+  abortController.signal.addEventListener('abort', () => queue.clear(), {
+    once: true,
+  });
+  const canvasFuts = canvases.map((c) => {
     return queue.add(() =>
-      fetchImage(c, { scaleFactor, ppiOverride: ppi, abortSignal: abortController.signal })
+      fetchCanvasData(c, {
+        scaleFactor,
+        ppiOverride: ppi,
+        abortSignal: abortController.signal,
+      })
     );
   });
 
-  const outline = buildOutlineFromRanges(
+  const outline = await buildOutlineFromRanges(
     manifest,
     canvases,
     languagePreference as string[]
@@ -514,7 +531,9 @@ export async function convertManifest(
   const pdfGen = new PDFGenerator(
     countingWriter,
     pdfMetadata,
-    canvases.length,
+    getCanvasImages(canvases).map((ci, idx) => {
+      return { canvasIdx: idx, numImages: ci.images.length };
+    }),
     labels,
     outline,
     hasText
@@ -554,23 +573,32 @@ export async function convertManifest(
       log.debug('Abort signalled, aborting while waiting for image data.');
       break;
     }
-    const canvas = canvases[canvasIdx];
     try {
-      log.debug(`Waiting for data for canvas #${canvasIdx}`)
-      const imgData = await imgFuts[canvasIdx];
+      log.debug(`Waiting for data for canvas #${canvasIdx}`);
+      const canvasData = await canvasFuts[canvasIdx];
       // This means the task was aborted, do nothing
-      if (!imgData) {
+      // FIXME: Doesn't this also happen in case of an error?
+      if (!canvasData) {
         throw 'Aborted';
       }
-      const { width, height, data, ppi, text } = imgData;
+      const canvas = vault.get<CanvasNormalized>(canvasData.canvas);
+      const { images, ppi, text } = canvasData;
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       const stopMeasuring = metrics?.pageGenerationDuration.startTimer();
-      log.debug(`Rendering canvas #${canvasIdx} into PDF`)
-      await pdfGen.renderPage({ width, height }, data!, text, ppi);
+      log.debug(`Rendering canvas #${canvasIdx} into PDF`);
+      await pdfGen.renderPage(
+        { width: canvas.width, height: canvas.height },
+        images,
+        text,
+        ppi
+      );
       stopMeasuring?.();
       progress.updatePixels(
-        width * height,
-        canvas.getWidth() * canvas.getHeight()
+        images.reduce(
+          (acc, img) => acc + img.dimensions.width * img.dimensions.height,
+          0
+        ),
+        canvas.width * canvas.height
       );
     } catch (err) {
       // Clear queue, cancel all ongoing image fetching
@@ -583,7 +611,7 @@ export async function convertManifest(
       }
       throw err;
     } finally {
-      delete imgFuts[canvasIdx];
+      delete canvasFuts[canvasIdx];
     }
     progress.emitProgress(canvasIdx + 1);
   }

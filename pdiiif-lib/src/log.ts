@@ -14,7 +14,7 @@ class ConsoleLogger implements Logger {
   constructor(level: LogLevel = 'warn') {
     this.level = level;
   }
-  
+
   setLevel(level: LogLevel): void {
     this.level = level;
   }

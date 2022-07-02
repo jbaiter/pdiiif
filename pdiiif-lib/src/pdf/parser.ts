@@ -26,16 +26,6 @@ async function* parseCrossRefSection(
   const trailerIdx = findIndex(buf, (_x, idx) =>
     testForString(buf, idx, 'trailer')
   );
-  /*
-  const fileSize = await reader.size();
-  while (trailerIdx < 0 && offset < fileSize) {
-    const newBuf = new Uint8Array(buf.length + 1024);
-    newBuf.set(buf, 0);
-    offset += await reader.read(newBuf, buf.length, offset, 1024);
-    buf = newBuf;
-    trailerIdx = findIndex(buf, (_x, idx) => testForString(buf, idx, 'trailer'));
-  }
-  */
   // Split into lines and skip first line (`xref`)
   const parts = textDecoder
     .decode(buf.subarray(0, trailerIdx))

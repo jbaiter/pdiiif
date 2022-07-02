@@ -48,6 +48,11 @@
     "typescript": "^4.5.2"
   },
   "dependencies": {
+    "@atlas-viewer/iiif-image-api": "^2.0.5",
+    "@iiif/parser": "^1.0.10",
+    "@iiif/presentation-3": "^1.0.6",
+    "@iiif/vault": "^0.9.18",
+    "@iiif/vault-helpers": "^0.9.5",
     "@sentry/node": "^6.17.9",
     "@sentry/tracing": "^6.17.9",
     "@wesleytodd/openapi": "^0.1.0",
@@ -65,13 +70,13 @@
     "pdiiif": "workspace:../pdiiif-lib",
     "pdiiif-web": "workspace:../pdiiif-web",
     "prom-client": "^14.0.1",
-    "puppeteer": "^11.0.0",
+    "puppeteer": "^15.3.0",
     "qrcode-svg": "^1.1.0",
     "sanitize-html": "^2.5.3",
     "winston": "^3.3.3"
   },
   "engines": {
-    "node": ">=16.0.0"
+    "node": ">=16.15.0"
   },
   "engineStrict": true,
   "main": "./dist/server.js",

@@ -1,16 +1,32 @@
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
 /* eslint-disable complexity */
 /// Utilities for parsing OCR text from hOCR, ALTO and IIIF Annotations
 import max from 'lodash/max';
 import jsdom from 'jsdom';
-import { Annotation, Canvas, Resource } from 'manifesto.js';
 import metrics from './metrics';
 import { rateLimitRegistry } from './download';
 import log from './log';
+import {
+  Annotation,
+  AnnotationNormalized,
+  CanvasNormalized,
+  ContentResource,
+} from '@iiif/presentation-3';
+import {
+  isExternalWebResourceWithProfile,
+  ExternalWebResourceWithProfile,
+  vault,
+} from './iiif';
 
+let parser: DOMParser;
+let TextType: typeof Text;
 if (typeof window === 'undefined') {
   const nodeDom = new jsdom.JSDOM();
-  (global as any).DOMParser = nodeDom.window.DOMParser;
-  (global as any).Text = nodeDom.window.Text;
+  parser = new nodeDom.window.DOMParser();
+  TextType = nodeDom.window.Text;
+} else {
+  parser = new DOMParser();
+  TextType = Text;
 }
 
 interface HocrAttribs {
@@ -40,8 +56,6 @@ export interface Dimensions {
   width: number;
   height: number;
 }
-
-const parser = new DOMParser();
 
 /** Parse hOCR attributes from a node's title attribute
  *
@@ -98,7 +112,7 @@ function parseHocrNode(
   ];
 
   // Add an extra space span if the following text node contains something
-  if (node.nextSibling instanceof Text) {
+  if (node.nextSibling instanceof TextType) {
     let extraText = node.nextSibling.wholeText.replace(/\s+/, ' ');
     if (endOfLine) {
       // We don't need trailing whitespace
@@ -126,46 +140,46 @@ function parseHocrNode(
 }
 
 function parseHocrLineNode(lineNode: Element, scaleFactor: number): OcrSpan {
-    const wordNodes = lineNode.querySelectorAll('span.ocrx_word');
-    if (wordNodes.length === 0) {
-      return parseHocrNode(lineNode as HTMLDivElement, true, scaleFactor)[0]
-    } else {
-      const line = parseHocrNode(
-        lineNode as HTMLDivElement,
-        true,
+  const wordNodes = lineNode.querySelectorAll('span.ocrx_word');
+  if (wordNodes.length === 0) {
+    return parseHocrNode(lineNode as HTMLDivElement, true, scaleFactor)[0];
+  } else {
+    const line = parseHocrNode(
+      lineNode as HTMLDivElement,
+      true,
+      scaleFactor
+    )[0];
+    const spans = [];
+    // eslint-disable-next-line no-unused-vars
+    for (const [i, wordNode] of wordNodes.entries()) {
+      const textSpans = parseHocrNode(
+        wordNode as HTMLSpanElement,
+        i === wordNodes.length - 1,
         scaleFactor
-      )[0];
-      const spans = [];
-      // eslint-disable-next-line no-unused-vars
-      for (const [i, wordNode] of wordNodes.entries()) {
-        const textSpans = parseHocrNode(
-          wordNode as HTMLSpanElement,
-          i === wordNodes.length - 1,
-          scaleFactor
-        );
+      );
 
-        // Calculate width of previous extra span
-        const previousExtraSpan = spans.slice(-1).filter((s) => s.isExtra)?.[0];
-        if (previousExtraSpan) {
-          previousExtraSpan.width = textSpans[0].x - previousExtraSpan.x;
-        }
-
-        spans.push(...textSpans);
+      // Calculate width of previous extra span
+      const previousExtraSpan = spans.slice(-1).filter((s) => s.isExtra)?.[0];
+      if (previousExtraSpan) {
+        previousExtraSpan.width = textSpans[0].x - previousExtraSpan.x;
       }
 
-      // Update with of extra span at end of line
-      const endExtraSpan = spans.slice(-1).filter((s) => s.isExtra)?.[0];
-      if (endExtraSpan) {
-        endExtraSpan.width = line.x + (line.width ?? 0) - endExtraSpan.x;
-      }
-
-      line.spans = spans;
-      line.text = spans
-        .map((w) => w.text)
-        .join('')
-        .trim();
-      return line;
+      spans.push(...textSpans);
     }
+
+    // Update with of extra span at end of line
+    const endExtraSpan = spans.slice(-1).filter((s) => s.isExtra)?.[0];
+    if (endExtraSpan) {
+      endExtraSpan.width = line.x + (line.width ?? 0) - endExtraSpan.x;
+    }
+
+    line.spans = spans;
+    line.text = spans
+      .map((w) => w.text)
+      .join('')
+      .trim();
+    return line;
+  }
 }
 
 /** Parse an hOCR document
@@ -204,15 +218,23 @@ export function parseHocr(
     }
     scaleFactor = scaleFactorX;
   }
-  let blocks: Array<{ paragraphs: Array<{ lines: Array<OcrSpan> }> }> | undefined = [];
-  for (const blockNode of pageNode.querySelectorAll('div.ocr_carea, div.ocrx_block')) {
-    const block: { paragraphs: Array<{ lines: Array<OcrSpan> }> } = { paragraphs: [] };
+  let blocks:
+    | Array<{ paragraphs: Array<{ lines: Array<OcrSpan> }> }>
+    | undefined = [];
+  for (const blockNode of pageNode.querySelectorAll(
+    'div.ocr_carea, div.ocrx_block'
+  )) {
+    const block: { paragraphs: Array<{ lines: Array<OcrSpan> }> } = {
+      paragraphs: [],
+    };
     for (const paragraphNode of blockNode.querySelectorAll('p.ocr_par')) {
       const paragraph: { lines: Array<OcrSpan> } = { lines: [] };
       for (const lineNode of paragraphNode.querySelectorAll(
         'span.ocr_line, span.ocrx_line'
       )) {
-        paragraph.lines.push(parseHocrLineNode(lineNode as HTMLElement, scaleFactor));
+        paragraph.lines.push(
+          parseHocrLineNode(lineNode as HTMLElement, scaleFactor)
+        );
       }
       block.paragraphs.push(paragraph);
     }
@@ -228,7 +250,9 @@ export function parseHocr(
       for (const lineNode of paragraphNode.querySelectorAll(
         'span.ocr_line, span.ocrx_line'
       )) {
-        paragraph.lines.push(parseHocrLineNode(lineNode as HTMLElement, scaleFactor));
+        paragraph.lines.push(
+          parseHocrLineNode(lineNode as HTMLElement, scaleFactor)
+        );
       }
       paragraphs.push(paragraph);
     }
@@ -245,7 +269,7 @@ export function parseHocr(
       lines.push(parseHocrLineNode(lineNode, scaleFactor));
     }
   }
-  if(lines.length === 0) {
+  if (lines.length === 0) {
     lines = undefined;
   }
   return {
@@ -487,12 +511,12 @@ export function parseOcr(
   if (!parse.width || !parse.height) {
     let lines = parse.lines;
     if (!lines) {
-      lines = parse.paragraphs?.flatMap(p => p.lines);
+      lines = parse.paragraphs?.flatMap((p) => p.lines);
     }
     if (!lines) {
       lines = parse.blocks
-        ?.flatMap(b => b.paragraphs)
-        ?.flatMap(p => p.lines);
+        ?.flatMap((b) => b.paragraphs)
+        ?.flatMap((p) => p.lines);
     }
     parse = { ...parse, ...getFallbackImageSize(lines || []) };
   }
@@ -508,9 +532,16 @@ export function parseOcr(
  * @param {Dimensions} imgSize Reference width and height of the rendered target image
  * @returns {OcrPage} parsed OCR boxes
  */
-export function parseIiifAnnotations(annos: any, imgSize: Dimensions): OcrPage {
+export function parseIiifAnnotations(
+  annos: Array<Annotation>,
+  imgSize: Dimensions
+): OcrPage {
+  throw 'Currently not supported';
+  /*
   const fragmentPat = /.+#xywh=(\d+),(\d+),(\d+),(\d+)/g;
 
+  // TODO: Handle Europeana-style v2 annotations, they are currently not
+  //       being converted by @iiif/parser
   // TODO: Handle word-level annotations
   // See if we can tell from the annotations themselves if it targets a line
   const lineAnnos = annos.filter(
@@ -545,10 +576,12 @@ export function parseIiifAnnotations(annos: any, imgSize: Dimensions): OcrPage {
     ...(imgSize ?? getFallbackImageSize(boxes)),
     lines: boxes,
   };
+  */
 }
 
 /** Check if an annotation has external resources that need to be loaded */
-function hasExternalResource(anno: Annotation) {
+/*
+function hasExternalResource(anno: Annotation): boolean {
   return (
     anno.getResource()?.getProperty('chars') === undefined &&
     anno.getBody()?.[0]?.getProperty('value') === undefined &&
@@ -556,23 +589,20 @@ function hasExternalResource(anno: Annotation) {
     anno.getResource()?.id !== undefined
   );
 }
+*/
 
 /** Checks if a given resource points to an ALTO OCR document */
-const isAlto = (resource?: Resource) =>
-  (resource?.getFormat() as string) === 'application/xml+alto' ||
-  resource
-    ?.getProperty('profile')
-    ?.startsWith('http://www.loc.gov/standards/alto/');
+const isAlto = (resource: ExternalWebResourceWithProfile) =>
+  resource.format === 'application/xml+alto' ||
+  resource.profile?.startsWith('http://www.loc.gov/standards/alto/');
 
 /** Checks if a given resource points to an hOCR document */
-const isHocr = (resource?: Resource) =>
-  (resource?.getFormat() as string) === 'text/vnd.hocr+html' ||
-  resource?.getProperty('profile') ===
+const isHocr = (resource: ExternalWebResourceWithProfile) =>
+  resource.format === 'text/vnd.hocr+html' ||
+  resource.profile ===
     'https://github.com/kba/hocr-spec/blob/master/hocr-spec.md' ||
-  resource?.getProperty('profile')?.startsWith('http://kba.cloud/hocr-spec/') ||
-  resource
-    ?.getProperty('profile')
-    ?.startsWith('http://kba.github.io/hocr-spec/');
+  resource.profile?.startsWith('http://kba.cloud/hocr-spec/') ||
+  resource.profile?.startsWith('http://kba.github.io/hocr-spec/');
 
 /** Wrapper around fetch() that returns the content as text */
 async function fetchOcrMarkup(url: string): Promise<string> {
@@ -586,16 +616,18 @@ export async function fetchAnnotationResource(url: string): Promise<any> {
   return resp.json();
 }
 
-export function getTextSeeAlso(canvas: Canvas): Resource | undefined {
-  const seeAlsoJson = canvas.getProperty('seeAlso');
-  return (Array.isArray(seeAlsoJson) ? seeAlsoJson : [seeAlsoJson])
-    .map((r) => new Resource(r))
-    .filter((r) => isAlto(r) || isHocr(r))[0];
+export function getTextSeeAlso(
+  canvas: CanvasNormalized
+): ExternalWebResourceWithProfile | undefined {
+  const seeAlsos = vault.get<ContentResource>(canvas.seeAlso);
+  return seeAlsos
+    .filter(isExternalWebResourceWithProfile)
+    .find((r) => isAlto(r) || isHocr(r));
 }
 
 export async function fetchAndParseText(
-  canvas: Canvas,
-  annotations?: Annotation[],
+  canvas: CanvasNormalized,
+  annotations?: AnnotationNormalized[],
   scaleFactor = 1
 ): Promise<OcrPage | undefined> {
   // TODO: Annotations are a major PITA due to all the indirection and multiple
@@ -604,26 +636,26 @@ export async function fetchAndParseText(
   const seeAlso = getTextSeeAlso(canvas);
   if (seeAlso) {
     const stopMeasuring = metrics?.ocrFetchDuration.startTimer({
-      ocr_host: new URL(seeAlso.id).host,
+      ocr_host: new URL(seeAlso.id!).host,
     });
     let markup;
     try {
-      markup = await fetchOcrMarkup(seeAlso.id);
+      markup = await fetchOcrMarkup(seeAlso.id!);
       stopMeasuring?.({
         status: 'success',
-        limited: rateLimitRegistry.isLimited(seeAlso.id).toString(),
+        limited: rateLimitRegistry.isLimited(seeAlso.id!).toString(),
       });
     } catch (err) {
       stopMeasuring?.({
         status: 'error',
-        limited: rateLimitRegistry.isLimited(seeAlso.id).toString(),
+        limited: rateLimitRegistry.isLimited(seeAlso.id!).toString(),
       });
       throw err;
     }
     return (
       parseOcr(markup, {
-        width: Math.floor(scaleFactor * canvas.getWidth()),
-        height: Math.floor(scaleFactor * canvas.getHeight()),
+        width: Math.floor(scaleFactor * canvas.width),
+        height: Math.floor(scaleFactor * canvas.height),
       }) ?? undefined
     );
   }

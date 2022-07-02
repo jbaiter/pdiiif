@@ -4,9 +4,11 @@ import range from 'lodash/range';
 import acceptLanguageParser from 'accept-language-parser';
 import cors from 'cors';
 import promBundle from 'express-prom-bundle';
-import { Manifest, PropertyValue } from 'manifesto.js';
 import * as Sentry from '@sentry/node';
 import * as Tracing from '@sentry/tracing';
+import { AnnotationNormalized, AnnotationPageNormalized, CanvasNormalized, ContentResource, ManifestNormalized } from '@iiif/presentation-3';
+import { globalVault, Vault } from '@iiif/vault';
+import { buildLocaleString } from '@iiif/vault-helpers';
 
 import {
   middleware as openApiMiddleware,
@@ -20,6 +22,8 @@ import { CoverPageGenerator, CoverPageParams } from './coverpage';
 import { RateLimiter } from './limit';
 import { maxBy } from 'lodash';
 import { GeneratorQueue } from './queue';
+
+const vault: Vault = globalVault();
 
 async function validateManifest(res: Response, manifestUrl: any): Promise<any> {
   const badManifestUrl =
@@ -68,7 +72,7 @@ async function validateManifest(res: Response, manifestUrl: any): Promise<any> {
   return manifestJson;
 }
 
-function buildCanvasFilter(manifestJson: any, indexSpec: string): string[] {
+function buildCanvasFilter(manifest: ManifestNormalized, indexSpec: string): string[] {
   const canvasIdxs = new Set(
     indexSpec
       .split(',')
@@ -85,8 +89,8 @@ function buildCanvasFilter(manifestJson: any, indexSpec: string): string[] {
         return idxs;
       }, [])
   );
-  return (manifestJson.items ?? manifestJson.sequences?.[0]?.canvases)
-    .map((c) => (c.id ?? c['@id']) as string)
+  return manifest.items
+    .map((c) => c.id)
     .filter((_, idx) => canvasIdxs.has(idx));
 }
 
@@ -211,6 +215,10 @@ app.get(
     if (!manifestJson) {
       return;
     }
+    const manifest = await vault.loadManifest(
+      manifestJson.id ?? manifestJson['@id'],
+      manifestJson
+    );
 
     // Get client's locale preferences
     let languagePreference: string[] = [];
@@ -222,10 +230,14 @@ app.get(
       languagePreference = acceptLanguageParser
         .parse(req.header('accept-language')[0])
         .map((l) => (l.region ? `${l.code}-${l.region}` : l.code));
+    } else {
+      languagePreference = ['none']
     }
-    const cleanLabel = PropertyValue.parse(manifestJson.label)
-      .getValue(languagePreference)
-      ?.substring(0, 200); // Limit file name length
+    const cleanLabel = buildLocaleString(
+      manifest.label,
+      languagePreference[0],
+      { closest: true, fallbackLanguages: languagePreference.slice(1) }
+    )?.substring(0, 200); // Limit file name length
 
     res.writeHead(200, {
       'Content-Type': 'application/pdf',
@@ -236,15 +248,17 @@ app.get(
     // Get optional canvas identifiers to filter by
     let canvasIds: string[] | undefined;
     if (canvasNos && typeof canvasNos === 'string') {
-      canvasIds = buildCanvasFilter(manifestJson, canvasNos);
+      canvasIds = buildCanvasFilter(manifest, canvasNos);
     }
 
     // Get the primary image api host for queueing later on
-    const parsedManifest = new Manifest(manifestJson);
-    const imageHosts: { [hostname: string]: number } = parsedManifest
-      .getSequences()[0]
-      .getCanvases()
-      .map((c) => new URL(c.getImages()[0].getResource().id).hostname)
+    const imageHosts: { [hostname: string]: number } = vault.get<CanvasNormalized>(manifest.items)
+      .flatMap(c => vault.get<AnnotationPageNormalized>(c.items))
+      .flatMap(ap => vault.get<AnnotationNormalized>(ap.items))
+      .flatMap(a => vault.get<ContentResource>(a.body))
+      // We'll just assume that the identifier of the content resource
+      // has the same hostname as the IIIF service
+      .map(r => new URL(r.id).hostname)
       .reduce((counts, hostname) => {
         counts[hostname] = (counts[hostname] ?? 0) + 1;
         return counts;
@@ -294,7 +308,7 @@ app.get(
 
     const convertPromise = globalConvertQueue.add(
       () =>
-        convertManifest(manifestJson, res, {
+        convertManifest(manifest, res, {
           languagePreference,
           filterCanvases: canvasIds,
           scaleFactor:

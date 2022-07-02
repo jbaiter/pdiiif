@@ -181,7 +181,7 @@ export class NodeWriter implements Writer {
         waiter();
       }
       this._drainWaiters = [];
-    })
+    });
   }
 
   async write(buffer: string | Uint8Array): Promise<void> {

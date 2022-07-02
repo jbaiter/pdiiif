@@ -1,4 +1,4 @@
-FROM node:16-slim
+FROM node:16.15-bullseye-slim
 
 # Install latest chrome dev package and fonts to support major charsets (Chinese, Japanese, Arabic, Hebrew, Thai and a few others)
 # Note: this installs the necessary libs to make the bundled version of Chromium that Puppeteer
@@ -50,6 +50,8 @@ ENV CFG_PORT 8080
 ENV CFG_HOST 0.0.0.0
 
 EXPOSE ${CFG_PORT}
+EXPOSE ${CFG_SENTRY_DSN}
+EXPOSE ${PDIIIF_SENTRY_DSN}
 
 WORKDIR /opt/pdiiif/pdiiif-api
 CMD ["node", "dist/server.js"]

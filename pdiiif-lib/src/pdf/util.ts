@@ -7,7 +7,7 @@ import { PdfDictionary } from './common';
 // Browsers have native encoders/decoders in the global namespace, use these
 export let textEncoder: TextEncoder | util.TextEncoder;
 export let textDecoder: TextDecoder | util.TextDecoder;
-if (typeof window !== 'undefined') {
+if (typeof window !== 'undefined' && window.TextEncoder && window.TextDecoder) {
   textEncoder = new window.TextEncoder();
   textDecoder = new window.TextDecoder();
 } else {

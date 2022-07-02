@@ -12,7 +12,7 @@
     "target": "es2015",
     "resolveJsonModule": true,
     "esModuleInterop": true,
-    "lib": ["ES2019", "DOM.Iterable"]
+    "lib": ["ES2019", "DOM", "DOM.Iterable"]
   },
   "include": [
     "src/**/*.ts",

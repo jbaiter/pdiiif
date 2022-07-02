@@ -5,6 +5,7 @@
   import { without } from 'lodash';
   import classNames from 'classnames';
   import { convertManifest, estimatePdfSize, ProgressStatus } from 'pdiiif';
+  import { getValue } from '@iiif/vault-helpers';
 
   import type { ManifestInfo } from './iiif';
   import { fetchManifestInfo } from './iiif';
@@ -57,7 +58,7 @@
 
   $: if (manifestInfo?.imageApiHasCors) {
     estimatePromise = estimatePdfSize({
-      manifestJson: manifestInfo.manifestJson,
+      manifest: manifestInfo.manifest,
       concurrency: 4,
       scaleFactor,
       numSamples: 8,
@@ -196,8 +197,7 @@
     }
     const manifestJson = await manifestResp.json();
 
-    // TODO: make i18n-safe!
-    let cleanLabel = manifestJson.label.substring(0, 200); // Limit file name length
+    let cleanLabel = getValue(manifestInfo.label).substring(0, 200); // Limit file name length
     if (cleanLabel.endsWith('.')) {
       // Prevent duplicate period characters in filename
       cleanLabel = cleanLabel.substring(0, cleanLabel.length - 1);

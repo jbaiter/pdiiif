@@ -61,7 +61,7 @@ class WinstonLogger implements Logger {
 const logger = createLogger(
   process.env.CFG_LOG_LEVEL ?? process.env.NODE_ENV === 'production'
     ? 'warn'
-    : 'info',
+    : 'debug',
   process.env.CFG_LOG_TOFILES !== 'false'
 );
 

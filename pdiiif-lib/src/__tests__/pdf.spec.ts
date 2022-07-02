@@ -49,12 +49,29 @@ describe('PDF generation', () => {
     const metadata = {
       Title: 'Täst Tütle',
     };
-    const pdfgen = new PDFGenerator(writer, metadata, 1, ['Tüst Läbel']);
+    const pdfgen = new PDFGenerator(
+      writer,
+      metadata,
+      [{ canvasIdx: 0, numImages: 1 }],
+      ['Tüst Läbel']
+    );
     await pdfgen.setup();
     const imgBuf = await fs.promises.readFile(
       path.resolve(__dirname, './fixtures/wunder.jpg')
     );
-    await pdfgen.renderPage({ width: 290, height: 400 }, imgBuf, undefined, 72);
+    await pdfgen.renderPage(
+      { width: 290, height: 400 },
+      [
+        {
+          dimensions: { width: 290, height: 400 },
+          location: { x: 0, y: 0 },
+          data: imgBuf,
+          numBytes: imgBuf.length,
+        },
+      ],
+      undefined,
+      72
+    );
     await pdfgen.end();
 
     const pdfData = await fs.promises.readFile(pdfPath);
@@ -66,11 +83,6 @@ describe('PDF generation', () => {
       width: 290,
       height: 400,
     });
-    console.log(
-      `'${parsed.getTitle()}' (${parsed.getTitle()?.length}) ↔ 'Täst Tütle' (${
-        'Täst Tütle'.length
-      })`
-    );
     expect(parsed.getTitle()).toEqual('Täst Tütle');
     fs.unlinkSync(pdfPath);
   });

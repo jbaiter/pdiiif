@@ -3,6 +3,7 @@
   "include": ["src/**/*"],
   "exclude": ["node_modules/*", "dist"],
   "compilerOptions": {
+    "lib": ["ES2019"],
     "module": "esnext",
     "moduleResolution": "node",
     "esModuleInterop": true,

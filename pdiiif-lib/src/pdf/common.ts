@@ -27,7 +27,14 @@ export class PdfRef {
     this.refObj = num;
   }
 }
-export type PdfPrimitive = string | number | boolean | Uint8Array | null | Date | PdfRef;
+export type PdfPrimitive =
+  | string
+  | number
+  | boolean
+  | Uint8Array
+  | null
+  | Date
+  | PdfRef;
 export interface PdfDictionary {
   [member: string]: PdfPrimitive | PdfArray | PdfDictionary;
 }
@@ -35,25 +42,29 @@ export type PdfArray = Array<PdfPrimitive | PdfArray | PdfDictionary>;
 export type PdfValue = PdfPrimitive | PdfDictionary | PdfArray | null;
 
 export interface PdfAnnotation {
-  Type: 'Annot',
-  Subtype: string,
-  Rect: [number, number, number, number],
-  Contents: string | undefined,
-  P?: PdfRef,
-  NM?: string,
-  M?: Date,
-  F?: number,
-  AP?: PdfDictionary,
-  AS?: string,
-  Border?: [number, number, number] | [number, number, number, number],
-  C?: [] | [number] | [number, number, number] | [number, number, number, number],
+  Type: 'Annot';
+  Subtype: string;
+  Rect: [number, number, number, number];
+  Contents: string | undefined;
+  P?: PdfRef;
+  NM?: string;
+  M?: Date;
+  F?: number;
+  AP?: PdfDictionary;
+  AS?: string;
+  Border?: [number, number, number] | [number, number, number, number];
+  C?:
+    | []
+    | [number]
+    | [number, number, number]
+    | [number, number, number, number];
 }
 
 export interface StructTreeEntry {
-  type: 'Sect' | 'P' | 'Span',
-  children: Array<StructTreeEntry>,  // Only for `Sect` and `P` entries
-  pageObjNum: number,
-  mcs: Array<number>  // Only for `Span` entries
+  type: 'Sect' | 'P' | 'Span';
+  children: Array<StructTreeEntry>; // Only for `Sect` and `P` entries
+  pageObjNum: number;
+  mcs: Array<number>; // Only for `Span` entries
 }
 
 export function makeRef(target: number | PdfObject): PdfRef {
@@ -103,8 +114,12 @@ function safeNumber(num: number): number {
 
 export function serialize(value: PdfValue, dictIndent = 0): string {
   if (typeof value === 'string') {
-    if (value[0] === '(' && value[value.length - 1] === ')' && isUnicode(value)) {
-      return serialize(toUTF16BE(value.substring(1,  value.length - 1)));
+    if (
+      value[0] === '(' &&
+      value[value.length - 1] === ')' &&
+      isUnicode(value)
+    ) {
+      return serialize(toUTF16BE(value.substring(1, value.length - 1)));
     }
     return value;
   } else if (value instanceof Uint8Array) {
@@ -129,7 +144,10 @@ export function serialize(value: PdfValue, dictIndent = 0): string {
     const outsideIndent = ' '.repeat(PDF_INDENTATION * dictIndent);
     const insideIndent = outsideIndent + ' '.repeat(PDF_INDENTATION);
     return `<<\n${Object.entries(value as any)
-      .map(([k, v]) => `${insideIndent}/${k} ${serialize(v as any, dictIndent + 1)}`)
+      .map(
+        ([k, v]) =>
+          `${insideIndent}/${k} ${serialize(v as any, dictIndent + 1)}`
+      )
       .join('\n')}\n${outsideIndent}>>`;
   } else if (typeof value === 'number') {
     return safeNumber(value).toString(10);

@@ -254,11 +254,9 @@ export const licenses: LicenseList = {
 };
 
 export function getLicenseInfo(uri: string): LicenseDescription | null {
-  uri = uri
-    .replace(/^https:/, 'http:')
-    .replace(/\/deed\.[a-z]{2}$/, '');
+  uri = uri.replace(/^https:/, 'http:').replace(/\/deed\.[a-z]{2}$/, '');
   if (!uri.endsWith('/')) {
-    uri += '/'
+    uri += '/';
   }
   return licenses[uri];
 }
