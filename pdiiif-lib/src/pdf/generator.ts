@@ -452,6 +452,7 @@ export default class PDFGenerator {
         (pageDict.Kids as PdfArray).push(makeRef(next));
         next += numImages + 2;
       }
+      this._firstPageObjectNum = this._nextObjNo;
       this._objects
         // Get ToC entry object, the first destination will be the canvas index
         .filter((obj) => (obj.data as PdfDictionary)?.Dest !== undefined)
@@ -464,7 +465,6 @@ export default class PDFGenerator {
         });
 
       this._pagesStarted = true;
-      this._firstPageObjectNum = this._nextObjNo;
     }
     // Factor to multiply pixels by to get equivalent PDF units (72 pdf units === 1 inch)
     const unitScale = 72 / ppi;

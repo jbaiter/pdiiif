@@ -58,7 +58,7 @@
 
   $: if (manifestInfo?.imageApiHasCors) {
     estimatePromise = estimatePdfSize({
-      manifest: manifestInfo.manifest,
+      manifest: manifestInfo.manifest.id,
       concurrency: 4,
       scaleFactor,
       numSamples: 8,

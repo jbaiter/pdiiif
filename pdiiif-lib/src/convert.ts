@@ -129,7 +129,7 @@ export interface ConvertOptions {
 /** Parameters for size estimation */
 export interface EstimationParams {
   /** The manifest to determine the PDF size for */
-  manifest: Manifest | ManifestNormalized | ManifestV2;
+  manifest: string | Manifest | ManifestV2;
   /** Restrict the image size to include in the PDF by downscaling by a fixed factor.
    * The value must be a number between 0.1 and 1.
    * Only works with Level 2 Image API services that allow arbitrary downscaling, the
@@ -157,9 +157,14 @@ export async function estimatePdfSize({
   filterCanvases = () => true,
   numSamples = 8,
 }: EstimationParams): Promise<number> {
-  const manifestId =
-    (inputManifest as Manifest).id ?? (inputManifest as ManifestV2)['@id'];
-  const manifest = await vault.loadManifest(manifestId, inputManifest);
+  let manifestId;
+  if (typeof inputManifest === 'string') {
+    manifestId = inputManifest;
+  } else {
+    manifestId =
+      (inputManifest as Manifest).id ?? (inputManifest as ManifestV2)['@id'];
+  }
+  const manifest = await vault.loadManifest(manifestId);
   if (!manifest) {
     throw new Error(`Failed to load manifest from ${manifestId}`);
   }
@@ -234,7 +239,7 @@ async function buildOutlineFromRanges(
     const rangeLabel = getI18nValue(
       range.label ?? '<untitled>',
       languagePreference,
-      ';'
+      '; '
     );
     if (rangeLabel.length === 0) {
       return;
@@ -347,7 +352,7 @@ async function getCoverPagePdf(
     title: getI18nValue(
       manifest.label ?? '<untitled>',
       languagePreference,
-      ';'
+      '; '
     ),
     manifestUrl: manifest.id,
     pdiiifVersion,
@@ -371,7 +376,7 @@ async function getCoverPagePdf(
   const required = manifest.requiredStatement;
   if (provider) {
     params.provider = {
-      label: getI18nValue(provider.label, languagePreference, ';'),
+      label: getI18nValue(provider.label, languagePreference, '; '),
       homepage: provider.homepage?.[0].id,
       logo: provider.logo?.[0].id,
     };
@@ -382,8 +387,8 @@ async function getCoverPagePdf(
   }
   if (required != null && required.label) {
     params.requiredStatement = {
-      label: getI18nValue(required.label, languagePreference, ';'),
-      value: getI18nValue(required.value, languagePreference, ';'),
+      label: getI18nValue(required.label, languagePreference, '; '),
+      value: getI18nValue(required.value, languagePreference, '; '),
     };
   }
   const license = manifest.rights;
@@ -398,7 +403,7 @@ async function getCoverPagePdf(
   params.metadata =
     manifest.metadata
       ?.map((itm) => {
-        const label = getI18nValue(itm.label, languagePreference, ';');
+        const label = getI18nValue(itm.label, languagePreference, '; ');
         const values = getI18nValue(itm.value, languagePreference, '|||').split(
           '|||'
         );
@@ -428,19 +433,19 @@ async function getCoverPagePdf(
 }
 
 export async function convertManifest(
-  manifestJson: Manifest | ManifestNormalized | ManifestV2,
+  inputManifest: string | Manifest | ManifestV2,
   outputStream: Writable | WritableStream,
   options: ConvertOptions
 ): Promise<void>;
 export async function convertManifest(
-  manifestJson: Manifest | ManifestNormalized | ManifestV2,
+  inputManifest: string | Manifest | ManifestV2,
   outputStream: undefined,
   options: ConvertOptions
 ): Promise<Blob>;
 /** Convert a IIIF manifest to a PDF,  */
 export async function convertManifest(
   /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
-  manifestJson: Manifest | ManifestNormalized | ManifestV2,
+  inputManifest: string | Manifest | ManifestV2,
   outputStream: Writable | WritableStream | undefined,
   {
     filterCanvases = () => true,
@@ -483,8 +488,15 @@ export async function convertManifest(
     canvasPredicate = filterCanvases as (id: string) => boolean;
   }
 
-  const manifestId =
-    (manifestJson as any)['@id'] ?? (manifestJson as Manifest).id;
+  let manifestId: string;
+  let manifestJson: Manifest | ManifestV2 | undefined;
+  if (typeof inputManifest === 'string') {
+    manifestId = inputManifest;
+  } else {
+    manifestId =
+      (inputManifest as ManifestV2)['@id'] ?? (inputManifest as Manifest).id;
+    manifestJson = inputManifest;
+  }
   const manifest = await vault.loadManifest(manifestId, manifestJson);
   if (!manifest) {
     throw new Error(`Failed to load manifest from ${manifestId}`);
@@ -495,7 +507,7 @@ export async function convertManifest(
     pdfMetadata.Title = getI18nValue(
       manifest.label,
       languagePreference as string[],
-      ';'
+      '; '
     );
   }
 
@@ -504,7 +516,7 @@ export async function convertManifest(
   );
   const hasText = !!canvases.find((c) => !!getTextSeeAlso(c));
   const labels = canvases.map((canvas) =>
-    canvas.label ? getI18nValue(canvas.label, languagePreference, ';') : ''
+    canvas.label ? getI18nValue(canvas.label, languagePreference, '; ') : ''
   );
 
   // Fetch images concurrently, within limits specified by user
