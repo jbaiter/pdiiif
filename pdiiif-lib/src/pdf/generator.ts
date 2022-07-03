@@ -160,7 +160,7 @@ export default class PDFGenerator {
     }
 
     if (this._outline.length > 0) {
-      catalog.PageMode = 'UseOutlines';
+      catalog.PageMode = '/UseOutlines';
       const outlines: PdfDictionary = {
         Type: '/Outlines',
         Count: 0,
@@ -178,6 +178,8 @@ export default class PDFGenerator {
         }
         prev = childObj;
       }
+    } else {
+      catalog.PageMode = '/UseThumbs';
     }
     if (this._hasText) {
       await this._setupHiddenTextFont();
