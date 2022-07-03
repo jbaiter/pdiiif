@@ -233,24 +233,23 @@ async function buildOutlineFromRanges(
     const firstCanvas = orderBy(range.items.filter(isCanvas), (c) =>
       canvasIds.indexOf(c.id)
     )[0];
-    if (!firstCanvas) {
-      return;
-    }
     const rangeLabel = getI18nValue(
       range.label ?? '<untitled>',
       languagePreference,
       '; '
     );
-    if (rangeLabel.length === 0) {
-      return;
-    }
     const childRanges = vault.get<RangeNormalized>(range.items.filter(isRange));
+    const children = childRanges.map(handleTocRange).filter(isDefined<TocItem>);
+    let startCanvasIdx;
+    if (firstCanvas) {
+      startCanvasIdx = canvasIds.indexOf(firstCanvas.id)
+    } else {
+      startCanvasIdx = children[0].startCanvasIdx;
+    }
     return {
       label: rangeLabel,
-      startCanvasIdx: canvasIds.indexOf(firstCanvas.id),
-      children: childRanges
-        .map(handleTocRange)
-        .filter((t): t is TocItem => t !== undefined),
+      startCanvasIdx,
+      children
     };
   };
 
@@ -258,7 +257,7 @@ async function buildOutlineFromRanges(
     vault
       .get<RangeNormalized>(manifest.structures)
       .map(handleTocRange)
-      .filter((t): t is TocItem => t !== undefined) ?? []
+      .filter(isDefined<TocItem>) ?? []
   );
 }
 

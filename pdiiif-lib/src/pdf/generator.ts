@@ -284,7 +284,7 @@ export default class PDFGenerator {
       // NOTE: The first entry is a number only during setup and will later be
       //       replaced with a reference to the actual page object, once we know
       //       how many objects are preceding the page objects.
-      Dest: [itm.startCanvasIdx, '/Fit'],
+      Dest: [itm.startCanvasIdx!, '/Fit'],
     };
     const obj = this._addObject(rec);
     if (prev) {
@@ -302,6 +302,7 @@ export default class PDFGenerator {
           rec.Last = makeRef(childObj);
         }
         rec.Count = rec.Count + 1 + numChildren;
+        prev = childObj;
       }
     }
     return [obj, (rec.Count as number) ?? 0];

@@ -24,7 +24,7 @@ export const IS_BIG_ENDIAN = (() => {
 export interface TocItem {
   label: string;
   children?: Array<TocItem>;
-  startCanvasIdx: number;
+  startCanvasIdx?: number;
 }
 
 export function getNumChildren(itm: TocItem): number {

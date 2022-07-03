@@ -1,6 +1,6 @@
 import express, { Response } from 'express';
 import fetch from 'node-fetch';
-import range from 'lodash/range';
+import { range, maxBy } from 'lodash';
 import acceptLanguageParser from 'accept-language-parser';
 import cors from 'cors';
 import promBundle from 'express-prom-bundle';
@@ -20,7 +20,6 @@ import { convertManifest, ProgressStatus } from 'pdiiif';
 import log from './logger';
 import { CoverPageGenerator, CoverPageParams } from './coverpage';
 import { RateLimiter } from './limit';
-import { maxBy } from 'lodash';
 import { GeneratorQueue } from './queue';
 
 const vault: Vault = globalVault();
@@ -308,7 +307,7 @@ app.get(
 
     const convertPromise = globalConvertQueue.add(
       () =>
-        convertManifest(manifest, res, {
+        convertManifest(manifest.id, res, {
           languagePreference,
           filterCanvases: canvasIds,
           scaleFactor:
