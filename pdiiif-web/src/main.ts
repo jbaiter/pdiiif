@@ -5,6 +5,7 @@ import { Integrations } from "@sentry/tracing";
 import App from './App.svelte';
 import de from '../locales/de.json';
 import en from '../locales/en.json';
+import { setLogger, ConsoleLogger } from 'pdiiif';
 
 interface Options {
   apiEndpoint: string;
@@ -15,6 +16,7 @@ export function render(
   target: HTMLElement,
   { apiEndpoint, coverPageEndpoint }: Options
 ): App {
+  setLogger(new ConsoleLogger(import.meta.env.DEV ? 'debug' : 'warn'))
   addMessages('de', de);
   addMessages('en', en);
   init({

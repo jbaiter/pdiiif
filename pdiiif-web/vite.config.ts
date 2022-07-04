@@ -3,6 +3,7 @@ import { svelte } from '@sveltejs/vite-plugin-svelte';
 import sveltePreprocess from 'svelte-preprocess';
 import tailwind from 'tailwindcss';
 import autoprefixer from 'autoprefixer'
+import mkcert from 'vite-plugin-mkcert';
 
 export default defineConfig(({ command, mode }) => {
   const postssConfig = {
@@ -10,6 +11,7 @@ export default defineConfig(({ command, mode }) => {
   };
   return {
     assetsInclude: ['assets/**'],
+    server: { https: true },
     plugins: [
       svelte({
         preprocess: [
@@ -21,7 +23,8 @@ export default defineConfig(({ command, mode }) => {
         experimental: {
           prebundleSvelteLibraries: true,
         },
-      })
+      }),
+      mkcert(),
     ],
     css: {
       postcss: postssConfig,

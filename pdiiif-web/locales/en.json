@@ -35,5 +35,6 @@
     },
     "estimated_pdf_size": "Estimated PDF size",
     "queue_position": "Queue position: {pos}",
-    "number_of_pages": "pages"
+    "number_of_pages": "pages",
+    "unload_warning": "Leaving this page will terminate the current download. Are you sure you want to close this page?"
 }

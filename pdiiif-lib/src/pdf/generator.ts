@@ -872,7 +872,7 @@ export default class PDFGenerator {
     };
     await this._write(`\ntrailer\n${serialize(trailerDict)}`);
     await this._write(`\nstartxref\n${xrefOffset}\n%%EOF`);
-    await this._writer.waitForDrain;
+    await this._writer.waitForDrain();
     await this._writer.close();
     this._writer = undefined;
   }

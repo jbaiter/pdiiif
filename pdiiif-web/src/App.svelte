@@ -6,6 +6,7 @@
   import classNames from 'classnames';
   import { convertManifest, estimatePdfSize, ProgressStatus } from 'pdiiif';
   import { getValue } from '@iiif/vault-helpers';
+  import streamSaver from 'streamsaver';
 
   import type { ManifestInfo } from './iiif';
   import { fetchManifestInfo } from './iiif';
@@ -18,11 +19,15 @@
   import logoSvgUrl from '../assets/logo.svg';
   import ErrorIcon from './icons/Exclamation.svelte';
   import ProgressBar from './icons/ProgressBar.svelte';
-  import { getMaximumBlobSize } from './util';
+  import { getMaximumBlobSize, supportsStreamsaver } from './util';
 
   export let apiEndpoint: string = 'http://localhost:31337/api';
   export let coverPageEndpoint: string = `${apiEndpoint}/coverpage`;
   export let onError: ((err: ErrorIcon) => void) | undefined = undefined;
+
+  // We use a self-hosted MITM page for the streamsaver service worker
+  // to avoid GDPR issues.
+  streamSaver.mitm = `${location.href.replace(/\/$/, '')}/streamsaver-mitm.html`;
 
   const supportsFilesystemAPI = typeof window.showSaveFilePicker === 'function';
   let isFirstVisit = window.localStorage.getItem('firstVisit') === null;
@@ -85,7 +90,7 @@
       onValidManifestUrl();
     }
   } else {
-    resetState()
+    resetState();
   }
 
   // Show notification if file system api is available
@@ -145,7 +150,6 @@
           tags: ['validation'],
         });
       });
-
   }
 
   /** Show a new notification, making sure no more than 5 are ever shown. */
@@ -225,6 +229,17 @@
         });
       }
       webWritable = await handle.createWritable();
+    } else if (supportsStreamsaver()) {
+      webWritable = streamSaver.createWriteStream(`${cleanLabel}.pdf`);
+      window.addEventListener('beforeunload', (evt) => {
+        if (currentProgress && !cancelled && !pdfFinished) {
+          evt.preventDefault();
+          evt.returnValue = $_('unload_warning');
+        }
+      });
+      window.addEventListener('unload', () => {
+        webWritable?.abort();
+      }, { once: true });
     }
     abortController.signal.addEventListener(
       'abort',
@@ -348,7 +363,7 @@
     let generateOnClient: boolean;
     if (!manifestInfo.imageApiHasCors) {
       generateOnClient = false;
-    } else if (supportsFilesystemAPI) {
+    } else if (supportsFilesystemAPI || supportsStreamsaver()) {
       generateOnClient = true;
     } else {
       const sizeEstimate = await estimatePromise;

@@ -35,5 +35,6 @@
     },
     "estimated_pdf_size": "Geschätzte Dateigröße",
     "queue_position": "Warteschlagenposition: {pos}",
-    "number_of_pages": "Seiten"
+    "number_of_pages": "Seiten",
+    "unload_warning": "Das Schließen der Seite wird den momentanen Download beenden. Sind Sie sicher dass Sie die Seite schließen möchten?"
 }

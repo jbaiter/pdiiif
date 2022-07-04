@@ -25,3 +25,16 @@ export function getMaximumBlobSize(): number {
     return ((navigator as any).deviceMemory || 1) * GIB;
   }
 }
+
+export function supportsStreamsaver(): boolean {
+  try {
+    // Streamsaver needs ReadableStream and service worker support
+    new Response(new ReadableStream())
+    if (isSecureContext && !('serviceWorker' in navigator)) {
+      return false;
+    }
+  } catch (err) {
+    return false;
+  }
+  return true;
+}

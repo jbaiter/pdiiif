@@ -9,7 +9,7 @@ export interface Logger {
 }
 
 /** Simple logger that ismply outputs to the console */
-class ConsoleLogger implements Logger {
+export class ConsoleLogger implements Logger {
   private level: LogLevel;
   constructor(level: LogLevel = 'warn') {
     this.level = level;
