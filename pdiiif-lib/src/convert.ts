@@ -229,7 +229,11 @@ async function buildOutlineFromRanges(
   const isRange = (ri: RangeItems): ri is Reference<'Range'> =>
     typeof ri !== 'string' && ri.type == 'Range';
 
+  const seenRanges: Set<String> = new Set();
   const handleTocRange = (range: RangeNormalized): TocItem | undefined => {
+    if (seenRanges.has(range.id)) {
+      return;
+    }
     const firstCanvas = orderBy(range.items.filter(isCanvas), (c) =>
       canvasIds.indexOf(c.id)
     )[0];
@@ -246,6 +250,7 @@ async function buildOutlineFromRanges(
     } else {
       startCanvasIdx = children[0].startCanvasIdx;
     }
+    seenRanges.add(range.id);
     return {
       label: rangeLabel,
       startCanvasIdx,
