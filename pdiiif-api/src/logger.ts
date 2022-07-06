@@ -1,4 +1,4 @@
-import { omit } from 'lodash-es';
+import { omit } from 'lodash';
 import winston from 'winston';
 import { Logger, setLogger } from 'pdiiif';
 

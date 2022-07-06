@@ -15,7 +15,7 @@ importers:
       '@types/cors': ^2.8.12
       '@types/express': ^4.17.13
       '@types/jsbn': ^1.2.29
-      '@types/lodash-es': ^4.17.6
+      '@types/lodash': ^4.14.182
       '@types/node': ^16.6.1
       '@types/node-fetch': ^2.5.12
       '@types/qrcode-svg': ^1.1.1
@@ -31,7 +31,7 @@ importers:
       express-prom-bundle: ^6.4.1
       handlebars: ^4.7.7
       ip-cidr: ^3.0.4
-      lodash-es: ^4.17.21
+      lodash: ^4.17.21
       manifesto.js: ^4.2.4
       mnemonist: ^0.39.0
       node-fetch: ^2.6.1
@@ -63,7 +63,7 @@ importers:
       express-prom-bundle: 6.5.0_prom-client@14.0.1
       handlebars: 4.7.7
       ip-cidr: 3.0.10
-      lodash-es: 4.17.21
+      lodash: 4.17.21
       manifesto.js: 4.2.14
       mnemonist: 0.39.2
       node-fetch: 2.6.7
@@ -80,7 +80,7 @@ importers:
       '@types/cors': 2.8.12
       '@types/express': 4.17.13
       '@types/jsbn': 1.2.30
-      '@types/lodash-es': 4.17.6
+      '@types/lodash': 4.14.182
       '@types/node': 16.11.43
       '@types/node-fetch': 2.6.2
       '@types/qrcode-svg': 1.1.1
@@ -399,12 +399,6 @@ packages:
 
   /@types/json-schema/7.0.11:
     resolution: {integrity: sha512-wOuvG1SN4Us4rez+tylwwwCV1psiNVOkJeM3AUWUNWg/jDQY2+HE/444y5gc+jBmRqASOm2Oeh5c1axHobwRKQ==}
-
-  /@types/lodash-es/4.17.6:
-    resolution: {integrity: sha512-R+zTeVUKDdfoRxpAryaQNRKk3105Rrgx2CFRClIgRGaqDTdjsm8h6IYA8ir584W3ePzkZfst5xIgDwYrlh9HLg==}
-    dependencies:
-      '@types/lodash': 4.14.182
-    dev: true
 
   /@types/lodash/4.14.182:
     resolution: {integrity: sha512-/THyiqyQAP9AfARo4pF+aCGcyiQ94tX/Is2I7HofNRqoYLgN1PBoOWu2/zTA5zMxzP5EFutMtWtGAFRKUe961Q==}
@@ -2134,10 +2128,6 @@ packages:
     engines: {node: '>=8'}
     dependencies:
       p-locate: 4.1.0
-    dev: false
-
-  /lodash-es/4.17.21:
-    resolution: {integrity: sha512-mKnC+QJ9pWVzv+C4/U3rRsHapFfHvQFoFB92e52xeyGMcX6/OlIl78je1u8vePzYZSkkogMPJ2yjxxsb89cxyw==}
     dev: false
 
   /lodash.get/4.4.2:

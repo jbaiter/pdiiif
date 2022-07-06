@@ -7,7 +7,7 @@ import puppeteer from 'puppeteer';
 import Handlebars from 'handlebars';
 import QRCode from 'qrcode-svg';
 import sanitizeHtml from 'sanitize-html';
-import { sortBy } from 'lodash-es';
+import { sortBy } from 'lodash';
 
 import { version as serverVersion } from 'pdiiif';
 import metrics from './metrics';
