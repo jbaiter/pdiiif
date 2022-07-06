@@ -628,7 +628,6 @@ export function getTextSeeAlso(
 export async function fetchAndParseText(
   canvas: CanvasNormalized,
   annotations?: AnnotationNormalized[],
-  scaleFactor = 1
 ): Promise<OcrPage | undefined> {
   // TODO: Annotations are a major PITA due to all the indirection and multiple
   //       levels of fetching of external resources that might be neccessary,
@@ -654,8 +653,8 @@ export async function fetchAndParseText(
     }
     return (
       parseOcr(markup, {
-        width: Math.floor(scaleFactor * canvas.width),
-        height: Math.floor(scaleFactor * canvas.height),
+        width: canvas.width,
+        height: canvas.height,
       }) ?? undefined
     );
   }
