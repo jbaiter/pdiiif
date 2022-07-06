@@ -1,4 +1,6 @@
-import express, { Response } from 'express';
+import fs from 'fs';
+import https from 'https';
+import express, { Express, Response } from 'express';
 import fetch from 'node-fetch';
 import { range, maxBy } from 'lodash';
 import acceptLanguageParser from 'accept-language-parser';
@@ -6,7 +8,13 @@ import cors from 'cors';
 import promBundle from 'express-prom-bundle';
 import * as Sentry from '@sentry/node';
 import * as Tracing from '@sentry/tracing';
-import { AnnotationNormalized, AnnotationPageNormalized, CanvasNormalized, ContentResource, ManifestNormalized } from '@iiif/presentation-3';
+import {
+  AnnotationNormalized,
+  AnnotationPageNormalized,
+  CanvasNormalized,
+  ContentResource,
+  ManifestNormalized,
+} from '@iiif/presentation-3';
 import { globalVault, Vault } from '@iiif/vault';
 import { buildLocaleString } from '@iiif/vault-helpers';
 
@@ -71,17 +79,18 @@ async function validateManifest(res: Response, manifestUrl: any): Promise<any> {
   return manifestJson;
 }
 
-function buildCanvasFilter(manifest: ManifestNormalized, indexSpec: string): string[] {
+function buildCanvasFilter(
+  manifest: ManifestNormalized,
+  indexSpec: string
+): string[] {
   const canvasIdxs = new Set(
     indexSpec
       .split(',')
       .filter((g) => g.length > 0)
-      .reduce((idxs, grp) => {
+      .reduce((idxs: number[], grp: string) => {
         if (grp.indexOf('-') > 0) {
           const parts = grp.split('-');
-          idxs.concat(
-            range(Number.parseInt(parts[0]), Number.parseInt(parts[1]))
-          );
+          idxs = idxs.concat(range(Number.parseInt(parts[0]), Number.parseInt(parts[1])));
         } else {
           idxs.push(Number.parseInt(grp));
         }
@@ -119,7 +128,7 @@ const progressClients: { [token: string]: Response } = {};
 // Controls concurrent fetching from Image API hosts to prevent accidental DoS
 const globalConvertQueue = new GeneratorQueue(2);
 
-const app = express();
+const app: Express = express();
 app.use(express.static('node_modules/pdiiif-web/dist'));
 app.use(openApiMiddleware);
 app.use(
@@ -194,6 +203,9 @@ app.get(
   '/api/generate-pdf',
   pdfPathSpec,
   async (req, res) => {
+    if (!res.socket) {
+      return;
+    }
     const shouldThrottle = rateLimiter.throttle(req.ip, 'pdf', res);
     if (shouldThrottle) {
       return;
@@ -219,18 +231,24 @@ app.get(
       manifestJson
     );
 
+    if (!manifest) {
+      res.status(500).send();
+      return;
+    }
+
     // Get client's locale preferences
     let languagePreference: string[] = [];
+    const acceptLangHeader = req.header('accept-language');
     if (locale && typeof locale === 'string') {
       // Explicit locale override from user
       languagePreference = [locale];
-    } else if (req.header('accept-language')) {
+    } else if (acceptLangHeader) {
       // Accept-Language header
       languagePreference = acceptLanguageParser
-        .parse(req.header('accept-language')[0])
+        .parse(acceptLangHeader)
         .map((l) => (l.region ? `${l.code}-${l.region}` : l.code));
     } else {
-      languagePreference = ['none']
+      languagePreference = ['none'];
     }
     const cleanLabel = buildLocaleString(
       manifest.label,
@@ -251,24 +269,31 @@ app.get(
     }
 
     // Get the primary image api host for queueing later on
-    const imageHosts: { [hostname: string]: number } = vault.get<CanvasNormalized>(manifest.items)
-      .flatMap(c => vault.get<AnnotationPageNormalized>(c.items))
-      .flatMap(ap => vault.get<AnnotationNormalized>(ap.items))
-      .flatMap(a => vault.get<ContentResource>(a.body))
+    const imageHosts: { [hostname: string]: number } = vault
+      .get<CanvasNormalized>(manifest.items)
+      .flatMap((c) => vault.get<AnnotationPageNormalized>(c.items))
+      .flatMap((ap) => vault.get<AnnotationNormalized>(ap.items))
+      .flatMap((a) => vault.get<ContentResource>(a.body))
+      .map(r => r.id)
+      .filter((i: string | undefined): i is string => i !== undefined)
       // We'll just assume that the identifier of the content resource
       // has the same hostname as the IIIF service
-      .map(r => new URL(r.id).hostname)
-      .reduce((counts, hostname) => {
+      .map(i => new URL(i).hostname)
+      .reduce((counts: {[hostname: string]: number }, hostname) => {
         counts[hostname] = (counts[hostname] ?? 0) + 1;
         return counts;
       }, {});
     const primaryImageHost = maxBy(
       Object.entries(imageHosts),
       ([, count]) => count
-    )[0];
+    )?.[0];
+
+    if (!primaryImageHost) {
+      res.status(500).send();
+    }
 
     // Register the progress tracker
-    let onQueueAdvance: (pos: number) => void | undefined;
+    let onQueueAdvance: (pos: number) => void | undefined = () => { return };
     let onProgress: (status: ProgressStatus) => void | undefined;
     if (progressToken && typeof progressToken === 'string') {
       res.socket.on('close', () => {
@@ -324,13 +349,13 @@ app.get(
           concurrency: 2,
           abortController,
         }),
-      primaryImageHost,
+      primaryImageHost as string,
       onQueueAdvance
     );
     try {
       await convertPromise;
     } catch (err) {
-      log.error(log.exceptions.getAllInfo(err));
+      log.error(log.exceptions.getAllInfo(err as string | Error));
       if (progressToken && typeof progressToken === 'string') {
         const clientResp = progressClients[progressToken];
         if (clientResp) {
@@ -348,7 +373,7 @@ app.get(
     }
     res.end();
   },
-  (err, _req, res, _next) => {
+  (err: any, _req: any, res: any) => {
     log.info('Rejected PDF request due to validation errors:', {
       message: err.message,
       details: err.validationErrors,
@@ -415,9 +440,24 @@ if (process.env.CFG_SENTRY_DSN) {
 coverPageGenerator.start().then(() => {
   const port = Number.parseInt(process.env.CFG_PORT ?? '31337', 10);
   const host = process.env.CFG_HOST ?? '127.0.0.1';
-  app.listen(port, host, () =>
-    log.info(`server started at http://${host}:${port}`)
-  );
+  const sslCertPatht = process.env.CFG_SSL_CERT;
+  const sslKey = process.env.CFG_SSL_KEY;
+  if (sslCertPatht && sslKey) {
+    const server = https.createServer(
+      {
+        key: fs.readFileSync(sslKey, 'utf8'),
+        cert: fs.readFileSync(sslCertPatht, 'utf8'),
+      },
+      app
+    );
+    server.listen(port, host, () =>
+      log.info(`server started at https://${host}:${port}`)
+    );
+  } else {
+    app.listen(port, host, () => {
+      log.info(`server started at http://${host}:${port}`);
+    });
+  }
 });
 
 process.on('unhandledRejection', function (err: Error) {

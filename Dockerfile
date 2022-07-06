@@ -50,8 +50,6 @@ ENV CFG_PORT 8080
 ENV CFG_HOST 0.0.0.0
 
 EXPOSE ${CFG_PORT}
-EXPOSE ${CFG_SENTRY_DSN}
-EXPOSE ${PDIIIF_SENTRY_DSN}
 
 WORKDIR /opt/pdiiif/pdiiif-api
 CMD ["node", "dist/server.js"]

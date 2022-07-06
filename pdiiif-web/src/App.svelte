@@ -233,8 +233,9 @@
       webWritable = streamSaver.createWriteStream(`${cleanLabel}.pdf`);
       window.addEventListener('beforeunload', (evt) => {
         if (currentProgress && !cancelled && !pdfFinished) {
-          evt.preventDefault();
-          evt.returnValue = $_('unload_warning');
+          const msg = $_('unload_warning');
+          evt.returnValue = msg;
+          return msg;
         }
       });
       window.addEventListener('unload', () => {

@@ -1,6 +1,8 @@
 import path from 'path';
 import { PathLike, promises as fs } from 'fs';
 
+import fetch from 'node-fetch';
+import { AbortSignal } from 'node-fetch/externals';
 import puppeteer from 'puppeteer';
 import Handlebars from 'handlebars';
 import QRCode from 'qrcode-svg';

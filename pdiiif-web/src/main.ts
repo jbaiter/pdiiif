@@ -1,6 +1,6 @@
 import { addMessages, init, getLocaleFromNavigator } from 'svelte-i18n';
-import * as Sentry from "@sentry/browser";
-import { Integrations } from "@sentry/tracing";
+import * as Sentry from '@sentry/browser';
+import { Integrations } from '@sentry/tracing';
 
 import App from './App.svelte';
 import de from '../locales/de.json';
@@ -16,7 +16,7 @@ export function render(
   target: HTMLElement,
   { apiEndpoint, coverPageEndpoint }: Options
 ): App {
-  setLogger(new ConsoleLogger(import.meta.env.DEV ? 'debug' : 'warn'))
+  setLogger(new ConsoleLogger(import.meta.env.DEV ? 'debug' : 'warn'));
   addMessages('de', de);
   addMessages('en', en);
   init({
@@ -30,16 +30,21 @@ export function render(
   });
 }
 
-if (import.meta.env.PDIIIF_SENTRY_DSN) {
+if (import.meta.env.CFG_SENTRY_DSN) {
   Sentry.init({
-    dsn: import.meta.env.PDIIIF_SENTRY_DSN as string,
+    dsn: import.meta.env.CFG_SENTRY_DSN as string,
     integrations: [new Integrations.BrowserTracing()],
     tracesSampleRate: 1.0,
   });
 }
 
-render(document.getElementById('app'), {
-  apiEndpoint: import.meta.env.DEV
+let apiEndpoint = import.meta.env.CFG_API_ENDPOINT as string;
+if (!apiEndpoint) {
+  apiEndpoint = import.meta.env.DEV
     ? 'http://localhost:31337/api'
-    : `${window.location.toString().replace(/\/$/g, '')}/api`,
+    : `${window.location.toString().replace(/\/$/g, '')}/api`;
+}
+
+render(document.getElementById('app'), {
+  apiEndpoint,
 });

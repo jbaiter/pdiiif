@@ -844,9 +844,15 @@ export default class PDFGenerator {
     if (!this._writer) {
       return;
     }
+    /* FIXME: Disabled due to poor performance on large volumes and a strange
+     *        interaction with streamsaver, where the PDF would be prematurely
+     *        closed in the middle of writing out the structure tree.
+    console.debug("Writing structure tree");
     if (this._strucTree.length > 0) {
       await this._writeStructureTree();
     }
+    */
+    console.debug("Writing trailer");
     type XrefEntry = [number, number, 'f' | 'n'];
     const xrefEntries: Array<XrefEntry> = [
       [0, 65535, 'f'],
@@ -873,6 +879,7 @@ export default class PDFGenerator {
     await this._write(`\ntrailer\n${serialize(trailerDict)}`);
     await this._write(`\nstartxref\n${xrefOffset}\n%%EOF`);
     await this._writer.waitForDrain();
+    console.debug("PDF finished, closing writer")
     await this._writer.close();
     this._writer = undefined;
   }
