@@ -27,11 +27,11 @@ export function render(
   });
 }
 
-if (import.meta.env.CFG_SENTRY_DSN) {
+if (import.meta.env.PDIIIF_SENTRY_DSN) {
   Promise.all([import('@sentry/browser'), import('@sentry/tracing')]).then(
     ([Sentry, Tracing]) => {
       Sentry.init({
-        dsn: import.meta.env.CFG_SENTRY_DSN as string,
+        dsn: import.meta.env.PDIIIF_SENTRY_DSN as string,
         integrations: [new Tracing.Integrations.BrowserTracing()],
         tracesSampleRate: 1.0,
       });
@@ -40,7 +40,7 @@ if (import.meta.env.CFG_SENTRY_DSN) {
   import('@sentry/browser').then((Sentry) => {});
 }
 
-let apiEndpoint = import.meta.env.CFG_API_ENDPOINT as string;
+let apiEndpoint = import.meta.env.PDIIIF_API_ENDPOINT as string;
 if (!apiEndpoint) {
   apiEndpoint = import.meta.env.DEV
     ? 'http://localhost:31337/api'
