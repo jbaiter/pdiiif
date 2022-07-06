@@ -1,7 +1,4 @@
 import { addMessages, init, getLocaleFromNavigator } from 'svelte-i18n';
-import * as Sentry from '@sentry/browser';
-import { Integrations } from '@sentry/tracing';
-
 import App from './App.svelte';
 import de from '../locales/de.json';
 import en from '../locales/en.json';
@@ -31,11 +28,16 @@ export function render(
 }
 
 if (import.meta.env.CFG_SENTRY_DSN) {
-  Sentry.init({
-    dsn: import.meta.env.CFG_SENTRY_DSN as string,
-    integrations: [new Integrations.BrowserTracing()],
-    tracesSampleRate: 1.0,
-  });
+  Promise.all([import('@sentry/browser'), import('@sentry/tracing')]).then(
+    ([Sentry, Tracing]) => {
+      Sentry.init({
+        dsn: import.meta.env.CFG_SENTRY_DSN as string,
+        integrations: [new Tracing.Integrations.BrowserTracing()],
+        tracesSampleRate: 1.0,
+      });
+    }
+  );
+  import('@sentry/browser').then((Sentry) => {});
 }
 
 let apiEndpoint = import.meta.env.CFG_API_ENDPOINT as string;

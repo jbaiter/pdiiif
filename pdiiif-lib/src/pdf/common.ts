@@ -1,4 +1,4 @@
-import pad from 'lodash/padStart';
+import { padStart as pad } from 'lodash-es';
 
 import { IS_BIG_ENDIAN } from './util';
 

@@ -1,4 +1,4 @@
-import sum from 'lodash/sum';
+import { sum } from 'lodash-es';
 import util from 'util';
 import zlib from 'zlib';
 

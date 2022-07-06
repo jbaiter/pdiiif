@@ -1,4 +1,4 @@
-import { findIndex, findLastIndex, sortBy } from 'lodash';
+import { findIndex, findLastIndex, sortBy } from 'lodash-es';
 
 import { Reader } from '../io';
 import { PdfObject, PdfValue, PdfDictionary, PdfRef } from './common';

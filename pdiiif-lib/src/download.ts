@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import fetch from 'cross-fetch';
-import minBy from 'lodash/minBy';
+import { minBy } from 'lodash-es';
 import { Mutex } from 'async-mutex';
 
 import { OcrPage, fetchAndParseText } from './ocr';

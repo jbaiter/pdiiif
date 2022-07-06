@@ -31,7 +31,7 @@
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^1.0.0-next.49",
     "@tsconfig/svelte": "^2.0.1",
-    "@types/lodash": "^4.14.182",
+    "@types/lodash-es": "^4.17.6",
     "@types/node": "^18.0.0",
     "@types/streamsaver": "^2.0.1",
     "@types/wicg-file-system-access": "^2020.9.5",
@@ -59,7 +59,7 @@
     "@sentry/tracing": "^7.4.1",
     "@types/ua-parser-js": "^0.7.36",
     "classnames": "^2.3.1",
-    "lodash": "^4.17.21",
+    "lodash-es": "^4.17.21",
     "pdiiif": "workspace:^0.1.0",
     "streamsaver": "^2.0.6",
     "svelte-i18n": "^3.4.0",

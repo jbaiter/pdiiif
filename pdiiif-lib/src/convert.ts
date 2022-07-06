@@ -13,9 +13,7 @@ import {
   ImageService,
 } from '@iiif/presentation-3';
 import { Manifest as ManifestV2 } from '@iiif/presentation-2';
-import meanBy from 'lodash/meanBy';
-import sampleSize from 'lodash/sampleSize';
-import orderBy from 'lodash/orderBy';
+import { meanBy, sampleSize, orderBy } from 'lodash-es';
 import PQueue from 'p-queue';
 
 import PDFGenerator from './pdf/generator';

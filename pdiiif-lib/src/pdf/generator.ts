@@ -4,8 +4,7 @@
 /// PDF generation code
 // FIXME: This is currently one hell of a mess, learning about PDF and coming up
 // with good abstractions at the same time was too much of a challenge for me 🙈
-import flatten from 'lodash/flatten';
-import pad from 'lodash/padStart';
+import { flatten, padStart as pad } from 'lodash-es';
 import dedent from 'dedent-js';
 
 import {

@@ -1,4 +1,4 @@
-import max from 'lodash/max';
+import { max } from 'lodash-es';
 
 import type {
   ManifestNormalized,

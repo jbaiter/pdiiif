@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 /* eslint-disable complexity */
 /// Utilities for parsing OCR text from hOCR, ALTO and IIIF Annotations
-import max from 'lodash/max';
+import { max } from 'lodash-es';
 import jsdom from 'jsdom';
 import metrics from './metrics';
 import { rateLimitRegistry } from './download';

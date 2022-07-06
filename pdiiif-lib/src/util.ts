@@ -1,5 +1,3 @@
-import { isUndefined } from 'lodash';
-
 /** Get a timestamp in milliseconds, prefereably high-resolution */
 export function now(): number {
   if (typeof window !== 'undefined' && window.performance) {
