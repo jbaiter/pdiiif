@@ -2,7 +2,7 @@ import fs from 'fs';
 import https from 'https';
 import express, { Express, Response } from 'express';
 import fetch from 'node-fetch';
-import { range, maxBy } from 'lodash';
+import { range, maxBy } from 'lodash-es';
 import acceptLanguageParser from 'accept-language-parser';
 import cors from 'cors';
 import promBundle from 'express-prom-bundle';
@@ -17,18 +17,18 @@ import {
 } from '@iiif/presentation-3';
 import { globalVault, Vault } from '@iiif/vault';
 import { buildLocaleString } from '@iiif/vault-helpers';
+import { convertManifest, ProgressStatus } from 'pdiiif';
 
 import {
   middleware as openApiMiddleware,
   pdfPath as pdfPathSpec,
   progressPath as progressPathSpec,
   coverPath as coverPathSpec,
-} from './openapi';
-import { convertManifest, ProgressStatus } from 'pdiiif';
-import log from './logger';
-import { CoverPageGenerator, CoverPageParams } from './coverpage';
-import { RateLimiter } from './limit';
-import { GeneratorQueue } from './queue';
+} from './openapi.js';
+import log from './logger.js';
+import { CoverPageGenerator, CoverPageParams } from './coverpage.js';
+import { RateLimiter } from './limit.js';
+import { GeneratorQueue } from './queue.js';
 
 const vault: Vault = globalVault();
 
@@ -90,7 +90,9 @@ function buildCanvasFilter(
       .reduce((idxs: number[], grp: string) => {
         if (grp.indexOf('-') > 0) {
           const parts = grp.split('-');
-          idxs = idxs.concat(range(Number.parseInt(parts[0]), Number.parseInt(parts[1])));
+          idxs = idxs.concat(
+            range(Number.parseInt(parts[0]), Number.parseInt(parts[1]))
+          );
         } else {
           idxs.push(Number.parseInt(grp));
         }
@@ -274,12 +276,12 @@ app.get(
       .flatMap((c) => vault.get<AnnotationPageNormalized>(c.items))
       .flatMap((ap) => vault.get<AnnotationNormalized>(ap.items))
       .flatMap((a) => vault.get<ContentResource>(a.body))
-      .map(r => r.id)
+      .map((r) => r.id)
       .filter((i: string | undefined): i is string => i !== undefined)
       // We'll just assume that the identifier of the content resource
       // has the same hostname as the IIIF service
-      .map(i => new URL(i).hostname)
-      .reduce((counts: {[hostname: string]: number }, hostname) => {
+      .map((i) => new URL(i).hostname)
+      .reduce((counts: { [hostname: string]: number }, hostname) => {
         counts[hostname] = (counts[hostname] ?? 0) + 1;
         return counts;
       }, {});
@@ -293,7 +295,9 @@ app.get(
     }
 
     // Register the progress tracker
-    let onQueueAdvance: (pos: number) => void | undefined = () => { return };
+    let onQueueAdvance: (pos: number) => void | undefined = () => {
+      return;
+    };
     let onProgress: (status: ProgressStatus) => void | undefined;
     if (progressToken && typeof progressToken === 'string') {
       res.socket.on('close', () => {

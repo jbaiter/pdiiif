@@ -1,8 +1,8 @@
 import { findIndex, findLastIndex, sortBy } from 'lodash-es';
 
-import { Reader } from '../io';
-import { PdfObject, PdfValue, PdfDictionary, PdfRef } from './common';
-import { textDecoder, textEncoder } from './util';
+import { Reader } from '../io.js';
+import { PdfObject, PdfValue, PdfDictionary, PdfRef } from './common.js';
+import { textDecoder, textEncoder } from './util.js';
 
 //          offset/nextFree|generation|inUse?
 //                      ▼       ▼        ▼

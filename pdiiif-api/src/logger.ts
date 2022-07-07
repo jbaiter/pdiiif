@@ -1,9 +1,9 @@
-import { omit } from 'lodash';
+import { omit } from 'lodash-es';
 import winston from 'winston';
 import { Logger, setLogger } from 'pdiiif';
 
 function createLogger(level: string, logToFiles = true): winston.Logger {
-  const transports = [];
+  const transports: any[] = [];
   if (process.env.NODE_ENV === 'production' && logToFiles) {
     transports.push(
       new winston.transports.File({ filename: 'error.log', level: 'error' })

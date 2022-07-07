@@ -3,20 +3,21 @@
 /// Utilities for parsing OCR text from hOCR, ALTO and IIIF Annotations
 import { max } from 'lodash-es';
 import jsdom from 'jsdom';
-import metrics from './metrics';
-import { rateLimitRegistry } from './download';
-import log from './log';
 import {
   Annotation,
   AnnotationNormalized,
   CanvasNormalized,
   ContentResource,
 } from '@iiif/presentation-3';
+
+import metrics from './metrics.js';
+import { rateLimitRegistry } from './download.js';
+import log from './log.js';
 import {
   isExternalWebResourceWithProfile,
   ExternalWebResourceWithProfile,
   vault,
-} from './iiif';
+} from './iiif.js';
 
 let parser: DOMParser;
 let TextType: typeof Text;
@@ -627,7 +628,7 @@ export function getTextSeeAlso(
 
 export async function fetchAndParseText(
   canvas: CanvasNormalized,
-  annotations?: AnnotationNormalized[],
+  annotations?: AnnotationNormalized[]
 ): Promise<OcrPage | undefined> {
   // TODO: Annotations are a major PITA due to all the indirection and multiple
   //       levels of fetching of external resources that might be neccessary,

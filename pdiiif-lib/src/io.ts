@@ -1,7 +1,8 @@
 /** Types for writing to an output stream, with support for Node and Browsers. */
 import type { Writable as NodeWritable } from 'stream';
 import type nodeFs from 'fs';
-import log from './log';
+
+import log from './log.js';
 
 export interface Reader {
   read(

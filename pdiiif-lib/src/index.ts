@@ -1,4 +1,4 @@
-export type { Logger } from './log';
-export { setLogger, ConsoleLogger } from './log';
-export * from './convert';
-export { default as version } from './version';
+export type { Logger } from './log.js';
+export { setLogger, ConsoleLogger } from './log.js';
+export * from './convert.js';
+export { default as version } from './version.js';

@@ -11,7 +11,7 @@
   let showSettings = false;
 
   $: settingsAvailable = manifestInfo.supportsDownscale;
-  $: showSettings = showSettings && !disabled
+  $: showSettings = showSettings && !disabled;
 </script>
 
 {#if settingsAvailable}
@@ -21,7 +21,7 @@
         <button
           class="float-right flex items-center justify-center w-6 h-6 bg-gray-200 rounded-full"
           type="button"
-          disabled={disabled}
+          {disabled}
           on:click={() => {
             showSettings = false;
           }}>×</button
@@ -36,7 +36,7 @@
               max="100"
               step="10"
               on:change={() => {
-                scaleFactor =  maxWidthPct / 100.
+                scaleFactor = maxWidthPct / 100;
               }}
               bind:value={maxWidthPct}
             />
@@ -49,7 +49,7 @@
         type="button"
         class="bg-green-200 disabled:bg-gray-500 rounded-lg items-center p-1 text-gray-700"
         title={$_('buttons.settings')}
-        disabled={disabled}
+        {disabled}
         on:click={() => {
           showSettings = true;
         }}

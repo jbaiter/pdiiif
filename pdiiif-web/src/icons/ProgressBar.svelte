@@ -12,6 +12,6 @@
   <div
     class="absolute w-full top-0 pt-1 text-center text-white mix-blend-difference"
   >
-    <slot></slot>
+    <slot />
   </div>
 </div>

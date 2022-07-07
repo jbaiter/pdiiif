@@ -13,27 +13,27 @@ import {
   ImageService,
 } from '@iiif/presentation-3';
 import { Manifest as ManifestV2 } from '@iiif/presentation-2';
+import { ResourceProviderNormalized } from '@iiif/presentation-3/resources/provider';
 import { meanBy, sampleSize, orderBy } from 'lodash-es';
 import PQueue from 'p-queue';
 
-import PDFGenerator from './pdf/generator';
+import PDFGenerator from './pdf/generator.js';
 import {
   CountingWriter,
   WebWriter,
   NodeWriter,
   Writer,
   BlobWriter,
-} from './io';
-import { TocItem } from './pdf/util';
-import { getLicenseInfo } from './res/licenses';
-import { getTextSeeAlso } from './ocr';
-import pdiiifVersion from './version';
-import { fetchCanvasData, fetchRespectfully, CanvasData } from './download';
-import metrics from './metrics';
-import { isDefined, now } from './util';
-import log from './log';
-import { getI18nValue, getThumbnail, getCanvasImages, vault } from './iiif';
-import { ResourceProviderNormalized } from '@iiif/presentation-3/resources/provider';
+} from './io.js';
+import { TocItem } from './pdf/util.js';
+import { getLicenseInfo } from './res/licenses.js';
+import { getTextSeeAlso } from './ocr.js';
+import pdiiifVersion from './version.js';
+import { fetchCanvasData, fetchRespectfully, CanvasData } from './download.js';
+import metrics from './metrics.js';
+import { isDefined, now } from './util.js';
+import log from './log.js';
+import { getI18nValue, getThumbnail, getCanvasImages, vault } from './iiif.js';
 
 /** Progress information for rendering a progress bar or similar UI elements. */
 export interface ProgressStatus {
@@ -244,7 +244,7 @@ async function buildOutlineFromRanges(
     const children = childRanges.map(handleTocRange).filter(isDefined<TocItem>);
     let startCanvasIdx;
     if (firstCanvas) {
-      startCanvasIdx = canvasIds.indexOf(firstCanvas.id)
+      startCanvasIdx = canvasIds.indexOf(firstCanvas.id);
     } else {
       startCanvasIdx = children[0].startCanvasIdx;
     }
@@ -252,7 +252,7 @@ async function buildOutlineFromRanges(
     return {
       label: rangeLabel,
       startCanvasIdx,
-      children
+      children,
     };
   };
 

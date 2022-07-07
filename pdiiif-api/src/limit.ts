@@ -1,11 +1,11 @@
 import crypto from 'crypto';
 
 import { Response } from 'express';
-import StaticIntervalTree from 'mnemonist/static-interval-tree';
+import mnemonist from 'mnemonist';
 import IPCIDR from 'ip-cidr';
 import { BigInteger } from 'jsbn';
 
-import log from './logger';
+import log from './logger.js';
 
 export type RateLimitInfo = {
   limited: boolean;
@@ -45,9 +45,7 @@ export type RateLimiterOptions = {
 export class RateLimiter {
   store: Map<string, RateLimitState> = new Map();
   retryAfterViolations: Map<string, number> = new Map();
-  exceptions: StaticIntervalTree<string>;
-  pdfsPerDay: number;
-  coversPerDay: number;
+  exceptions?: mnemonist.StaticIntervalTree<string>;
   defaults: {
     pdf: Omit<Partial<RateLimitArgs>, 'key'>;
     cover: Omit<Partial<RateLimitArgs>, 'key'>;
@@ -56,7 +54,7 @@ export class RateLimiter {
   constructor({ exceptions, defaults }: RateLimiterOptions) {
     this.defaults = defaults;
     if (exceptions?.length) {
-      this.exceptions = new StaticIntervalTree(exceptions, [
+      this.exceptions = new mnemonist.StaticIntervalTree(exceptions, [
         // FIXME: Probably broken for IPv6, there's a reason the library uses a BigInteger and not a number
         (cidr) =>
           new IPCIDR(cidr).start<BigInteger>({ type: 'bigInteger' }).intValue(),
@@ -72,7 +70,11 @@ export class RateLimiter {
     return violations >= 2;
   }
 
-  throttle(clientIp: string, operation: 'pdf' | 'cover', res: Response): boolean {
+  throttle(
+    clientIp: string,
+    operation: 'pdf' | 'cover',
+    res: Response
+  ): boolean {
     const ipNum = new IPCIDR(`${clientIp}/32`)
       .start<BigInteger>({ type: 'bigInteger' })
       .intValue();
@@ -99,34 +101,39 @@ export class RateLimiter {
         };policy="generic cell rate algorithm"`
       );
       res.setHeader('RateLimit-Remaining', rateLimitInfo.remaining);
-      res.setHeader('RateLimit-Reset', Math.round(rateLimitInfo.resetIn / 1000));
+      res.setHeader(
+        'RateLimit-Reset',
+        Math.round(rateLimitInfo.resetIn / 1000)
+      );
       if (rateLimitInfo.limited) {
         const isMisbehaving = this.isThrottledClientMisbehaving(clientIp);
         if (isMisbehaving) {
           setTimeout(() => {
-              res.setHeader('Retry-After', '1');
-              res.status(429).send()
-            }, rateLimitInfo.retryIn);
+            res.setHeader('Retry-After', '1');
+            res.status(429).send();
+          }, rateLimitInfo.retryIn);
           return true;
         }
         res.setHeader('Retry-After', Math.round(rateLimitInfo.retryIn / 1000));
         res.status(429).send({
           message:
             'Too many requests, please respect the rate limits listed in the headers. For an exception, contact the ' +
-            'provider of this API. Don\'t perform any more requests before the time set by Retry-After has expired, ' + 
+            "provider of this API. Don't perform any more requests before the time set by Retry-After has expired, " +
             'or your requests will be made to wait.',
           rateLimitInfo,
         });
-        log.warn('Rate-limited client due to exceeded quota for PDF generation', {
-          clientAddr: clientIp,
-        });
+        log.warn(
+          'Rate-limited client due to exceeded quota for PDF generation',
+          {
+            clientAddr: clientIp,
+          }
+        );
         return true;
       }
-    } else {
-      // No rate limiting, client is exempt due to explicit exception
-      // TODO: Make this more fine-grained to prevent (accidental) abuse by whitelisted partners
-      return false;
     }
+    // No rate limiting, client is exempt due to explicit exception
+    // TODO: Make this more fine-grained to prevent (accidental) abuse by whitelisted partners
+    return false;
   }
 
   /**

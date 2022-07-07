@@ -23,7 +23,7 @@ export class WritableAdapter extends Writable {
       .write(chunk as FileSystemWriteChunkType)
       .then(() => cb())
       .catch((reason) => {
-        cb(reason)
+        cb(reason);
       });
   }
 
@@ -33,7 +33,7 @@ export class WritableAdapter extends Writable {
       .then(() => cb(null))
       .catch((reason) => {
         try {
-          cb(reason)
+          cb(reason);
         } catch {
           // Sometimes the error callback was already called, just log in that case
           console.error(reason);
@@ -47,11 +47,11 @@ export class WritableAdapter extends Writable {
         .close()
         .then(() => {
           this.emit('close');
-          cb(null)
+          cb(null);
         })
         .catch((reason) => cb(reason));
-      } catch (err) {
-        cb(err);
-      }
+    } catch (err) {
+      cb(err);
+    }
   }
 }

@@ -27,7 +27,10 @@
 
   // We use a self-hosted MITM page for the streamsaver service worker
   // to avoid GDPR issues.
-  streamSaver.mitm = `${location.href.replace(/\/$/, '')}/streamsaver-mitm.html`;
+  streamSaver.mitm = `${location.href.replace(
+    /\/$/,
+    ''
+  )}/streamsaver-mitm.html`;
 
   const supportsFilesystemAPI = typeof window.showSaveFilePicker === 'function';
   let isFirstVisit = window.localStorage.getItem('firstVisit') === null;
@@ -238,9 +241,13 @@
           return msg;
         }
       });
-      window.addEventListener('unload', () => {
-        webWritable?.abort();
-      }, { once: true });
+      window.addEventListener(
+        'unload',
+        () => {
+          webWritable?.abort();
+        },
+        { once: true }
+      );
     }
     abortController.signal.addEventListener(
       'abort',

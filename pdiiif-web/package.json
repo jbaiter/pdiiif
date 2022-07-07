@@ -5,6 +5,7 @@
     "dev": "vite",
     "compile": "cross-env NODE_ENV=production vite build",
     "check": "svelte-check --human && tsc --noEmit",
+    "format": "prettier --plugin-search-dir=. -w ./src",
     "watch:svelte": "svelte-check --human --watch",
     "watch:ts": "tsc --noEmit --watch",
     "start": "run-p watch:* dev",

@@ -68,7 +68,9 @@ export function isExternalWebResourceWithProfile(
 ): res is ExternalWebResourceWithProfile {
   return (
     res.type !== undefined &&
-    ['Dataset', 'Image', 'Video', 'Sound', 'Text', 'unknown'].indexOf(res.type) >= 0 &&
+    ['Dataset', 'Image', 'Video', 'Sound', 'Text', 'unknown'].indexOf(
+      res.type
+    ) >= 0 &&
     (res as ExternalWebResourceWithProfile).profile !== undefined
   );
 }
@@ -120,4 +122,36 @@ export function getCanvasImages(canvases: CanvasNormalized[]): {
       images: annos.flatMap((a) => a.body),
     };
   });
+}
+
+export interface CompatibilityReport {
+  compatibility: 'compatible' | 'incompatible' | 'degraded';
+  incompatibleElements: {
+    [canvasId: string]: Set<
+      | 'no-jpeg' // At least one image doesn't have a JPEG representation
+      | 'no-image' // Canvas does not have a single image annotation
+      | 'annotations' // Canvas has non-painting annotations
+      | 'unsupported-painting'
+    >;
+  };
+}
+
+export function checkCompatibility(
+  manifest: ManifestNormalized
+): CompatibilityReport | undefined {
+  const report = {
+    compatibility: 'compatible',
+    incompatibleElements: {},
+  };
+  for (const canvas of vault.get<CanvasNormalized>(manifest.items)) {
+    const paintingResources = vault
+      .get<AnnotationPageNormalized>(canvas.items)
+      .flatMap((ap) => vault.get<AnnotationNormalized>(ap.items))
+      .flatMap((a) => vault.get<ContentResource>(a.body));
+    const nonPaintingAnnos = manifest.annotations;
+    // TODO: Check if canvas has an image
+    // TODO: Check if every painting annotation is an image with a JPEG available
+    // TODO: Check for the presence of non-painting annotations
+  }
+  return undefined;
 }

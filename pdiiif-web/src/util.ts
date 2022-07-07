@@ -29,7 +29,7 @@ export function getMaximumBlobSize(): number {
 export function supportsStreamsaver(): boolean {
   try {
     // Streamsaver needs ReadableStream and service worker support
-    new Response(new ReadableStream())
+    new Response(new ReadableStream());
     if (isSecureContext && !('serviceWorker' in navigator)) {
       return false;
     }

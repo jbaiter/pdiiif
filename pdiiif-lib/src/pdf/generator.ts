@@ -18,16 +18,15 @@ import {
   PdfValue,
   toUTF16BE,
   StructTreeEntry,
-} from './common';
-import { TocItem, textEncoder, randomData, tryDeflateStream } from './util';
-import { ArrayReader, Writer } from '../io';
-import PdfImage from './image';
-import { sRGBIEC1966_21 as srgbColorspace } from '../res/srgbColorspace';
-import { PdfParser } from './parser';
-import { OcrPage, OcrSpan } from '../ocr';
-import pdiiifVersion from '../version';
-import log from '../log';
-import { CanvasImage } from '../download';
+} from './common.js';
+import { TocItem, textEncoder, randomData, tryDeflateStream } from './util.js';
+import { ArrayReader, Writer } from '../io.js';
+import PdfImage from './image.js';
+import { PdfParser } from './parser.js';
+import { OcrPage, OcrSpan } from '../ocr.js';
+import pdiiifVersion from '../version.js';
+import log from '../log.js';
+import { CanvasImage } from '../download.js';
 
 const PRODUCER = `pdiiif v${pdiiifVersion}`;
 
@@ -851,7 +850,7 @@ export default class PDFGenerator {
       await this._writeStructureTree();
     }
     */
-    console.debug("Writing trailer");
+    console.debug('Writing trailer');
     type XrefEntry = [number, number, 'f' | 'n'];
     const xrefEntries: Array<XrefEntry> = [
       [0, 65535, 'f'],
@@ -878,7 +877,7 @@ export default class PDFGenerator {
     await this._write(`\ntrailer\n${serialize(trailerDict)}`);
     await this._write(`\nstartxref\n${xrefOffset}\n%%EOF`);
     await this._writer.waitForDrain();
-    console.debug("PDF finished, closing writer")
+    console.debug('PDF finished, closing writer');
     await this._writer.close();
     this._writer = undefined;
   }

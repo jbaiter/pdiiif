@@ -1,6 +1,6 @@
 import { padStart as pad } from 'lodash-es';
 
-import { IS_BIG_ENDIAN } from './util';
+import { IS_BIG_ENDIAN } from './util.js';
 
 const PDF_INDENTATION = 2;
 

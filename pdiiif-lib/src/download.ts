@@ -2,10 +2,6 @@
 import fetch from 'cross-fetch';
 import { minBy } from 'lodash-es';
 import { Mutex } from 'async-mutex';
-
-import { OcrPage, fetchAndParseText } from './ocr';
-import metrics from './metrics';
-import log from './log';
 import {
   AnnotationNormalized,
   AnnotationPageNormalized,
@@ -17,14 +13,18 @@ import {
   Reference,
   Service,
 } from '@iiif/presentation-3';
+
+import { OcrPage, fetchAndParseText } from './ocr.js';
+import metrics from './metrics.js';
+import log from './log.js';
 import {
   vault,
   isPhysicalDimensionService,
   PhysicalDimensionService,
   supportsScaling,
   fetchFullImageService,
-} from './iiif';
-import { isDefined } from './util';
+} from './iiif.js';
+import { isDefined } from './util.js';
 
 /// In absence of more detailed information (from physical dimensions service), use this resolution
 const FALLBACK_PPI = 300;

@@ -7,10 +7,12 @@ import puppeteer from 'puppeteer';
 import Handlebars from 'handlebars';
 import QRCode from 'qrcode-svg';
 import sanitizeHtml from 'sanitize-html';
-import { sortBy } from 'lodash';
-
+import { sortBy } from 'lodash-es';
+import { dirname } from 'path';
+import { fileURLToPath } from 'url';
 import { version as serverVersion } from 'pdiiif';
-import metrics from './metrics';
+
+import metrics from './metrics.js';
 
 Handlebars.registerHelper('qrcode', function (value, options) {
   const {
@@ -34,8 +36,10 @@ Handlebars.registerHelper('qrcode', function (value, options) {
 });
 Handlebars.registerHelper('ifArray', function (potentialArray, options) {
   if (Array.isArray(potentialArray)) {
+    // @ts-ignore: Shadowed outer 'this'
     return options.fn(this);
   } else {
+    // @ts-ignore: Shadowed outer 'this'
     return options.inverse(this);
   }
 });
@@ -90,12 +94,12 @@ export type CoverPageParams = {
 
 export class CoverPageGenerator {
   private coverTemplatePath: PathLike;
-  private coverPageTemplate: Handlebars.TemplateDelegate;
+  private coverPageTemplate: Handlebars.TemplateDelegate | undefined;
   private browser?: puppeteer.Browser;
 
   constructor(
     coverTemplatePath: PathLike = path.join(
-      __dirname,
+      dirname(fileURLToPath(import.meta.url)),
       '..',
       'assets',
       'coverpage.hbs'
@@ -109,19 +113,19 @@ export class CoverPageGenerator {
       product: 'chrome',
       headless: true,
       args: ['--font-render-hinting=none', '--force-color-profile=srgb'],
-      executablePath: process.env.CFG_PUPPETEER_BROWSER_EXECUTABLE
+      executablePath: process.env.CFG_PUPPETEER_BROWSER_EXECUTABLE,
     });
     const tmpl = await fs.readFile(this.coverTemplatePath);
     this.coverPageTemplate = Handlebars.compile(tmpl.toString('utf8'));
   }
 
   async shutdown(): Promise<void> {
-    await this.browser.close();
-    this.browser = null;
+    await this.browser?.close();
+    this.browser = undefined;
   }
 
   async render(params: CoverPageParams): Promise<Buffer> {
-    if (this.browser == null) {
+    if (!this.browser || !this.coverPageTemplate) {
       throw 'CoverPageGenerator must be started before it can render cover pages.';
     }
     if (params.abortSignal?.aborted) {
@@ -132,10 +136,14 @@ export class CoverPageGenerator {
       // Preview image is 1.8in wide, at 300dpi
       const desiredWidthPx = 1.8 * 300;
       const baseUrl = params.thumbnail?.iiifImageService;
-      const stopMeasuring = metrics.coverPageInfoDuration.startTimer({ iiif_host: new URL(baseUrl).host });
+      const stopMeasuring = metrics.coverPageInfoDuration.startTimer({
+        iiif_host: new URL(baseUrl).host,
+      });
       let infoJson;
       try {
-        const infoResp = await fetch(`${baseUrl}/info.json`, { signal: params.abortSignal });
+        const infoResp = await fetch(`${baseUrl}/info.json`, {
+          signal: params.abortSignal,
+        });
         infoJson = await infoResp.json();
         stopMeasuring({ status: 'success' });
       } catch (err) {

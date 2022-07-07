@@ -1,13 +1,12 @@
 {
+  "extends": "@tsconfig/node16/tsconfig.json",
   "include": ["src/**/*.ts"],
-  "exclude": ["node_modules/*", "__sapper__/*", "public/*"],
 
   "compilerOptions": {
+    "module": "es2022",
     "outDir": "dist",
-    "moduleResolution": "node",
     "resolveJsonModule": true,
     "sourceMap": true,
-    "skipLibCheck": true,
-    "esModuleInterop": true
+    "noImplicitAny": false
   }
 }

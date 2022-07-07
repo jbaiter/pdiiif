@@ -18,6 +18,6 @@ const metrics = {
     help: 'Number of items in the generator queue',
     labelNames: ['iiif_host'],
   }),
-}
+};
 
 export default metrics;

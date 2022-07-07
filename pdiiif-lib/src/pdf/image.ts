@@ -23,8 +23,8 @@
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-import { PdfDictionary, serialize, PdfObject } from './common';
-import { IS_BIG_ENDIAN } from './util';
+import { PdfDictionary, serialize, PdfObject } from './common.js';
+import { IS_BIG_ENDIAN } from './util.js';
 
 function readUint16BE(buf: Uint8Array, pos = 0): number {
   const val = new Uint16Array(buf.slice(pos, pos + 2).buffer)[0];
