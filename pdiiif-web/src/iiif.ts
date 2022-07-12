@@ -39,15 +39,24 @@ export async function fetchManifestInfo(
     .flatMap((c) => vault.get<AnnotationPageNormalized>(c.items))
     .flatMap((ap) => vault.get<AnnotationNormalized>(ap.items))
     .flatMap((a) => vault.get<ContentResource>(a.body))
+    .flatMap((r) => {
+      if ((r as any).type === 'Choice') {
+        return vault.get<ContentResource>(
+          (r as any).items.filter((i: any) => i.type === 'ContentResource')
+        );
+      } else {
+        return [r];
+      }
+    })
     .filter(
       (r: ContentResource): r is IIIFExternalWebResource => r.type === 'Image'
     );
-  const previewImageUrl = (
-    await thumbHelper.getBestThumbnailAtSize(manifest, {
-      maxWidth: 300,
-      maxHeight: 300,
-    })
-  ).best.id;
+  const thumbInfo = await thumbHelper.getBestThumbnailAtSize(manifest, {
+    maxWidth: 300,
+    maxHeight: 300,
+  });
+
+  const previewImageUrl = thumbInfo.best?.id ?? images[0].id;
 
   const supportsDownscale =
     images.flatMap(getImageServices).find(supportsCustomSizes) !== undefined;

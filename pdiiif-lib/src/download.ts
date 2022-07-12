@@ -10,6 +10,7 @@ import {
   IIIFExternalWebResource,
   ImageService,
   ImageService3,
+  InternationalString,
   Reference,
   Service,
 } from '@iiif/presentation-3';
@@ -265,6 +266,11 @@ export type CanvasImage = {
   dimensions: { width: number; height: number };
   ppi?: number;
   numBytes: number;
+  // These two are set when the image is part of a `Choice` body on
+  // an annotation
+  isOptional: boolean;
+  visibleByDefault: boolean;
+  label?: InternationalString;
 };
 
 /** Options for fetching image */
@@ -392,6 +398,8 @@ async function fetchCanvasImage(
     dimensions,
     ppi,
     numBytes,
+    isOptional: false,
+    visibleByDefault: true,
   };
 }
 
@@ -399,14 +407,71 @@ export async function fetchCanvasData(
   canvas: CanvasNormalized,
   { scaleFactor, ppiOverride, abortSignal, sizeOnly = false }: FetchImageOptions
 ): Promise<CanvasData | undefined> {
-  const images = await Promise.all(
-    vault
-      .get<AnnotationPageNormalized>(canvas.items)
-      .flatMap((p) => vault.get<AnnotationNormalized>(p.items))
-      .map((imgAnno) =>
-        fetchCanvasImage(imgAnno, { scaleFactor, abortSignal, sizeOnly })
-      )
-  );
+  const allAnnos = vault
+    .get<AnnotationPageNormalized>(canvas.items)
+    .flatMap((p) => vault.get<AnnotationNormalized>(p.items));
+  // FIXME: Refactor this shameful abomination
+  const images = (
+    await Promise.all(
+      allAnnos.flatMap(async (anno) => {
+        const body = vault.get<ContentResource>(anno.body);
+        const out: Array<CanvasImage> = [];
+        if (body.some((r) => r.type === 'Image')) {
+          const img = await fetchCanvasImage(anno, {
+            scaleFactor,
+            abortSignal,
+            sizeOnly,
+          });
+          if (img) {
+            out.push(img);
+          }
+        }
+        (
+          await Promise.all(
+            allAnnos.flatMap((anno) => {
+              const body = vault.get<ContentResource>(anno.body);
+              return body
+                .filter((r: any) => r.type === 'Choice')
+                .flatMap((b: any): Promise<CanvasImage | null>[] =>
+                  vault
+                    .get<ContentResource>(b.items)
+                    .filter(
+                      (i: any): i is IIIFExternalWebResource =>
+                        i.type === 'Image'
+                    )
+                    .map(
+                      async (
+                        img: IIIFExternalWebResource,
+                        idx: number
+                      ): Promise<CanvasImage | null> => {
+                        // fetchCanvasImage expects an image annotation, so let's just quickly fake one
+                        const fakeAnno: AnnotationNormalized = {
+                          ...anno,
+                          body: [{ id: img.id!, type: 'ContentResource' }],
+                        };
+                        const canvasImg = await fetchCanvasImage(fakeAnno, {
+                          scaleFactor,
+                          abortSignal,
+                          sizeOnly,
+                        });
+                        if (canvasImg) {
+                          canvasImg.isOptional = true;
+                          canvasImg.label = (img as any).label;
+                          canvasImg.visibleByDefault = idx === 0;
+                        }
+                        return canvasImg;
+                      }
+                    )
+                );
+            })
+          )
+        )
+          .filter(isDefined<CanvasImage>)
+          .forEach((i) => out.push(i));
+        return out;
+      })
+    )
+  ).flat();
   const ppi = ppiOverride;
   if (!ppiOverride) {
     let ppi = getPointsPerInch(canvas.service) ?? undefined;
@@ -418,7 +483,7 @@ export async function fetchCanvasData(
   return {
     canvas,
     // FIXME: Shouldn't we signal to the user somehow if some images failed to download?
-    images: images.filter(isDefined<CanvasImage>),
+    images,
     ppi,
     text,
   };

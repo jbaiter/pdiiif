@@ -45,7 +45,12 @@ abstract class PdfImage {
     }
   }
 
-  abstract toObjects(startNum: number): Array<PdfObject>;
+  abstract toObjects(
+    startNum: number,
+    isOptional?: boolean,
+    optionalTitle?: string,
+    optionalDefaultState?: boolean
+  ): Array<PdfObject>;
 }
 
 class JPEGImage extends PdfImage {

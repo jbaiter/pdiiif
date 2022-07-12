@@ -52,7 +52,18 @@ describe('PDF generation', () => {
     const pdfgen = new PDFGenerator(
       writer,
       metadata,
-      [{ canvasIdx: 0, numImages: 1 }],
+      [
+        {
+          canvasIdx: 0,
+          canvas: { id: 'foo', type: 'Canvas' },
+          images: [
+            {
+              img: { id: 'foo', type: 'ContentResource' },
+              optional: false,
+            },
+          ],
+        },
+      ],
       ['Tüst Läbel']
     );
     await pdfgen.setup();
@@ -67,6 +78,8 @@ describe('PDF generation', () => {
           location: { x: 0, y: 0 },
           data: imgBuf,
           numBytes: imgBuf.length,
+          isOptional: false,
+          visibleByDefault: true,
         },
       ],
       undefined,

@@ -227,7 +227,7 @@ async function buildOutlineFromRanges(
   const isRange = (ri: RangeItems): ri is Reference<'Range'> =>
     typeof ri !== 'string' && ri.type == 'Range';
 
-  const seenRanges: Set<String> = new Set();
+  const seenRanges: Set<string> = new Set();
   const handleTocRange = (range: RangeNormalized): TocItem | undefined => {
     if (seenRanges.has(range.id)) {
       return;
@@ -545,9 +545,8 @@ export async function convertManifest(
   const pdfGen = new PDFGenerator(
     countingWriter,
     pdfMetadata,
-    getCanvasImages(canvases).map((ci, idx) => {
-      return { canvasIdx: idx, numImages: ci.images.length };
-    }),
+    getCanvasImages(canvases).map((ci, idx) => ({ canvasIdx: idx, ...ci })),
+    languagePreference,
     labels,
     outline,
     hasText

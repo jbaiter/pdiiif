@@ -27,6 +27,7 @@ import { OcrPage, OcrSpan } from '../ocr.js';
 import pdiiifVersion from '../version.js';
 import log from '../log.js';
 import { CanvasImage } from '../download.js';
+import { CanvasImageInfo, getI18nValue } from '../iiif.js';
 
 const PRODUCER = `pdiiif v${pdiiifVersion}`;
 
@@ -87,8 +88,8 @@ export default class PDFGenerator {
   _writer: Writer | undefined;
   // Have we already started writing the IIIF pages?
   _pagesStarted = false;
-  // Number of images for every canvas, needed to pre-calculate object numbers
-  _imagesPerCanvas: { canvasIdx: number; numImages: number }[];
+  // Information about the images on each canvas, needed for pre-allocating objects
+  _canvasImages: Array<CanvasImageInfo & { canvasIdx: number }>;
   // Object number of the first page
   _firstPageObjectNum: number | undefined;
   // Labels for every page in the PDF
@@ -108,20 +109,24 @@ export default class PDFGenerator {
   _nextStructParentId = 0;
   // For every page, its corresponding parent ID for the parent tree
   _pageParentIds: Map<number, number> = new Map();
+  // Language preference
+  _langPref: readonly string[];
 
   constructor(
     writer: Writer,
     metadata: Metadata,
-    imagesPerCanvas: { canvasIdx: number; numImages: number }[],
+    canvasImages: Array<CanvasImageInfo & { canvasIdx: number }>,
+    langPref: readonly string[],
     pageLabels?: string[],
     outline: TocItem[] = [],
     hasText = false
   ) {
     this._writer = writer;
-    this._imagesPerCanvas = imagesPerCanvas;
+    this._canvasImages = canvasImages;
     this._pageLabels = pageLabels;
     this._outline = outline;
     this._hasText = hasText;
+    this._langPref = langPref;
 
     const pdfMetadata: PdfDictionary = {
       ...Object.entries(metadata)
@@ -144,7 +149,7 @@ export default class PDFGenerator {
     const pagesObj = this._addObject(
       {
         Type: '/Pages',
-        Count: this._imagesPerCanvas.length,
+        Count: this._canvasImages.length,
       },
       'Pages'
     );
@@ -408,6 +413,104 @@ export default class PDFGenerator {
     return;
   }
 
+  finalizePdfHeader(): void {
+    const catalog = this._objects[this._objRefs.Catalog.refObj]
+      .data as PdfDictionary;
+
+    // Create page tree with page labels
+    if (this._pageLabels) {
+      catalog.PageLabels = makeRef(
+        this._addObject({
+          Nums: flatten(
+            this._pageLabels
+              .map((label, idx) =>
+                label
+                  ? [idx + this._numCoverPages, { P: `( ${label} )` }]
+                  : undefined
+              )
+              .filter((x) => x !== undefined) as PdfArray
+          ),
+        })
+      );
+    }
+
+    // Register the structural content tree root
+    if (this._hasText) {
+      catalog.StructTreeRoot = makeRef(
+        this._nextObjNo + this.totalCanvasObjects
+      );
+    }
+
+    const pagesObj = this._objects[this._objRefs.Pages.refObj];
+
+    // Now that we know from which object number the pages start, we can set the
+    // /Kids entry in the Pages object and update the outline destinations.
+    const pageDict = pagesObj.data as PdfDictionary;
+    if (!pageDict.Kids) {
+      pageDict.Kids = [];
+    }
+    let next = this._nextObjNo;
+    for (const { images } of this._canvasImages) {
+      (pageDict.Kids as PdfArray).push(makeRef(next));
+      const numObjectsForPage =
+        images.length + // 1 per image
+        2 + // Page dictionary and content
+        images.filter((i) => i.optional).length; // 1 Optional Content Group per optional image
+      next += numObjectsForPage;
+    }
+    this._firstPageObjectNum = this._nextObjNo;
+    this._objects
+      // Get ToC entry object, the first destination will be the canvas index
+      .filter((obj) => (obj.data as PdfDictionary)?.Dest !== undefined)
+      .forEach((obj: PdfObject) => {
+        const dest = (obj.data as PdfDictionary).Dest as PdfArray;
+        if (typeof dest[0] !== 'number') {
+          return;
+        }
+        dest[0] = makeRef(this.getCanvasObjectNumber(dest[0]));
+      });
+
+    if (this._canvasImages.some((ci) => ci.images.some((i) => i.optional))) {
+      // We're *very* explicit with the visibility of the various OCGs to
+      // ensure as broad a viewer support as possible (especially pdf.js
+      // needed it...)
+      const initiallyEnabledOCGs: PdfRef[] = [];
+      const initiallyDisabledOCGs: PdfRef[] = [];
+      const allOCGs: PdfRef[] = [];
+      const rbGroups: PdfRef[][] = [];
+      for (const { canvasIdx, images } of this._canvasImages) {
+        const pageObjNum = this.getCanvasObjectNumber(canvasIdx);
+        const ocgStart = pageObjNum + 2 + images.length;
+        let ocgIdx = 0;
+        const rbGroup = [];
+        for (const img of images) {
+          if (!img.optional) {
+            continue;
+          }
+          const ref = makeRef(ocgStart + ocgIdx);
+          if (ocgIdx === 0) {
+            initiallyEnabledOCGs.push(ref);
+          } else {
+            initiallyDisabledOCGs.push(ref);
+          }
+          allOCGs.push(ref);
+          rbGroup.push(ref);
+          ocgIdx++;
+        }
+        rbGroups.push(rbGroup);
+      }
+      catalog.OCProperties = {
+        OCGs: allOCGs,
+        D: {
+          BaseState: '/OFF',
+          ON: initiallyEnabledOCGs,
+          OFF: initiallyDisabledOCGs,
+          RBGroups: rbGroups,
+        },
+      };
+    }
+  }
+
   async renderPage(
     {
       width: canvasWidth,
@@ -419,52 +522,7 @@ export default class PDFGenerator {
   ): Promise<void> {
     if (!this._pagesStarted) {
       log.debug('Initial page, finalizing PDF header structures.');
-      const catalog = this._objects[this._objRefs.Catalog.refObj]
-        .data as PdfDictionary;
-      if (this._pageLabels) {
-        catalog.PageLabels = makeRef(
-          this._addObject({
-            Nums: flatten(
-              this._pageLabels
-                .map((label, idx) =>
-                  label
-                    ? [idx + this._numCoverPages, { P: `( ${label} )` }]
-                    : undefined
-                )
-                .filter((x) => x !== undefined) as PdfArray
-            ),
-          })
-        );
-      }
-      if (this._hasText) {
-        catalog.StructTreeRoot = makeRef(
-          this._nextObjNo + this.totalCanvasObjects
-        );
-      }
-      const pagesObj = this._objects[this._objRefs.Pages.refObj];
-      // Now that we know from which object number the pages start, we can set the
-      // /Kids entry in the Pages object and update the outline destinations.
-      const pageDict = pagesObj.data as PdfDictionary;
-      if (!pageDict.Kids) {
-        pageDict.Kids = [];
-      }
-      let next = this._nextObjNo;
-      for (const { numImages } of this._imagesPerCanvas) {
-        (pageDict.Kids as PdfArray).push(makeRef(next));
-        next += numImages + 2;
-      }
-      this._firstPageObjectNum = this._nextObjNo;
-      this._objects
-        // Get ToC entry object, the first destination will be the canvas index
-        .filter((obj) => (obj.data as PdfDictionary)?.Dest !== undefined)
-        .forEach((obj: PdfObject) => {
-          const dest = (obj.data as PdfDictionary).Dest as PdfArray;
-          if (typeof dest[0] !== 'number') {
-            return;
-          }
-          dest[0] = makeRef(this.getCanvasObjectNumber(dest[0]));
-        });
-
+      this.finalizePdfHeader();
       this._pagesStarted = true;
     }
     // Factor to multiply pixels by to get equivalent PDF units (72 pdf units === 1 inch)
@@ -489,12 +547,30 @@ export default class PDFGenerator {
     }
     const page = this._addObject(pageDict);
 
-    const contentOps = images.flatMap(({ dimensions, location }, idx) => [
-      `q ${unitScale * dimensions.width} 0 0 ${unitScale * dimensions.height} ${
-        unitScale * location.x
-      } ${unitScale * (canvasHeight - dimensions.height - location.y)} cm`,
-      `/Im${idx + 1} Do Q`,
-    ]);
+    const contentOps: string[] = [];
+    const optionalGroupIds: { [imgId: string]: string } = {};
+    for (const [
+      idx,
+      { dimensions, location, isOptional },
+    ] of images.entries()) {
+      const drawWidth = unitScale * dimensions.width;
+      const drawHeight = unitScale * dimensions.height;
+      const drawX = unitScale * location.x;
+      const drawY = unitScale * (canvasHeight - dimensions.height - location.y);
+      const imageId = `/Im${idx + 1}`;
+
+      if (isOptional) {
+        const ocId = `/oc${Object.keys(optionalGroupIds).length + 1}`;
+        optionalGroupIds[imageId] = ocId;
+        contentOps.push(`/OC ${ocId} BDC`);
+      }
+      contentOps.push(`q ${drawWidth} 0 0 ${drawHeight} ${drawX} ${drawY} cm`);
+      contentOps.push(`${imageId} Do`);
+      contentOps.push('Q');
+      if (isOptional) {
+        contentOps.push('EMC');
+      }
+    }
     if (ocrText) {
       contentOps.push(this._renderOcrText(ocrText, unitScale));
     }
@@ -516,10 +592,46 @@ export default class PDFGenerator {
       this._nextObjNo += imageObjs.length;
       this._objects.push(...imageObjs);
     }
-    ((page.data as PdfDictionary).Resources as PdfDictionary).XObject =
-      Object.fromEntries(
-        imageObjectNums.map((num, idx) => [`Im${idx + 1}`, makeRef(num)])
-      );
+
+    const optionalGroupObjectNums: { [imgId: string]: number } = {};
+    if (images.some((i) => i.isOptional)) {
+      log.debug('Creating optional content groups for page');
+      for (const [
+        idx,
+        { isOptional, label, visibleByDefault },
+      ] of images.entries()) {
+        const imageId = `/Im${idx + 1}`;
+        if (!isOptional) {
+          continue;
+        }
+        optionalGroupObjectNums[imageId] = this._nextObjNo;
+        this._addObject({
+          Type: '/OCG',
+          Name: label
+            ? `(${getI18nValue(label, this._langPref, '/')})`
+            : undefined,
+          Intent: '/View',
+          Usage: visibleByDefault ? '/ON' : '/OFF',
+        } as PdfDictionary);
+      }
+    }
+    const pageResources = (page.data as PdfDictionary)
+      .Resources as PdfDictionary;
+    const xObjects: PdfDictionary = {};
+    const properties: PdfDictionary = {};
+    for (const [idx, num] of imageObjectNums.entries()) {
+      const imageId = `/Im${idx + 1}`;
+      xObjects[imageId.substring(1)] = makeRef(num);
+      const ocgNum = optionalGroupObjectNums[imageId];
+      if (ocgNum !== undefined) {
+        const ocgId = optionalGroupIds[imageId];
+        properties[ocgId.substring(1)] = makeRef(ocgNum);
+      }
+    }
+    pageResources.XObject = xObjects;
+    if (Object.keys(properties).length > 0) {
+      pageResources.Properties = properties;
+    }
 
     // Write out all of the objects
     log.debug('Flushing data for page');
@@ -690,7 +802,7 @@ export default class PDFGenerator {
       xOld = wordX;
       yOld = wordY;
       // Calculate horizontal stretch
-      // FIXME: This is ripped straight from Tesseract, I have no clue what it does
+      // TODO: This is ripped straight from Tesseract, I have no clue what it does
       // FIXME: The end of the line seems to be too far to the left sometimes,
       // while the start seems to match
       const wordLength = Math.pow(
@@ -701,8 +813,8 @@ export default class PDFGenerator {
       ops.push(
         `${CHAR_WIDTH * ((100 * wordLength) / (fontSize * pdfWordLen))} Tz`
       );
-      // FIXME: Account for trailing space in width calculation to prevent readers
-      //        from inserting a line break
+      // TODO: Account for trailing space in width calculation to prevent readers
+      //       from inserting a line break
       const textBytes = serialize(toUTF16BE(word.text + ' ', false));
       ops.push(`[ ${textBytes} ] TJ`);
     }
@@ -723,19 +835,28 @@ export default class PDFGenerator {
   /** Number of objects needed to render all canvases */
   get totalCanvasObjects(): number {
     // Every canvas needs 1 object per image, 1 for the content stream and 1 for the page definition.
-    return this._imagesPerCanvas.reduce(
-      (sum, { numImages }) => sum + numImages + 2,
+    return this._canvasImages.reduce(
+      (sum, _, idx) => sum + this.getCanvasObjectNumber(idx),
       0
+    );
+  }
+
+  getObjectsPerCanvas(canvasIdx: number): number {
+    const { images } = this._canvasImages[canvasIdx];
+    return (
+      images.length + // 1 per image
+      2 + // Page dictionary and content
+      images.filter((i) => i.optional).length // 1 Optional Content Group per optional image
     );
   }
 
   getCanvasObjectNumber(canvasIdx: number): number {
     let num = this._firstPageObjectNum!;
-    for (const { canvasIdx: idx, numImages } of this._imagesPerCanvas) {
+    for (const { canvasIdx: idx, images } of this._canvasImages) {
       if (idx === canvasIdx) {
         return num;
       }
-      num += numImages + 2;
+      num += this.getObjectsPerCanvas(canvasIdx);
     }
     throw new Error(`Canvas #${canvasIdx} not found.`);
   }
@@ -796,11 +917,11 @@ export default class PDFGenerator {
     };
     const pageParents: Map<number, Array<PdfRef>> = new Map();
     const rootRef = makeRef(this._addObject(root));
-    const visitEntry = (
+    const visitEntry = async (
       entry: StructTreeEntry,
       parent: PdfDictionary,
       parentRef: PdfRef
-    ) => {
+    ): Promise<void> => {
       const obj: PdfDictionary = {
         Type: '/StructElem',
         S: `/${entry.type}`,
@@ -814,7 +935,9 @@ export default class PDFGenerator {
       const objRef = makeRef(this._addObject(obj));
       (parent.K as PdfRef[]).push(objRef);
       if (entry.children.length > 0) {
-        entry.children.forEach((i) => visitEntry(i, obj, objRef));
+        for (const i of entry.children) {
+          await visitEntry(i, obj, objRef);
+        }
       } else if (entry.mcs.length == 1) {
         obj.K = entry.mcs[0];
       } else if (entry.mcs.length > 0) {
@@ -826,8 +949,13 @@ export default class PDFGenerator {
           parents[mcId] = objRef;
         }
       }
+      if (this._objects.length > 1000) {
+        await this._flush();
+      }
     };
-    this._strucTree.forEach((i) => visitEntry(i, root, rootRef));
+    for (const i of this._strucTree) {
+      await visitEntry(i, root, rootRef);
+    }
     for (const [pageObjNum, parents] of pageParents) {
       const pidx = this._pageParentIds.get(pageObjNum)!;
       (parentRoot.Nums as PdfArray).push(

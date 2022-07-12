@@ -109,17 +109,53 @@ export async function fetchFullImageService(
   return res as ImageService;
 }
 
-export function getCanvasImages(canvases: CanvasNormalized[]): {
+export type CanvasImageInfo = {
   canvas: Reference<'Canvas'>;
-  images: Reference<'ContentResource'>[];
-}[] {
+  images: {
+    img: Reference<'ContentResource'>;
+    optional: boolean;
+    label?: InternationalString;
+  }[];
+};
+
+export function getCanvasImages(
+  canvases: CanvasNormalized[]
+): CanvasImageInfo[] {
   return canvases.map((c) => {
     const annos = vault
       .get<AnnotationPageNormalized>(c.items)
       .flatMap((p) => vault.get<AnnotationNormalized>(p.items));
+    const images = annos
+      .flatMap((a) =>
+        a.body.filter((b) => vault.get<ContentResource>(b).type === 'Image')
+      )
+      .map((i) => ({ img: i, optional: false }));
+    annos
+      .flatMap((a) =>
+        vault
+          .get<ContentResource>(a.body)
+          .filter((r) => (r as any).type === 'Choice')
+          .flatMap(
+            (c) =>
+              vault
+                .get<ContentResource>((c as any).items)
+                .filter((b: any) => b.type === 'Image')
+                .map((i: any) => {
+                  return {
+                    img: {
+                      id: (i as any).id as string,
+                      type: 'ContentResource',
+                    },
+                    optional: true,
+                    label: i.label,
+                  };
+                }) as { img: Reference<'ContentResource'>; optional: boolean }[]
+          )
+      )
+      .forEach((i) => images.push(i));
     return {
       canvas: { id: c.id, type: 'Canvas' },
-      images: annos.flatMap((a) => a.body),
+      images,
     };
   });
 }

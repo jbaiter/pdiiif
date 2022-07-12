@@ -72,7 +72,7 @@ of the recipe support in pdiiif:
 - [ ] [Audio Presentation with Accompanying Image (accompanyingCanvas)](https://iiif.io/api/cookbook/recipe/0014-accompanyingcanvas/): NO, no support for audio
 - [ ] [Begin playback at a specific point - Time-based media (start)](https://iiif.io/api/cookbook/recipe/0015-start/): NO, no support for time-based media
 - [x] [Metadata on any Resource (metadata)](https://iiif.io/api/cookbook/recipe/0029-metadata-anywhere/): Partial, only Manifest metadata
-- [ ] [Providing Alternative Representations (rendering)](https://iiif.io/api/cookbook/recipe/0046-rendering/): NO, but support possible via PDF layers
+- [ ] [Providing Alternative Representations (rendering)](https://iiif.io/api/cookbook/recipe/0046-rendering/): NO, utility in PDF questionable
 - [ ] [Linking to Structured Metadata (seeAlso)](https://iiif.io/api/cookbook/recipe/0053-seeAlso/): NO, could be placed on the cover page
 - [x] [Image Thumbnail for Manifest (thumbnail)](https://iiif.io/api/cookbook/recipe/0117-add-image-thumbnail/): YES
 - [x] [Displaying Multiple Values with Language Maps (label, summary, metadata, requiredStatement)](https://iiif.io/api/cookbook/recipe/0118_multivalue/): YES
@@ -87,7 +87,7 @@ of the recipe support in pdiiif:
 - [x] [Table of Contents for Book Chapters (structures)](https://iiif.io/api/cookbook/recipe/0024-book-4-toc/): YES
 - [ ] [Table of Contents for A/V Content](https://iiif.io/api/cookbook/recipe/0026-toc-opera/): NO
 - [ ] [Multi-volume Work with Individually-bound Volumes](https://iiif.io/api/cookbook/recipe/0030-multi-volume/): NO
-- [ ] [Multiple Choice of Images in a Single View (Canvas)](https://iiif.io/api/cookbook/recipe/0033-choice/): NO, but support possible via PDF layers
+- [x] [Multiple Choice of Images in a Single View (Canvas)](https://iiif.io/api/cookbook/recipe/0033-choice/): YES
 - [ ] [Foldouts, Flaps, and Maps (behavior)](https://iiif.io/api/cookbook/recipe/0035-foldouts/): NO, support unlikely due to global paging preference in PDF
 - [x] [Composition from Multiple Images](https://iiif.io/api/cookbook/recipe/0036-composition-from-multiple-images/): Partial, as long as all images have a JPEG representation
 </details>
