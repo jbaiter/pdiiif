@@ -125,6 +125,7 @@ importers:
       eslint: ^7.32.0
       eslint-config-prettier: ^6.15.0
       eslint-config-recommended: ^4.1.0
+      fflate: ^0.7.3
       globby: ^10.0.2
       jest: ^28.1.2
       jest-fetch-mock: ^3.0.3
@@ -154,6 +155,7 @@ importers:
       cross-fetch: 3.1.5
       dedent-js: 1.0.1
       dompurify: 2.3.8
+      fflate: 0.7.3
       jsdom: 17.0.0
       lodash-es: 4.17.21
       p-queue: 6.6.2
@@ -3804,6 +3806,10 @@ packages:
     dependencies:
       node-domexception: 1.0.0
       web-streams-polyfill: 3.2.1
+
+  /fflate/0.7.3:
+    resolution: {integrity: sha512-0Zz1jOzJWERhyhsimS54VTqOteCNwRtIlh8isdL0AXLo0g7xNTfTL7oWrkmCnPhZGocKIkWHBistBrrpoNH3aw==}
+    dev: false
 
   /figures/3.2.0:
     resolution: {integrity: sha512-yaduQFRKLXYOGgEn6AZau90j3ggSOyiqXU0F9JZfeXYhNa+Jk4X+s45A2zg5jns87GAFa34BBm2kXw4XpNcbdg==}

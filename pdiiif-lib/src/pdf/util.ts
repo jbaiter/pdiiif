@@ -1,8 +1,10 @@
 import { sum } from 'lodash-es';
 import util from 'util';
 import zlib from 'zlib';
+import { zlibSync } from 'fflate';
 
 import { PdfDictionary } from './common';
+import log from '../log';
 
 // Browsers have native encoders/decoders in the global namespace, use these
 export let textEncoder: TextEncoder | util.TextEncoder;
@@ -69,11 +71,26 @@ export async function tryDeflateStream(
   let compressed: Uint8Array;
   if (typeof window !== 'undefined') {
     if (typeof (window as any).CompressionStream === 'undefined') {
-      // Browser doesn't support CompressionStream API, no deflate possible
-      return Promise.resolve({
-        stream: pdfStream,
-        dict: { Length: pdfStream.length },
-      });
+      // Browser doesn't support CompressionStream API, try to use the JS implementation
+      try {
+        let bytes: Uint8Array;
+        if (pdfStream instanceof Uint8Array) {
+          bytes = pdfStream;
+        } else {
+          bytes = textEncoder.encode(pdfStream);
+        }
+        compressed = zlibSync(bytes);
+        return Promise.resolve({
+          stream: compressed,
+          dict: { Length: compressed.length, Filter: '/FlateDecode' }
+        });
+      } catch (err) {
+        log.warn(`Failed to use JS deflate implementation, data will be written uncompressed: ${err}`);
+        return Promise.resolve({
+          stream: pdfStream,
+          dict: { Length: pdfStream.length },
+        });
+      }
     }
     const compStream = new (window as any).CompressionStream('deflate');
     const c = new Blob([data]).stream().pipeThrough(compStream);
