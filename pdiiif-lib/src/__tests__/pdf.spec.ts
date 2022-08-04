@@ -54,12 +54,11 @@ describe('PDF generation', () => {
       metadata,
       [
         {
-          canvasIdx: 0,
           canvas: { id: 'foo', type: 'Canvas' },
           images: [
             {
               img: { id: 'foo', type: 'ContentResource' },
-              optional: false,
+              isOptional: false,
             },
           ],
         },
@@ -71,6 +70,7 @@ describe('PDF generation', () => {
       path.resolve(__dirname, './fixtures/wunder.jpg')
     );
     await pdfgen.renderPage(
+      'http://some.fixture',
       { width: 290, height: 400 },
       [
         {

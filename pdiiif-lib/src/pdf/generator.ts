@@ -6,6 +6,8 @@
 // with good abstractions at the same time was too much of a challenge for me 🙈
 import { flatten, padStart as pad } from 'lodash-es';
 import dedent from 'dedent-js';
+import { Manifest } from '@iiif/presentation-3';
+import { Manifest as ManifestV2 } from '@iiif/presentation-2';
 
 import {
   Metadata,
@@ -27,7 +29,7 @@ import { OcrPage, OcrSpan } from '../ocr.js';
 import pdiiifVersion from '../version.js';
 import log from '../log.js';
 import { CanvasImage } from '../download.js';
-import { CanvasImageInfo, getI18nValue } from '../iiif.js';
+import { CanvasInfo, getI18nValue } from '../iiif.js';
 
 const PRODUCER = `pdiiif v${pdiiifVersion}`;
 
@@ -88,8 +90,8 @@ export default class PDFGenerator {
   _writer: Writer | undefined;
   // Have we already started writing the IIIF pages?
   _pagesStarted = false;
-  // Information about the images on each canvas, needed for pre-allocating objects
-  _canvasImages: Array<CanvasImageInfo & { canvasIdx: number }>;
+  // Information about each canvas, needed for pre-allocating objects
+  _canvasInfos: Array<CanvasInfo> = [];
   // Object number of the first page
   _firstPageObjectNum: number | undefined;
   // Labels for every page in the PDF
@@ -111,22 +113,28 @@ export default class PDFGenerator {
   _pageParentIds: Map<number, number> = new Map();
   // Language preference
   _langPref: readonly string[];
+  private _embedOcr: boolean;
+  private _manifestJson?: Manifest | ManifestV2;
 
   constructor(
     writer: Writer,
     metadata: Metadata,
-    canvasImages: Array<CanvasImageInfo & { canvasIdx: number }>,
+    canvasInfos: CanvasInfo[],
     langPref: readonly string[],
     pageLabels?: string[],
     outline: TocItem[] = [],
-    hasText = false
+    hasText = false,
+    manifestJson?: Manifest | ManifestV2,
+    embedOcr = false,
   ) {
     this._writer = writer;
-    this._canvasImages = canvasImages;
+    this._canvasInfos = canvasInfos;
     this._pageLabels = pageLabels;
     this._outline = outline;
     this._hasText = hasText;
     this._langPref = langPref;
+    this._embedOcr = embedOcr;
+    this._manifestJson = manifestJson;
 
     const pdfMetadata: PdfDictionary = {
       ...Object.entries(metadata)
@@ -149,7 +157,7 @@ export default class PDFGenerator {
     const pagesObj = this._addObject(
       {
         Type: '/Pages',
-        Count: this._canvasImages.length,
+        Count: this._canvasInfos.length,
       },
       'Pages'
     );
@@ -186,6 +194,10 @@ export default class PDFGenerator {
     }
     if (this._hasText) {
       await this._setupHiddenTextFont();
+    }
+
+    if (this._manifestJson) {
+      await this.embedManifest(this._manifestJson);
     }
   }
 
@@ -276,6 +288,37 @@ export default class PDFGenerator {
       FONTDATA
     );
     (fontDesc.data as PdfDictionary).FontFile2 = makeRef(fontDataObj);
+  }
+
+  _registerOcrFilesInCatalog() {
+    const catalog = this._objects[this._objRefs.Catalog.refObj]
+      .data as PdfDictionary;
+    const embeddedFiles: PdfArray = [];
+    for (const [idx, canvas] of this._canvasInfos.entries()) {
+      if (!canvas.ocr) {
+        continue;
+      }
+      const pageObjNum = this.getCanvasObjectNumber(idx);
+      // The file spec for embedded OCR file is the previous to last XObject for a given canvas
+      const fileObjNum = pageObjNum + this.getObjectsPerCanvas(idx) - 2;
+      /*
+      if (this._polyglot) {
+        // Except if the PDF is polyglot, then it's the second to last XObject
+        fileObjNum -= 1;
+      }
+      */
+      embeddedFiles.push(`(${canvas.ocr.id})`);
+      embeddedFiles.push(makeRef(fileObjNum));
+    }
+    if (!catalog.Names) {
+      catalog.Names = {
+        EmbeddedFiles: { Names: embeddedFiles },
+      }
+    } else {
+      const names = catalog.Names as PdfDictionary;
+      const nameTree = names.EmbeddedFiles as PdfDictionary;
+      nameTree.Names = (nameTree.Names as PdfArray).concat(embeddedFiles);
+    }
   }
 
   _addOutline(
@@ -413,6 +456,73 @@ export default class PDFGenerator {
     return;
   }
 
+  private async _embedResource(
+    id: string,
+    filename: string,
+    description: string,
+    mimeType: string,
+    data: string
+  ) {
+    filename = filename.replace('/', '\\\\/');
+    const fileSpec: PdfDictionary = {
+      Type: '/Filespec',
+      F: `(${filename})`,
+      UF: toUTF16BE(filename),
+      Desc: `(${description})`,
+      EF: {
+        F: makeRef(this._nextObjNo + 1),
+      },
+    };
+
+    const maybeCompressed = await tryDeflateStream(data);
+    const embeddedFile = {
+      Type: '/EmbeddedFile',
+      Subtype: mimeType,
+      Length: maybeCompressed.dict.Length,
+    };
+
+    const specRef = this._addObject(fileSpec);
+    this._addObject(embeddedFile, undefined, maybeCompressed.stream);
+    if (!this._pagesStarted) {
+      // This is only safe to do before we have flushed out the initial
+      // data of the PDF, all embedded files that are added after that
+      // need to be pre-allocated in the catalog!
+      const catalog = this._objects[this._objRefs.Catalog.refObj]
+        .data as PdfDictionary;
+      if (!catalog.Names) {
+        catalog.Names = {
+          EmbeddedFiles: { Names: [`(${id})`, makeRef(specRef)] },
+        };
+      } else {
+        const names = ((catalog.Names as PdfDictionary)
+          .EmbeddedFiles as PdfDictionary).Names as PdfArray;
+        names.push(`(${id})`);
+        names.push(makeRef(specRef));
+      }
+    }
+  }
+
+  async embedManifest(manifestJson: ManifestV2 | Manifest): Promise<void> {
+    let manifestMime = 'application/ld+json';
+    if (Array.isArray(manifestJson['@context'])) {
+      const manifestProfile = manifestJson['@context'].find((p) =>
+        p.startsWith('http://iiif.io/api/presentation')
+      );
+      if (manifestProfile) {
+        manifestMime += `;profile="${manifestProfile}"`;
+      }
+    } else if (manifestJson['@context']) {
+      manifestMime += `;profile="${manifestJson['@context']}"`;
+    }
+    await this._embedResource(
+      '@id' in manifestJson ? manifestJson['@id'] : manifestJson.id,
+      'manifest.json',
+      'IIIF Manifest this PDF is based on',
+      manifestMime,
+      JSON.stringify(manifestJson)
+    );
+  }
+
   finalizePdfHeader(): void {
     const catalog = this._objects[this._objRefs.Catalog.refObj]
       .data as PdfDictionary;
@@ -434,13 +544,6 @@ export default class PDFGenerator {
       );
     }
 
-    // Register the structural content tree root
-    if (this._hasText) {
-      catalog.StructTreeRoot = makeRef(
-        this._nextObjNo + this.totalCanvasObjects
-      );
-    }
-
     const pagesObj = this._objects[this._objRefs.Pages.refObj];
 
     // Now that we know from which object number the pages start, we can set the
@@ -449,16 +552,10 @@ export default class PDFGenerator {
     if (!pageDict.Kids) {
       pageDict.Kids = [];
     }
-    let next = this._nextObjNo;
-    for (const { images } of this._canvasImages) {
-      (pageDict.Kids as PdfArray).push(makeRef(next));
-      const numObjectsForPage =
-        images.length + // 1 per image
-        2 + // Page dictionary and content
-        images.filter((i) => i.optional).length; // 1 Optional Content Group per optional image
-      next += numObjectsForPage;
-    }
     this._firstPageObjectNum = this._nextObjNo;
+    for (const [idx] of this._canvasInfos.entries()) {
+      (pageDict.Kids as PdfArray).push(makeRef(this.getCanvasObjectNumber(idx)));
+    }
     this._objects
       // Get ToC entry object, the first destination will be the canvas index
       .filter((obj) => (obj.data as PdfDictionary)?.Dest !== undefined)
@@ -470,7 +567,14 @@ export default class PDFGenerator {
         dest[0] = makeRef(this.getCanvasObjectNumber(dest[0]));
       });
 
-    if (this._canvasImages.some((ci) => ci.images.some((i) => i.optional))) {
+    // Register the structural content tree root
+    if (this._hasText) {
+      catalog.StructTreeRoot = makeRef(
+        this._nextObjNo + this.totalCanvasObjects
+      );
+    }
+
+    if (this._canvasInfos.some((ci) => ci.images.some((i) => i.isOptional))) {
       // We're *very* explicit with the visibility of the various OCGs to
       // ensure as broad a viewer support as possible (especially pdf.js
       // needed it...)
@@ -478,13 +582,13 @@ export default class PDFGenerator {
       const initiallyDisabledOCGs: PdfRef[] = [];
       const allOCGs: PdfRef[] = [];
       const rbGroups: PdfRef[][] = [];
-      for (const { canvasIdx, images } of this._canvasImages) {
+      for (const [canvasIdx, { images }] of this._canvasInfos.entries()) {
         const pageObjNum = this.getCanvasObjectNumber(canvasIdx);
         const ocgStart = pageObjNum + 2 + images.length;
         let ocgIdx = 0;
         const rbGroup = [];
         for (const img of images) {
-          if (!img.optional) {
+          if (!img.isOptional) {
             continue;
           }
           const ref = makeRef(ocgStart + ocgIdx);
@@ -512,6 +616,7 @@ export default class PDFGenerator {
   }
 
   async renderPage(
+    canvasId: string,
     {
       width: canvasWidth,
       height: canvasHeight,
@@ -631,6 +736,24 @@ export default class PDFGenerator {
     pageResources.XObject = xObjects;
     if (Object.keys(properties).length > 0) {
       pageResources.Properties = properties;
+    }
+
+    if (ocrText?.markup && this._embedOcr) {
+      const canvasIdx = this._canvasInfos.findIndex(ci => ci.canvas.id === canvasId);
+      let filename = `ocr/ocr-canvas-${canvasIdx}`;
+      if (ocrText.mimeType.indexOf('html') >= 0) {
+        filename += '.html';
+      } else {
+        filename += '.xml';
+      }
+
+      await this._embedResource(
+        ocrText.id,
+        filename,
+        `OCR for canvas #${canvasIdx}`,
+        ocrText.mimeType,
+        ocrText.markup
+      )
     }
 
     // Write out all of the objects
@@ -835,28 +958,32 @@ export default class PDFGenerator {
   /** Number of objects needed to render all canvases */
   get totalCanvasObjects(): number {
     // Every canvas needs 1 object per image, 1 for the content stream and 1 for the page definition.
-    return this._canvasImages.reduce(
+    return this._canvasInfos.reduce(
       (sum, _, idx) => sum + this.getCanvasObjectNumber(idx),
       0
     );
   }
 
   getObjectsPerCanvas(canvasIdx: number): number {
-    const { images } = this._canvasImages[canvasIdx];
-    return (
+    const { images, ocr } = this._canvasInfos[canvasIdx];
+    let numObjects = (
       images.length + // 1 per image
       2 + // Page dictionary and content
-      images.filter((i) => i.optional).length // 1 Optional Content Group per optional image
+      images.filter((i) => i.isOptional).length // 1 Optional Content Group per optional image
     );
+    if (this._embedOcr && ocr) {
+      numObjects += 2;
+    }
+    return numObjects;
   }
 
   getCanvasObjectNumber(canvasIdx: number): number {
     let num = this._firstPageObjectNum!;
-    for (const { canvasIdx: idx, images } of this._canvasImages) {
+    for (const [idx] of this._canvasInfos.entries()) {
       if (idx === canvasIdx) {
         return num;
       }
-      num += this.getObjectsPerCanvas(canvasIdx);
+      num += this.getObjectsPerCanvas(idx);
     }
     throw new Error(`Canvas #${canvasIdx} not found.`);
   }

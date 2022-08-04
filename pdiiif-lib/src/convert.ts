@@ -491,9 +491,10 @@ export async function convertManifest(
   }
 
   let manifestId: string;
-  let manifestJson: Manifest | ManifestV2 | undefined;
+  let manifestJson: Manifest | ManifestV2;
   if (typeof inputManifest === 'string') {
     manifestId = inputManifest;
+    manifestJson = (await (await fetchRespectfully(manifestId)).json()) as Manifest | ManifestV2;
   } else {
     manifestId =
       (inputManifest as ManifestV2)['@id'] ?? (inputManifest as Manifest).id;
@@ -549,7 +550,10 @@ export async function convertManifest(
     languagePreference,
     labels,
     outline,
-    hasText
+    hasText,
+    manifestJson,
+    true,
+    true,
   );
   log.debug(`Initialising PDF generator.`);
   await pdfGen.setup();
@@ -600,6 +604,7 @@ export async function convertManifest(
       const stopMeasuring = metrics?.pageGenerationDuration.startTimer();
       log.debug(`Rendering canvas #${canvasIdx} into PDF`);
       await pdfGen.renderPage(
+        canvasData.canvas.id,
         { width: canvas.width, height: canvas.height },
         images,
         text,

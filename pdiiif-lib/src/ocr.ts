@@ -11,7 +11,7 @@ import {
 } from '@iiif/presentation-3';
 
 import metrics from './metrics.js';
-import { rateLimitRegistry } from './download.js';
+import { fetchRespectfully, rateLimitRegistry } from './download.js';
 import log from './log.js';
 import {
   isExternalWebResourceWithProfile,
@@ -46,11 +46,14 @@ export interface OcrSpan {
 }
 
 export interface OcrPage {
+  id: string;
   width: number;
   height: number;
   blocks?: Array<{ paragraphs: Array<{ lines: Array<OcrSpan> }> }>;
   paragraphs?: Array<{ lines: Array<OcrSpan> }>;
   lines?: Array<OcrSpan>;
+  markup?: string;
+  mimeType: string;
 }
 
 export interface Dimensions {
@@ -190,6 +193,7 @@ function parseHocrLineNode(lineNode: Element, scaleFactor: number): OcrSpan {
  * @returns {object} the parsed OCR page
  */
 export function parseHocr(
+  id: string,
   hocrText: string,
   referenceSize: Dimensions
 ): OcrPage | null {
@@ -274,11 +278,14 @@ export function parseHocr(
     lines = undefined;
   }
   return {
+    id,
     height: Math.round(scaleFactor * pageSize[3]),
     blocks,
     paragraphs,
     lines,
     width: Math.round(scaleFactor * pageSize[2]),
+    markup: hocrText,
+    mimeType: 'text/vnd.hocr+html',
   };
 }
 
@@ -324,7 +331,11 @@ function altoStyleNodeToCSS(styleNode: Element): string {
  * @param {object} imgSize Size of the target image
  * @returns {object} the parsed OCR page
  */
-export function parseAlto(altoText: string, imgSize: Dimensions): OcrPage {
+export function parseAlto(
+  id: string,
+  altoText: string,
+  imgSize: Dimensions
+): OcrPage {
   const doc = parser.parseFromString(altoText, 'text/xml');
   // We assume ALTO is set as the default namespace
   /** Namespace resolver that forrces the ALTO namespace */
@@ -471,9 +482,12 @@ export function parseAlto(altoText: string, imgSize: Dimensions): OcrPage {
     paragraphs.push(block);
   }
   return {
+    id,
     height: pageHeight,
     paragraphs,
     width: pageWidth,
+    markup: altoText,
+    mimeType: 'application/xml+alto',
   };
 }
 
@@ -497,14 +511,15 @@ function getFallbackImageSize(lines: OcrSpan[]): Dimensions {
  * @returns {OcrPage} the parsed OCR page
  */
 export function parseOcr(
+  id: string,
   ocrText: string,
   referenceSize: Dimensions
 ): OcrPage | null {
   let parse: OcrPage | null;
   if (ocrText.indexOf('<alto') >= 0) {
-    parse = parseAlto(ocrText, referenceSize);
+    parse = parseAlto(id, ocrText, referenceSize);
   } else {
-    parse = parseHocr(ocrText, referenceSize);
+    parse = parseHocr(id, ocrText, referenceSize);
   }
   if (parse === null) {
     return null;
@@ -613,7 +628,7 @@ async function fetchOcrMarkup(url: string): Promise<string> {
 
 /** Fetch external annotation resource JSON */
 export async function fetchAnnotationResource(url: string): Promise<any> {
-  const resp = await fetch(url);
+  const resp = await fetchRespectfully(url);
   return resp.json();
 }
 
@@ -653,7 +668,7 @@ export async function fetchAndParseText(
       throw err;
     }
     return (
-      parseOcr(markup, {
+      parseOcr(seeAlso.id!, markup, {
         width: canvas.width,
         height: canvas.height,
       }) ?? undefined

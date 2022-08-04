@@ -12,6 +12,7 @@ import {
 } from '@iiif/presentation-3';
 import { buildLocaleString, createThumbnailHelper } from '@iiif/vault-helpers';
 import { globalVault, Vault } from '@iiif/vault';
+import { getTextSeeAlso } from './ocr';
 
 export const vault = globalVault() as Vault;
 
@@ -109,18 +110,19 @@ export async function fetchFullImageService(
   return res as ImageService;
 }
 
-export type CanvasImageInfo = {
+export type CanvasInfo = {
   canvas: Reference<'Canvas'>;
+  ocr?: {
+    id: string;
+  };
   images: {
     img: Reference<'ContentResource'>;
-    optional: boolean;
+    isOptional: boolean;
     label?: InternationalString;
   }[];
 };
 
-export function getCanvasImages(
-  canvases: CanvasNormalized[]
-): CanvasImageInfo[] {
+export function getCanvasImages(canvases: CanvasNormalized[]): CanvasInfo[] {
   return canvases.map((c) => {
     const annos = vault
       .get<AnnotationPageNormalized>(c.items)
@@ -129,7 +131,7 @@ export function getCanvasImages(
       .flatMap((a) =>
         a.body.filter((b) => vault.get<ContentResource>(b).type === 'Image')
       )
-      .map((i) => ({ img: i, optional: false }));
+      .map((i) => ({ img: i, isOptional: false }));
     annos
       .flatMap((a) =>
         vault
@@ -146,16 +148,21 @@ export function getCanvasImages(
                       id: (i as any).id as string,
                       type: 'ContentResource',
                     },
-                    optional: true,
+                    isOptional: true,
                     label: i.label,
                   };
-                }) as { img: Reference<'ContentResource'>; optional: boolean }[]
+                }) as {
+                img: Reference<'ContentResource'>;
+                isOptional: boolean;
+              }[]
           )
       )
       .forEach((i) => images.push(i));
+    const text = getTextSeeAlso(c);
     return {
       canvas: { id: c.id, type: 'Canvas' },
       images,
+      ocr: text ? { id: text.id! } : undefined,
     };
   });
 }
