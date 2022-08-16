@@ -12,7 +12,7 @@ import {
 } from '@iiif/presentation-3';
 import { buildLocaleString, createThumbnailHelper } from '@iiif/vault-helpers';
 import { globalVault, Vault } from '@iiif/vault';
-import { getTextSeeAlso } from './ocr';
+import { getTextSeeAlso } from './ocr.js';
 
 export const vault = globalVault() as Vault;
 

@@ -122,6 +122,11 @@ export interface ConvertOptions {
   /** Callback to call for retrieving PDF data with one or more cover pages
       to insert before the canvas pages */
   coverPageCallback?: (params: CoverPageParams) => Promise<Uint8Array>;
+  /** Generate the PDF in a way that the resulting file is also a valid
+   *  ZIP file that contains the manifest, all of the images and, if present,
+   *  the OCR files referenced in the manifest.
+   */
+  polyglotZipPdf?: boolean;
 }
 
 /** Parameters for size estimation */
@@ -460,6 +465,7 @@ export async function convertManifest(
     abortController = new AbortController(),
     coverPageCallback,
     coverPageEndpoint,
+    polyglotZipPdf,
   }: ConvertOptions
 ): Promise<void | Blob> {
   let writer: Writer;
@@ -494,7 +500,9 @@ export async function convertManifest(
   let manifestJson: Manifest | ManifestV2;
   if (typeof inputManifest === 'string') {
     manifestId = inputManifest;
-    manifestJson = (await (await fetchRespectfully(manifestId)).json()) as Manifest | ManifestV2;
+    manifestJson = (await (await fetchRespectfully(manifestId)).json()) as
+      | Manifest
+      | ManifestV2;
   } else {
     manifestId =
       (inputManifest as ManifestV2)['@id'] ?? (inputManifest as Manifest).id;
@@ -552,8 +560,7 @@ export async function convertManifest(
     outline,
     hasText,
     manifestJson,
-    true,
-    true,
+    polyglotZipPdf,
   );
   log.debug(`Initialising PDF generator.`);
   await pdfGen.setup();

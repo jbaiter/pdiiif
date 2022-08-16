@@ -4,7 +4,7 @@
 /// PDF generation code
 // FIXME: This is currently one hell of a mess, learning about PDF and coming up
 // with good abstractions at the same time was too much of a challenge for me 🙈
-import { flatten, padStart as pad } from 'lodash-es';
+import { flatten, isObject, padStart as pad } from 'lodash-es';
 import dedent from 'dedent-js';
 import { Manifest } from '@iiif/presentation-3';
 import { Manifest as ManifestV2 } from '@iiif/presentation-2';
@@ -30,6 +30,12 @@ import pdiiifVersion from '../version.js';
 import log from '../log.js';
 import { CanvasImage } from '../download.js';
 import { CanvasInfo, getI18nValue } from '../iiif.js';
+import {
+  buildCentralFileDirectory,
+  buildLocalZipHeader,
+  CentralDirectoryFileSpec,
+} from './pkzip.js';
+import { crc32 } from '../util.js';
 
 const PRODUCER = `pdiiif v${pdiiifVersion}`;
 
@@ -75,6 +81,13 @@ const FONTDATA = new Uint8Array([
   0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 ]);
 
+type ZipDummyObjectSpec = {
+  filename: string;
+  data: Uint8Array;
+  deflatedData?: Uint8Array;
+  bytesUntilActualData: number;
+};
+
 export default class PDFGenerator {
   // Keep track of how many bytes have been written so far
   _offset = 0;
@@ -113,8 +126,9 @@ export default class PDFGenerator {
   _pageParentIds: Map<number, number> = new Map();
   // Language preference
   _langPref: readonly string[];
-  private _embedOcr: boolean;
+  private _polyglot: boolean;
   private _manifestJson?: Manifest | ManifestV2;
+  private _zipCatalog?: Array<CentralDirectoryFileSpec>;
 
   constructor(
     writer: Writer,
@@ -125,7 +139,7 @@ export default class PDFGenerator {
     outline: TocItem[] = [],
     hasText = false,
     manifestJson?: Manifest | ManifestV2,
-    embedOcr = false,
+    zipPolyglot = false
   ) {
     this._writer = writer;
     this._canvasInfos = canvasInfos;
@@ -133,7 +147,7 @@ export default class PDFGenerator {
     this._outline = outline;
     this._hasText = hasText;
     this._langPref = langPref;
-    this._embedOcr = embedOcr;
+    this._polyglot = zipPolyglot;
     this._manifestJson = manifestJson;
 
     const pdfMetadata: PdfDictionary = {
@@ -194,10 +208,6 @@ export default class PDFGenerator {
     }
     if (this._hasText) {
       await this._setupHiddenTextFont();
-    }
-
-    if (this._manifestJson) {
-      await this.embedManifest(this._manifestJson);
     }
   }
 
@@ -279,41 +289,43 @@ export default class PDFGenerator {
     });
     (typeTwoFont.data as PdfDictionary).FontDescriptor = makeRef(fontDesc);
 
+    const maybeCompressedFont = await tryDeflateStream(FONTDATA);
     const fontDataObj = this._addObject(
       {
-        Length: FONTDATA.length,
         Length1: FONTDATA.length,
+        ...maybeCompressedFont.dict,
       },
       undefined,
-      FONTDATA
+      maybeCompressedFont.stream
     );
     (fontDesc.data as PdfDictionary).FontFile2 = makeRef(fontDataObj);
   }
 
-  _registerOcrFilesInCatalog() {
+  _registerEmbeddedFilesInCatalog() {
     const catalog = this._objects[this._objRefs.Catalog.refObj]
       .data as PdfDictionary;
-    const embeddedFiles: PdfArray = [];
+    const embeddedFiles: PdfArray = [
+      `(manifest.json)`,
+      makeRef(this._firstPageObjectNum! - (this._polyglot ? 3 : 2))
+    ];
     for (const [idx, canvas] of this._canvasInfos.entries()) {
       if (!canvas.ocr) {
         continue;
       }
       const pageObjNum = this.getCanvasObjectNumber(idx);
       // The file spec for embedded OCR file is the previous to last XObject for a given canvas
-      const fileObjNum = pageObjNum + this.getObjectsPerCanvas(idx) - 2;
-      /*
+      let fileObjNum = pageObjNum + this.getObjectsPerCanvas(idx) - 2;
       if (this._polyglot) {
         // Except if the PDF is polyglot, then it's the second to last XObject
         fileObjNum -= 1;
       }
-      */
       embeddedFiles.push(`(${canvas.ocr.id})`);
       embeddedFiles.push(makeRef(fileObjNum));
     }
     if (!catalog.Names) {
       catalog.Names = {
         EmbeddedFiles: { Names: embeddedFiles },
-      }
+      };
     } else {
       const names = catalog.Names as PdfDictionary;
       const nameTree = names.EmbeddedFiles as PdfDictionary;
@@ -361,6 +373,16 @@ export default class PDFGenerator {
     refName?: string,
     stream?: Uint8Array | string
   ): PdfObject {
+    if (stream) {
+      if (!isObject(val)) {
+        throw new Error(
+          'PDF Objects with a stream must have a dictionary as its value'
+        );
+      }
+      if (!(val as PdfDictionary).Length) {
+        (val as PdfDictionary).Length = stream.length;
+      }
+    }
     const obj = {
       num: this._nextObjNo,
       data: val,
@@ -463,14 +485,15 @@ export default class PDFGenerator {
     mimeType: string,
     data: string
   ) {
-    filename = filename.replace('/', '\\\\/');
+    // TODO: Add check that the file is actually pre-registered in
+    //       the catalog!
     const fileSpec: PdfDictionary = {
       Type: '/Filespec',
       F: `(${filename})`,
       UF: toUTF16BE(filename),
       Desc: `(${description})`,
       EF: {
-        F: makeRef(this._nextObjNo + 1),
+        F: makeRef(this._nextObjNo + (this._polyglot ? 2 : 1)),
       },
     };
 
@@ -478,31 +501,40 @@ export default class PDFGenerator {
     const embeddedFile = {
       Type: '/EmbeddedFile',
       Subtype: mimeType,
-      Length: maybeCompressed.dict.Length,
+      ...maybeCompressed.dict,
     };
 
-    const specRef = this._addObject(fileSpec);
-    this._addObject(embeddedFile, undefined, maybeCompressed.stream);
-    if (!this._pagesStarted) {
-      // This is only safe to do before we have flushed out the initial
-      // data of the PDF, all embedded files that are added after that
-      // need to be pre-allocated in the catalog!
-      const catalog = this._objects[this._objRefs.Catalog.refObj]
-        .data as PdfDictionary;
-      if (!catalog.Names) {
-        catalog.Names = {
-          EmbeddedFiles: { Names: [`(${id})`, makeRef(specRef)] },
-        };
+    this._addObject(fileSpec);
+    if (this._polyglot) {
+      let zipData: Uint8Array;
+      if (typeof data === 'string') {
+        zipData = textEncoder.encode(data);
       } else {
-        const names = ((catalog.Names as PdfDictionary)
-          .EmbeddedFiles as PdfDictionary).Names as PdfArray;
-        names.push(`(${id})`);
-        names.push(makeRef(specRef));
+        zipData = data;
       }
+      const extraDataLength =
+        this._getSerializedSize(
+          {
+            num: this._nextObjNo + 2,
+            data: { ...embeddedFile, ...maybeCompressed.dict },
+            stream: maybeCompressed.stream,
+          },
+          true
+        );
+      this._insertZipHeaderDummyObject({
+        filename,
+        data: zipData,
+        deflatedData: maybeCompressed.dict.Filter
+          ? (maybeCompressed.stream as Uint8Array)
+          : undefined,
+        // 2 bytes zlib header of deflated data
+        bytesUntilActualData: extraDataLength + 2,
+      });
     }
+    this._addObject(embeddedFile, undefined, maybeCompressed.stream);
   }
 
-  async embedManifest(manifestJson: ManifestV2 | Manifest): Promise<void> {
+  private async _embedManifest(manifestJson: ManifestV2 | Manifest): Promise<void> {
     let manifestMime = 'application/ld+json';
     if (Array.isArray(manifestJson['@context'])) {
       const manifestProfile = manifestJson['@context'].find((p) =>
@@ -523,7 +555,7 @@ export default class PDFGenerator {
     );
   }
 
-  finalizePdfHeader(): void {
+  async finalizePdfHeader(): Promise<void> {
     const catalog = this._objects[this._objRefs.Catalog.refObj]
       .data as PdfDictionary;
 
@@ -553,8 +585,16 @@ export default class PDFGenerator {
       pageDict.Kids = [];
     }
     this._firstPageObjectNum = this._nextObjNo;
+    if (this._manifestJson) {
+      this._firstPageObjectNum += 2;
+      if (this._polyglot) {
+        this._firstPageObjectNum++;
+      }
+    }
     for (const [idx] of this._canvasInfos.entries()) {
-      (pageDict.Kids as PdfArray).push(makeRef(this.getCanvasObjectNumber(idx)));
+      (pageDict.Kids as PdfArray).push(
+        makeRef(this.getCanvasObjectNumber(idx))
+      );
     }
     this._objects
       // Get ToC entry object, the first destination will be the canvas index
@@ -613,6 +653,15 @@ export default class PDFGenerator {
         },
       };
     }
+
+    this._registerEmbeddedFilesInCatalog();
+
+    await this._flush();
+
+    if (this._manifestJson) {
+      await this._embedManifest(this._manifestJson);
+      await this._flush();
+    }
   }
 
   async renderPage(
@@ -627,7 +676,7 @@ export default class PDFGenerator {
   ): Promise<void> {
     if (!this._pagesStarted) {
       log.debug('Initial page, finalizing PDF header structures.');
-      this.finalizePdfHeader();
+      await this.finalizePdfHeader();
       this._pagesStarted = true;
     }
     // Factor to multiply pixels by to get equivalent PDF units (72 pdf units === 1 inch)
@@ -688,17 +737,71 @@ export default class PDFGenerator {
     );
     (page.data as PdfDictionary).Contents = makeRef(contentsObj);
 
-    log.debug('Creating image objects.');
-    const imageObjectNums: number[] = [];
-    for (const { data } of images) {
-      imageObjectNums.push(this._nextObjNo);
-      const image = PdfImage.open(new Uint8Array(data!));
-      const imageObjs = image.toObjects(this._nextObjNo);
-      this._nextObjNo += imageObjs.length;
-      this._objects.push(...imageObjs);
+    // Since we need the finalized page dictionary in order to determine
+    // the offset for the the local zip header, we pre-generate all the
+    // relevant information
+    const imageObjectNums = [...images.keys()].map(idx => {
+      if (this._polyglot) {
+        return this._nextObjNo + (idx * 2) + 1
+      } else {
+        return this._nextObjNo + idx;
+      }
+    });
+    const optionalGroupObjectNums: { [imgId: string]: number } = {};
+    if (images.some((i) => i.isOptional)) {
+      for (const [
+        idx,
+        { isOptional },
+      ] of images.entries()) {
+        const imageId = `/Im${idx + 1}`;
+        if (!isOptional) {
+          continue;
+        }
+        optionalGroupObjectNums[imageId] = imageObjectNums.slice(-1)[0] + idx;
+      }
+    }
+    const pageResources = (page.data as PdfDictionary)
+      .Resources as PdfDictionary;
+    const xObjects: PdfDictionary = {};
+    const properties: PdfDictionary = {};
+    for (const [idx, num] of imageObjectNums.entries()) {
+      const imageId = `/Im${idx + 1}`;
+      xObjects[imageId.substring(1)] = makeRef(num);
+      const ocgNum = optionalGroupObjectNums[imageId];
+      if (ocgNum !== undefined) {
+        const ocgId = optionalGroupIds[imageId];
+        properties[ocgId.substring(1)] = makeRef(ocgNum);
+      }
+    }
+    pageResources.XObject = xObjects;
+    if (Object.keys(properties).length > 0) {
+      pageResources.Properties = properties;
     }
 
-    const optionalGroupObjectNums: { [imgId: string]: number } = {};
+    log.debug('Creating image objects.');
+    const canvasIdx = this._canvasInfos.findIndex(
+      (ci) => ci.canvas.id === canvasId
+    );
+    for (const [imgIdx, { data }] of images.entries()) {
+      const imageData = new Uint8Array(data!);
+      const image = PdfImage.open(imageData);
+      // TODO: Currently we only support JPEG, if we expand to other
+      //       file types we need to consider multiple objects pe rimage
+      const imageObj = image.toObjects(this._nextObjNo)[0];
+      if (this._polyglot) {
+        const imgPreambleSize = this._getSerializedSize(imageObj, true);
+        const filename = `img/canvas-${canvasIdx}-${imgIdx}.jpg`;
+        this._insertZipHeaderDummyObject({
+          filename,
+          data: imageData,
+          bytesUntilActualData: imgPreambleSize,
+        });
+        imageObj.num = this._nextObjNo;
+      }
+      this._nextObjNo += 1;
+      this._objects.push(imageObj);
+    }
+
     if (images.some((i) => i.isOptional)) {
       log.debug('Creating optional content groups for page');
       for (const [
@@ -720,27 +823,12 @@ export default class PDFGenerator {
         } as PdfDictionary);
       }
     }
-    const pageResources = (page.data as PdfDictionary)
-      .Resources as PdfDictionary;
-    const xObjects: PdfDictionary = {};
-    const properties: PdfDictionary = {};
-    for (const [idx, num] of imageObjectNums.entries()) {
-      const imageId = `/Im${idx + 1}`;
-      xObjects[imageId.substring(1)] = makeRef(num);
-      const ocgNum = optionalGroupObjectNums[imageId];
-      if (ocgNum !== undefined) {
-        const ocgId = optionalGroupIds[imageId];
-        properties[ocgId.substring(1)] = makeRef(ocgNum);
-      }
-    }
-    pageResources.XObject = xObjects;
-    if (Object.keys(properties).length > 0) {
-      pageResources.Properties = properties;
-    }
 
-    if (ocrText?.markup && this._embedOcr) {
-      const canvasIdx = this._canvasInfos.findIndex(ci => ci.canvas.id === canvasId);
-      let filename = `ocr/ocr-canvas-${canvasIdx}`;
+    if (ocrText?.markup) {
+      const canvasIdx = this._canvasInfos.findIndex(
+        (ci) => ci.canvas.id === canvasId
+      );
+      let filename = `ocr/canvas-${canvasIdx}`;
       if (ocrText.mimeType.indexOf('html') >= 0) {
         filename += '.html';
       } else {
@@ -753,7 +841,7 @@ export default class PDFGenerator {
         `OCR for canvas #${canvasIdx}`,
         ocrText.mimeType,
         ocrText.markup
-      )
+      );
     }
 
     // Write out all of the objects
@@ -966,12 +1054,18 @@ export default class PDFGenerator {
 
   getObjectsPerCanvas(canvasIdx: number): number {
     const { images, ocr } = this._canvasInfos[canvasIdx];
-    let numObjects = (
+    let numObjects =
       images.length + // 1 per image
       2 + // Page dictionary and content
-      images.filter((i) => i.isOptional).length // 1 Optional Content Group per optional image
-    );
-    if (this._embedOcr && ocr) {
+      images.filter((i) => i.isOptional).length; // 1 Optional Content Group per optional image
+    if (this._polyglot) {
+      // For a polyglot PDF, we need to precede every XObject that we'd like
+      // to expose as a file in the ZIP with a separate XObject that contains
+      // the local ZIP header for that file. Currently this concerns the
+      // images and the OCR data
+      numObjects = numObjects + images.length + (ocr ? 1 : 0);
+    }
+    if (ocr) {
       numObjects += 2;
     }
     return numObjects;
@@ -1001,6 +1095,32 @@ export default class PDFGenerator {
       await this._serializeObject(obj);
     }
     this._objects = [];
+  }
+
+  _getSerializedSize(
+    { num, data, stream }: PdfObject,
+    untilStreamStart = false
+  ): number {
+    let size = 0;
+    size += `${num} 0 obj\n`.length;
+
+    if (data) {
+      size += serialize(data).length;
+    }
+    if (stream) {
+      size += '\nstream\n'.length;
+      if (untilStreamStart) {
+        return size;
+      }
+      if (typeof stream === 'string') {
+        size += textEncoder.encode(stream).byteLength;
+      } else {
+        size += stream.byteLength;
+      }
+      size += '\nendstream'.length;
+    }
+    size += '\nendobj\n'.length;
+    return size;
   }
 
   async _serializeObject(obj: PdfObject): Promise<void> {
@@ -1129,11 +1249,62 @@ export default class PDFGenerator {
       Info: this._objRefs.Info,
       ID: [randomData(32), randomData(32)],
     };
-    await this._write(`\ntrailer\n${serialize(trailerDict)}`);
-    await this._write(`\nstartxref\n${xrefOffset}\n%%EOF`);
+    const trailer = [
+      `\ntrailer\n${serialize(trailerDict)}`,
+      `\nstartxref\n${xrefOffset}\n%%EOF`,
+    ].join('');
+    await this._write(trailer);
+    if (this._polyglot && this._zipCatalog) {
+      await this._write(
+        buildCentralFileDirectory({
+          files: this._zipCatalog,
+          trailingLength: 0,
+          offset: this._offset,
+        })
+      );
+    }
     await this._writer.waitForDrain();
     console.debug('PDF finished, closing writer');
     await this._writer.close();
     this._writer = undefined;
+  }
+
+  private _insertZipHeaderDummyObject({
+    filename,
+    data,
+    deflatedData,
+    bytesUntilActualData,
+  }: ZipDummyObjectSpec): void {
+    const zipObjOffset =
+      this._offset +
+      this._objects.reduce((acc, obj) => acc + this._getSerializedSize(obj), 0);
+    const creationDate = new Date();
+    bytesUntilActualData += '\nendstream\nendobj\n'.length;
+    const zipObj = this._addObject(
+      {},
+      undefined,
+      buildLocalZipHeader({
+        filename,
+        data,
+        compressedData: deflatedData,
+        extraDataLength: bytesUntilActualData,
+        creationDate,
+      })
+    );
+    const localHeaderOffset =
+      zipObjOffset + this._getSerializedSize(zipObj, true);
+    if (!this._zipCatalog) {
+      this._zipCatalog = [];
+    }
+    this._zipCatalog.push({
+      localHeaderOffset,
+      deflated: deflatedData?.length !== data.length,
+      creationDate: new Date(),
+      crc32: crc32(data),
+      dataLength: data.length,
+      // skip 2 bytes for zlib header
+      compressedDataLength: deflatedData ? deflatedData.length - 2 : data.length,
+      filename,
+    });
   }
 }

@@ -3,8 +3,8 @@ import util from 'util';
 import zlib from 'zlib';
 import { zlibSync } from 'fflate';
 
-import { PdfDictionary } from './common';
-import log from '../log';
+import { PdfDictionary } from './common.js';
+import log from '../log.js';
 
 // Browsers have native encoders/decoders in the global namespace, use these
 export let textEncoder: TextEncoder | util.TextEncoder;
