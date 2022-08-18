@@ -40,7 +40,6 @@ export function buildLocalZipHeader({
     ((creationDate.getFullYear() - 1980) << 9) |
     ((creationDate.getMonth() + 1) << 5) |
     creationDate.getDate();
-  console.log({ creationDateZip, creationTimeZip });
   const dataCrc = crc32(data);
   const filenameEncoded = textEncoder.encode(filename);
   // 2 bytes for zlib header

@@ -124,9 +124,11 @@ export interface ConvertOptions {
   coverPageCallback?: (params: CoverPageParams) => Promise<Uint8Array>;
   /** Generate the PDF in a way that the resulting file is also a valid
    *  ZIP file that contains the manifest, all of the images and, if present,
-   *  the OCR files referenced in the manifest.
-   */
+   *  the OCR files referenced in the manifest. */
   polyglotZipPdf?: boolean;
+  /** Base directory in the polyglot ZIP archive. If not set, all resource
+   * directories will be to-level in the archive. */
+  polyglotZipBaseDir?: string;
 }
 
 /** Parameters for size estimation */
@@ -466,6 +468,7 @@ export async function convertManifest(
     coverPageCallback,
     coverPageEndpoint,
     polyglotZipPdf,
+    polyglotZipBaseDir,
   }: ConvertOptions
 ): Promise<void | Blob> {
   let writer: Writer;
@@ -551,17 +554,18 @@ export async function convertManifest(
     canvases,
     languagePreference as string[]
   );
-  const pdfGen = new PDFGenerator(
-    countingWriter,
-    pdfMetadata,
-    getCanvasImages(canvases).map((ci, idx) => ({ canvasIdx: idx, ...ci })),
-    languagePreference,
-    labels,
+  const pdfGen = new PDFGenerator({
+    writer: countingWriter,
+    metadata: pdfMetadata,
+    canvasInfos: getCanvasImages(canvases).map((ci, idx) => ({ canvasIdx: idx, ...ci })),
+    langPref: languagePreference,
+    pageLabels: labels,
     outline,
     hasText,
     manifestJson,
-    polyglotZipPdf,
-  );
+    zipPolyglot: polyglotZipPdf,
+    zipBaseDir: polyglotZipBaseDir,
+  });
   log.debug(`Initialising PDF generator.`);
   await pdfGen.setup();
   const progress = new ProgressTracker(

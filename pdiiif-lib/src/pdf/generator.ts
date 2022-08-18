@@ -88,6 +88,31 @@ type ZipDummyObjectSpec = {
   bytesUntilActualData: number;
 };
 
+export type GeneratorParams = {
+  // Writer to output the PDF to
+  writer: Writer;
+  // Metadata to include in the PDF
+  metadata: Metadata;
+  // Information about canvases included in the PDF
+  canvasInfos: CanvasInfo[];
+  // List of languages to use for rendering labels, in descending order of preference
+  langPref: readonly string[];
+  // Labels for pages, every position corresponds to the canvas in the same position
+  pageLabels?: string[];
+  // Outline tree for the PDF
+  outline: TocItem[];
+  // Whether the PDF should include a hidden text layer
+  hasText?: boolean;
+  // The manifest to build the PDF from
+  manifestJson?: Manifest | ManifestV2;
+  // If this is enabled, the PDF will also be a valid ZIP archive of all the resources
+  // included in the PDF
+  zipPolyglot?: boolean;
+  // Base directory name for the polyglot ZIP archive, if not set the resources will be
+  // top-level in the archive
+  zipBaseDir?: string;
+}
+
 export default class PDFGenerator {
   // Keep track of how many bytes have been written so far
   _offset = 0;
@@ -129,18 +154,20 @@ export default class PDFGenerator {
   private _polyglot: boolean;
   private _manifestJson?: Manifest | ManifestV2;
   private _zipCatalog?: Array<CentralDirectoryFileSpec>;
+  private _zipBaseDir?: string;
 
-  constructor(
-    writer: Writer,
-    metadata: Metadata,
-    canvasInfos: CanvasInfo[],
-    langPref: readonly string[],
-    pageLabels?: string[],
-    outline: TocItem[] = [],
+  constructor({
+    writer,
+    metadata,
+    canvasInfos,
+    langPref,
+    pageLabels,
+    outline = [],
     hasText = false,
-    manifestJson?: Manifest | ManifestV2,
-    zipPolyglot = false
-  ) {
+    manifestJson,
+    zipPolyglot = false,
+    zipBaseDir
+  }: GeneratorParams) {
     this._writer = writer;
     this._canvasInfos = canvasInfos;
     this._pageLabels = pageLabels;
@@ -148,6 +175,7 @@ export default class PDFGenerator {
     this._hasText = hasText;
     this._langPref = langPref;
     this._polyglot = zipPolyglot;
+    this._zipBaseDir = zipBaseDir;
     this._manifestJson = manifestJson;
 
     const pdfMetadata: PdfDictionary = {
@@ -1225,7 +1253,7 @@ export default class PDFGenerator {
       await this._writeStructureTree();
     }
     */
-    console.debug('Writing trailer');
+    log.debug('Writing trailer');
     type XrefEntry = [number, number, 'f' | 'n'];
     const xrefEntries: Array<XrefEntry> = [
       [0, 65535, 'f'],
@@ -1264,7 +1292,7 @@ export default class PDFGenerator {
       );
     }
     await this._writer.waitForDrain();
-    console.debug('PDF finished, closing writer');
+    log.debug('PDF finished, closing writer');
     await this._writer.close();
     this._writer = undefined;
   }
@@ -1275,6 +1303,9 @@ export default class PDFGenerator {
     deflatedData,
     bytesUntilActualData,
   }: ZipDummyObjectSpec): void {
+    if (this._zipBaseDir) {
+      filename = `${this._zipBaseDir}/${filename}`;
+    }
     const zipObjOffset =
       this._offset +
       this._objects.reduce((acc, obj) => acc + this._getSerializedSize(obj), 0);

@@ -272,6 +272,7 @@
         coverPageEndpoint,
         scaleFactor,
         polyglotZipPdf: true,
+        polyglotZipBaseDir: cleanLabel,
       });
       pdfFinished = true;
       if (!webWritable) {

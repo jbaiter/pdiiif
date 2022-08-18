@@ -49,10 +49,11 @@ describe('PDF generation', () => {
     const metadata = {
       Title: 'Täst Tütle',
     };
-    const pdfgen = new PDFGenerator(
+    const pdfgen = new PDFGenerator({
       writer,
       metadata,
-      [
+      langPref: ['en'],
+      canvasInfos: [
         {
           canvas: { id: 'foo', type: 'Canvas' },
           images: [
@@ -63,8 +64,9 @@ describe('PDF generation', () => {
           ],
         },
       ],
-      ['Tüst Läbel']
-    );
+      outline: [],
+      pageLabels: ['Tüst Läbel']
+  });
     await pdfgen.setup();
     const imgBuf = await fs.promises.readFile(
       path.resolve(__dirname, './fixtures/wunder.jpg')

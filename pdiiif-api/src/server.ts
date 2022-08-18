@@ -352,6 +352,8 @@ app.get(
           // Reduce chance of accidental DoS on image servers, two concurrent downloads per requested PDF
           concurrency: 2,
           abortController,
+          polyglotZipPdf: true,
+          polyglotZipBaseDir: cleanLabel,
         }),
       primaryImageHost as string,
       onQueueAdvance
