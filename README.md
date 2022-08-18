@@ -62,7 +62,7 @@ of the recipe support in pdiiif:
 </details>
 
 <details>
-<summary><strong>IIIF Properties</strong> (6 of 15 supported)</summary>
+<summary><strong>IIIF Properties</strong> (7 of 15 supported)</summary>
 
 - [x] [Embedding HTML in descriptive properties (label, summary, metadata, requiredStatement)](https://iiif.io/api/cookbook/recipe/0007-string-formats/): Partially, only for server-generated cover page
 - [x] [Rights statement (rights, requiredStatement)](https://iiif.io/api/cookbook/recipe/0008-rights/): YES
@@ -77,13 +77,13 @@ of the recipe support in pdiiif:
 - [ ] [Linking to Structured Metadata (seeAlso)](https://iiif.io/api/cookbook/recipe/0053-seeAlso/): NO, could be placed on the cover page
 - [x] [Image Thumbnail for Manifest (thumbnail)](https://iiif.io/api/cookbook/recipe/0117-add-image-thumbnail/): YES
 - [x] [Displaying Multiple Values with Language Maps (label, summary, metadata, requiredStatement)](https://iiif.io/api/cookbook/recipe/0118_multivalue/): YES
-- [ ] [Load Manifest Beginning with a Specific Canvas (start)](https://iiif.io/api/cookbook/recipe/0202-start-canvas/): NO, but support possible
+- [x] [Load Manifest Beginning with a Specific Canvas (start)](https://iiif.io/api/cookbook/recipe/0202-start-canvas/): NO, but support possible
 - [ ] [Navigation by Chronology (navDate)](https://iiif.io/api/cookbook/recipe/0230-navdate/): NO
 - [x] [Acknowledge Content Contributors (provider)](https://iiif.io/api/cookbook/recipe/0234-provider/): YES
 </details>
 
 <details>
-<summary><strong>Structuring Resources</strong> (2 of 6 supported)</summary>
+<summary><strong>Structuring Resources</strong> (3 of 6 supported)</summary>
 
 - [x] [Table of Contents for Book Chapters (structures)](https://iiif.io/api/cookbook/recipe/0024-book-4-toc/): YES
 - [ ] [Table of Contents for A/V Content](https://iiif.io/api/cookbook/recipe/0026-toc-opera/): NO
@@ -94,14 +94,14 @@ of the recipe support in pdiiif:
 </details>
 
 <details>
-<summary><strong>Image Recipes</strong> (4 of 6 supported)</summary>
+<summary><strong>Image Recipes</strong> (5 of 6 supported)</summary>
 
 - [x] [Simplest Manifest - Single Image File](https://iiif.io/api/cookbook/recipe/0001-mvm-image/): Partial, only for JPEG images, **Cookbook example doesn't work** due to use of PNG
 - [x] [Image and Canvas with Differing Dimensions](https://iiif.io/api/cookbook/recipe/0004-canvas-size/): YES
 - [x] [Support Deep Viewing with Basic Use of a IIIF Image Service](https://iiif.io/api/cookbook/recipe/0005-image-service/): YES, Deep Viewing isn't useful in PDF, but IIIF Image Services are fully supported
 - [x] [Simple Manifest - Book](https://iiif.io/api/cookbook/recipe/0009-book-1/): YES
 - [ ] [Viewing direction and Its Effect on Navigation (viewingDirection)](https://iiif.io/api/cookbook/recipe/0010-book-2-viewing-direction/): NO
-- [ ] [Load Manifest Beginning with a Specific Canvas (start)](https://iiif.io/api/cookbook/recipe/0202-start-canvas/): NO, but support possible
+- [x] [Load Manifest Beginning with a Specific Canvas (start)](https://iiif.io/api/cookbook/recipe/0202-start-canvas/): YES
 </details>
 
 <details>

@@ -36,7 +36,7 @@
     "@types/express": "^4.17.13",
     "@types/jsbn": "^1.2.30",
     "@types/lodash-es": "^4.17.6",
-    "@types/node": "^16.11.49",
+    "@types/node": "^16.11.56",
     "@types/node-fetch": "^2.6.2",
     "@types/qrcode-svg": "^1.1.1",
     "@types/sanitize-html": "^2.6.2",
@@ -48,11 +48,11 @@
     "npm-run-all": "^4.1.5",
     "prettier": "^2.7.1",
     "tslib": "^2.4.0",
-    "typescript": "^4.7.4"
+    "typescript": "^4.8.2"
   },
   "dependencies": {
     "@atlas-viewer/iiif-image-api": "^2.0.5",
-    "@iiif/parser": "^1.0.10",
+    "@iiif/parser": "^1.0.13",
     "@iiif/presentation-3": "1.0.6",
     "@iiif/vault": "^0.9.19",
     "@iiif/vault-helpers": "^0.9.8",
@@ -72,11 +72,21 @@
     "p-queue": "6.6.2",
     "pdiiif": "workspace:^0.1.0",
     "pdiiif-web": "workspace:^0.1.0",
-    "prom-client": "^14.0.1",
+    "prom-client": "^14.1.0",
     "puppeteer": "^15.5.0",
     "qrcode-svg": "^1.1.0",
     "sanitize-html": "^2.7.1",
     "winston": "^3.8.1"
+  },
+  "pnpm": {
+    "overrides": {
+      "@iiif/parser": "1.0.13"
+    }
+  },
+  "overrides": {
+    "@iiif/vault@0.9.19": {
+      "@iiif/parser": "1.0.13"
+    }
   },
   "engines": {
     "node": ">=16.15.0"

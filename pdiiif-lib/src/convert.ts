@@ -29,7 +29,13 @@ import { TocItem } from './pdf/util.js';
 import { getLicenseInfo } from './res/licenses.js';
 import { getTextSeeAlso } from './ocr.js';
 import pdiiifVersion from './version.js';
-import { fetchCanvasData, fetchRespectfully, CanvasData } from './download.js';
+import {
+  fetchCanvasData,
+  fetchRespectfully,
+  CanvasData,
+  fetchStartCanvasInfo,
+  StartCanvasInfo,
+} from './download.js';
 import metrics from './metrics.js';
 import { isDefined, now } from './util.js';
 import log from './log.js';
@@ -235,7 +241,9 @@ async function buildOutlineFromRanges(
     typeof ri !== 'string' && ri.type == 'Range';
 
   const seenRanges: Set<string> = new Set();
-  const handleTocRange = (range: RangeNormalized): TocItem | undefined => {
+  const handleTocRange = async (
+    range: RangeNormalized
+  ): Promise<TocItem | undefined> => {
     if (seenRanges.has(range.id)) {
       return;
     }
@@ -248,26 +256,33 @@ async function buildOutlineFromRanges(
       '; '
     );
     const childRanges = vault.get<RangeNormalized>(range.items.filter(isRange));
-    const children = childRanges.map(handleTocRange).filter(isDefined<TocItem>);
-    let startCanvasIdx;
-    if (firstCanvas) {
-      startCanvasIdx = canvasIds.indexOf(firstCanvas.id);
+    const children = (
+      await Promise.all(childRanges.map(handleTocRange))
+    ).filter(isDefined<TocItem>);
+
+    let startCanvas: StartCanvasInfo | undefined;
+    if (range.start) {
+      startCanvas = await fetchStartCanvasInfo(range);
+    }
+    if (!startCanvas && firstCanvas) {
+      startCanvas = firstCanvas.id;
     } else {
-      startCanvasIdx = children[0].startCanvasIdx;
+      startCanvas = children[0].startCanvas;
     }
     seenRanges.add(range.id);
     return {
       label: rangeLabel,
-      startCanvasIdx,
+      startCanvas,
       children,
     };
   };
 
   return (
-    vault
-      .get<RangeNormalized>(manifest.structures)
-      .map(handleTocRange)
-      .filter(isDefined<TocItem>) ?? []
+    (
+      await Promise.all(
+        vault.get<RangeNormalized>(manifest.structures).map(handleTocRange)
+      )
+    ).filter(isDefined<TocItem>) ?? []
   );
 }
 
@@ -562,6 +577,7 @@ export async function convertManifest(
     pageLabels: labels,
     outline,
     hasText,
+    initialCanvas: await fetchStartCanvasInfo(manifest),
     manifestJson,
     zipPolyglot: polyglotZipPdf,
     zipBaseDir: polyglotZipBaseDir,

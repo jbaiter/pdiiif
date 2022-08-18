@@ -28,7 +28,7 @@ import { PdfParser } from './parser.js';
 import { OcrPage, OcrSpan } from '../ocr.js';
 import pdiiifVersion from '../version.js';
 import log from '../log.js';
-import { CanvasImage } from '../download.js';
+import { CanvasImage, StartCanvasInfo } from '../download.js';
 import { CanvasInfo, getI18nValue } from '../iiif.js';
 import {
   buildCentralFileDirectory,
@@ -103,6 +103,8 @@ export type GeneratorParams = {
   outline: TocItem[];
   // Whether the PDF should include a hidden text layer
   hasText?: boolean;
+  // Information about the canvas (or canvas region) that should be displayed initially
+  initialCanvas?: StartCanvasInfo;
   // The manifest to build the PDF from
   manifestJson?: Manifest | ManifestV2;
   // If this is enabled, the PDF will also be a valid ZIP archive of all the resources
@@ -151,6 +153,7 @@ export default class PDFGenerator {
   _pageParentIds: Map<number, number> = new Map();
   // Language preference
   _langPref: readonly string[];
+  _initialCanvas?: StartCanvasInfo;
   private _polyglot: boolean;
   private _manifestJson?: Manifest | ManifestV2;
   private _zipCatalog?: Array<CentralDirectoryFileSpec>;
@@ -164,6 +167,7 @@ export default class PDFGenerator {
     pageLabels,
     outline = [],
     hasText = false,
+    initialCanvas,
     manifestJson,
     zipPolyglot = false,
     zipBaseDir
@@ -174,6 +178,7 @@ export default class PDFGenerator {
     this._outline = outline;
     this._hasText = hasText;
     this._langPref = langPref;
+    this._initialCanvas = initialCanvas;
     this._polyglot = zipPolyglot;
     this._zipBaseDir = zipBaseDir;
     this._manifestJson = manifestJson;
@@ -366,13 +371,45 @@ export default class PDFGenerator {
     parent: PdfObject,
     prev?: PdfObject
   ): [PdfObject, number] {
+    let dest: PdfArray;
+    if (typeof itm.startCanvas === 'string') {
+      const destCanvasIdx = this._canvasInfos.findIndex(
+        (ci) => ci.canvas.id === itm.startCanvas
+      );
+      if (destCanvasIdx < 0) {
+        throw Error(
+          `Could not find canvas with id ${itm.startCanvas} in manifest!`
+        );
+      }
+      dest = [destCanvasIdx, '/Fit'];
+    } else {
+      const canvasId = itm.startCanvas.id;
+      const unitScale = 72 / itm.startCanvas.ppi;
+      const rect = itm.startCanvas.position;
+      const { width, height } = itm.startCanvas.dimensions;
+      const destCanvasIdx = this._canvasInfos.findIndex(
+        (ci) => ci.canvas.id === canvasId
+      );
+      if (destCanvasIdx < 0) {
+        throw Error(`Could not find canvas with id ${canvasId} in manifest!`);
+      }
+      dest = [
+        destCanvasIdx,
+        '/FitR',
+        // TODO: Thoroughly test that this is actually working!
+        unitScale * rect.x, // left
+        unitScale * rect.y, // bottom
+        unitScale * (width - (rect.x + rect.width)), // right,
+        unitScale * (height - (rect.y + rect.height)), // top,
+      ];
+    }
     const rec: PdfDictionary = {
       Title: `( ${itm.label} )`,
       Parent: makeRef(parent),
       // NOTE: The first entry is a number only during setup and will later be
       //       replaced with a reference to the actual page object, once we know
       //       how many objects are preceding the page objects.
-      Dest: [itm.startCanvasIdx!, '/Fit'],
+      Dest: dest,
     };
     const obj = this._addObject(rec);
     if (prev) {
@@ -680,6 +717,37 @@ export default class PDFGenerator {
           RBGroups: rbGroups,
         },
       };
+    }
+
+    if (typeof this._initialCanvas === 'string') {
+      catalog.OpenAction = [
+        makeRef(
+          this.getCanvasObjectNumber(
+            this._canvasInfos.findIndex(
+              (ci) => ci.canvas.id === this._initialCanvas
+            )
+          )
+        ),
+      ];
+    } else if (this._initialCanvas) {
+      const unitScale = 72 / this._initialCanvas.ppi;
+      const rect = this._initialCanvas.position;
+      const { width, height } = this._initialCanvas.dimensions;
+      catalog.OpenAction = [
+        makeRef(
+          this.getCanvasObjectNumber(
+            this._canvasInfos.findIndex(
+              (ci) => ci.canvas.id === this._initialCanvas
+            )
+          )
+        ),
+        '/FitR',
+        // TODO: Thoroughly test that this is actually working!
+        unitScale * rect.x, // left
+        unitScale * rect.y, // bottom
+        unitScale * (width - (rect.x + rect.width)), // right,
+        unitScale * (height - (rect.y + rect.height)), // top,
+      ];
     }
 
     this._registerEmbeddedFilesInCatalog();

@@ -7,11 +7,15 @@ import {
   AnnotationPageNormalized,
   CanvasNormalized,
   ContentResource,
+  FragmentSelector,
   IIIFExternalWebResource,
   ImageService,
   ImageService3,
   InternationalString,
+  ManifestNormalized,
+  RangeNormalized,
   Reference,
+  Selector,
   Service,
 } from '@iiif/presentation-3';
 
@@ -400,6 +404,80 @@ async function fetchCanvasImage(
     numBytes,
     isOptional: false,
     visibleByDefault: true,
+  };
+}
+
+export type StartCanvasInfo =
+  | string
+  | {
+      id: string;
+      ppi: number;
+      dimensions: { width: number; height: number };
+      position: {
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+      };
+    };
+
+export async function fetchStartCanvasInfo(
+  resource: ManifestNormalized | RangeNormalized
+): Promise<StartCanvasInfo | undefined> {
+  const startRef = resource.start;
+  if (!startRef) {
+    return;
+  }
+  let canvasId: string | undefined;
+  let fragment: string | undefined;
+  if (typeof startRef === 'string') {
+    const [ident, selectorStr] = (startRef as string).split('#xywh=');
+    if (!selectorStr) {
+      return ident;
+    }
+    canvasId = ident;
+    fragment = `xywh=${selectorStr}`;
+  } else if (startRef.type === 'Canvas') {
+    return startRef.id;
+  } else {
+    const selector = vault.get<Selector>(startRef);
+    if (typeof selector === 'string' || selector.type !== 'FragmentSelector') {
+      console.warn(
+        `Unsupported selector type, cannot determine start canvas for ${resource.id}`
+      );
+      return;
+    }
+    const fragSel = selector as FragmentSelector;
+    if (fragSel.conformsTo !== 'http://www.w3.org/TR/media-frags/') {
+      console.warn(
+        `Unsupported selector type, cannot determine start canvas for ${resource.id} (fragment selector type was ${fragSel.conformsTo})`
+      );
+      return;
+    }
+    canvasId = fragSel.value;
+  }
+  if (!fragment || !canvasId) {
+    console.error(
+      `Couldn't parse either canvas identifier or selector for ${resource.id} start canvas.`
+    );
+    return;
+  }
+  const [selX, selY, selWidth, selHeight] = fragment
+    .substring(5)
+    .split(',')
+    .map((v) => Number.parseInt(v, 10));
+  const canvas = vault.get<CanvasNormalized>(canvasId);
+  const ppi = getPointsPerInch(canvas.service) ?? FALLBACK_PPI;
+  return {
+    id: canvasId,
+    ppi,
+    dimensions: { width: canvas.width, height: canvas.height },
+    position: {
+      x: selX,
+      y: selY,
+      width: selWidth,
+      height: selHeight,
+    },
   };
 }
 

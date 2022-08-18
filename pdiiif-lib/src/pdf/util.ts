@@ -3,6 +3,7 @@ import util from 'util';
 import zlib from 'zlib';
 import { zlibSync } from 'fflate';
 
+import { StartCanvasInfo } from '../download.js';
 import { PdfDictionary } from './common.js';
 import log from '../log.js';
 
@@ -26,7 +27,7 @@ export const IS_BIG_ENDIAN = (() => {
 export interface TocItem {
   label: string;
   children?: Array<TocItem>;
-  startCanvasIdx?: number;
+  startCanvas: StartCanvasInfo;
 }
 
 export function getNumChildren(itm: TocItem): number {
