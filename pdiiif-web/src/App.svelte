@@ -20,6 +20,7 @@
   import ErrorIcon from './icons/Exclamation.svelte';
   import ProgressBar from './icons/ProgressBar.svelte';
   import { getMaximumBlobSize, supportsStreamsaver } from './util';
+  import { KeepAliveStreamSaver } from './io';
 
   export let apiEndpoint: string = 'http://localhost:31337/api';
   export let coverPageEndpoint: string = `${apiEndpoint}/coverpage`;
@@ -211,7 +212,7 @@
     }
 
     abortController = new AbortController();
-    let webWritable: WritableStream | undefined;
+    let webWritable: WritableStream<Uint8Array> | undefined;
     if (supportsFilesystemAPI) {
       const handle = await showSaveFilePicker({
         // @ts-ignore, only available in Chrome >= 91
@@ -233,7 +234,7 @@
       }
       webWritable = await handle.createWritable();
     } else if (supportsStreamsaver()) {
-      webWritable = streamSaver.createWriteStream(`${cleanLabel}.pdf`);
+      webWritable = new KeepAliveStreamSaver(`${cleanLabel}.pdf`);
       window.addEventListener('beforeunload', (evt) => {
         if (currentProgress && !cancelled && !pdfFinished) {
           const msg = $_('unload_warning');
