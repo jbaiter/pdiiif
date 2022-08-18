@@ -1,6 +1,7 @@
 import fs from 'fs';
 import https from 'https';
 import express, { Express, Response } from 'express';
+import bodyParser from 'body-parser';
 import fetch from 'node-fetch';
 import { range, maxBy } from 'lodash-es';
 import acceptLanguageParser from 'accept-language-parser';
@@ -132,6 +133,8 @@ const globalConvertQueue = new GeneratorQueue(2);
 
 const app: Express = express();
 app.use(express.static('node_modules/pdiiif-web/dist'));
+app.use(bodyParser.json());
+app.use(bodyParser.text());
 app.use(openApiMiddleware);
 app.use(
   cors({
@@ -176,6 +179,34 @@ if (process.env.CFG_SENTRY_DSN) {
   });
   app.use(Sentry.Handlers.requestHandler());
   app.use(Sentry.Handlers.tracingHandler());
+
+  // Sentry tunnel endpoint to work around adblockers, see [1]
+  // Based on Python/Flask code from [2]
+  // [1]: https://docs.sentry.io/platforms/javascript/troubleshooting/#using-the-tunnel-option
+  // [2] https://github.com/getsentry/examples/blob/master/tunneling/python/app.py
+  app.post('/api/reportbugs', async (req, res) => {
+    const envelope = req.body;
+    const piece = envelope.split('\n')[0];
+    const header = JSON.parse(piece);
+    const dsn = header['dsn'] as string;
+    if (dsn !== process.env.CFG_SENTRY_DSN) {
+      throw `Invalid Sentry host: ${dsn}`;
+    }
+    const dsn_url = new URL(dsn);
+    const sentry_host = dsn_url.hostname;
+    const project_id = dsn.replace(/^\/|\/$/, '');
+    const url = `https://${sentry_host}/api/${project_id}/envelope/`;
+
+    try {
+      await fetch(url, {
+        method: 'POST',
+        body: envelope,
+      });
+    } catch (err) {
+      log.error(err);
+    }
+    res.json({}).status(200).send();
+  });
 }
 
 app.get('/api/progress/:token', progressPathSpec, (req, res) => {

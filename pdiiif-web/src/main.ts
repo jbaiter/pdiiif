@@ -30,11 +30,15 @@ export function render(
 if (import.meta.env.PDIIIF_SENTRY_DSN) {
   Promise.all([import('@sentry/browser'), import('@sentry/tracing')]).then(
     ([Sentry, Tracing]) => {
-      Sentry.init({
+      const cfg = {
         dsn: import.meta.env.PDIIIF_SENTRY_DSN as string,
         integrations: [new Tracing.Integrations.BrowserTracing()],
         tracesSampleRate: 1.0,
-      });
+      }
+      if (import.meta.env.PDIIIF_SENTRY_TUNNEL_ENDPOINT) {
+        (cfg as any).tunnel = import.meta.env.PDIIIF_SENTRY_TUNNEL_ENDPOINT;
+      }
+      Sentry.init(cfg);
     }
   );
   import('@sentry/browser').then((Sentry) => {});
