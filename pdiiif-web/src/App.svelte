@@ -271,6 +271,7 @@
         abortController,
         coverPageEndpoint,
         scaleFactor,
+        polyglotZipPdf: true,
       });
       pdfFinished = true;
       if (!webWritable) {

@@ -66,8 +66,9 @@ of the recipe support in pdiiif:
 
 - [x] [Embedding HTML in descriptive properties (label, summary, metadata, requiredStatement)](https://iiif.io/api/cookbook/recipe/0007-string-formats/): Partially, only for server-generated cover page
 - [x] [Rights statement (rights, requiredStatement)](https://iiif.io/api/cookbook/recipe/0008-rights/): YES
-- [ ] [Viewing direction and Its Effect on Navigation (viewingDirection)](https://iiif.io/api/cookbook/recipe/0010-book-2-viewing-direction/): NO
-- [ ] [Book 'behavior' Variations (continuous, individuals) (behaviorimage)](https://iiif.io/api/cookbook/recipe/0011-book-3-behavior/): NO, support unlikely since paging preference is global in PDF
+- [ ] [Viewing direction and Its Effect on Navigation (viewingDirection)](https://iiif.io/api/cookbook/recipe/0010-book-2-viewing-direction/): NO, but at least partial support
+      should be possible
+- [ ] [Book 'behavior' Variations (continuous, individuals) (behaviorimage)](https://iiif.io/api/cookbook/recipe/0011-book-3-behavior/): NO, general support unlikely since paging preference is global in PDF, but if behavior is global for the manifest, it should be doable
 - [ ] [Load a Preview Image Before the Main Content (placeholderCanvas)](https://iiif.io/api/cookbook/recipe/0013-placeholderCanvas/): NO, not applicable
 - [ ] [Audio Presentation with Accompanying Image (accompanyingCanvas)](https://iiif.io/api/cookbook/recipe/0014-accompanyingcanvas/): NO, no support for audio
 - [ ] [Begin playback at a specific point - Time-based media (start)](https://iiif.io/api/cookbook/recipe/0015-start/): NO, no support for time-based media

@@ -36,9 +36,11 @@ Handlebars.registerHelper('qrcode', function (value, options) {
 });
 Handlebars.registerHelper('ifArray', function (potentialArray, options) {
   if (Array.isArray(potentialArray)) {
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore: Shadowed outer 'this'
     return options.fn(this);
   } else {
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore: Shadowed outer 'this'
     return options.inverse(this);
   }
