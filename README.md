@@ -62,12 +62,11 @@ of the recipe support in pdiiif:
 </details>
 
 <details>
-<summary><strong>IIIF Properties</strong> (7 of 15 supported)</summary>
+<summary><strong>IIIF Properties</strong> (8 of 15 supported)</summary>
 
 - [x] [Embedding HTML in descriptive properties (label, summary, metadata, requiredStatement)](https://iiif.io/api/cookbook/recipe/0007-string-formats/): Partially, only for server-generated cover page
 - [x] [Rights statement (rights, requiredStatement)](https://iiif.io/api/cookbook/recipe/0008-rights/): YES
-- [ ] [Viewing direction and Its Effect on Navigation (viewingDirection)](https://iiif.io/api/cookbook/recipe/0010-book-2-viewing-direction/): NO, but at least partial support
-      should be possible
+- [x] [Viewing direction and Its Effect on Navigation (viewingDirection)](https://iiif.io/api/cookbook/recipe/0010-book-2-viewing-direction/): Partially, `right-to-left` and `left-to-right` only, viewer support very spotty
 - [ ] [Book 'behavior' Variations (continuous, individuals) (behaviorimage)](https://iiif.io/api/cookbook/recipe/0011-book-3-behavior/): NO, general support unlikely since paging preference is global in PDF, but if behavior is global for the manifest, it should be doable
 - [ ] [Load a Preview Image Before the Main Content (placeholderCanvas)](https://iiif.io/api/cookbook/recipe/0013-placeholderCanvas/): NO, not applicable
 - [ ] [Audio Presentation with Accompanying Image (accompanyingCanvas)](https://iiif.io/api/cookbook/recipe/0014-accompanyingcanvas/): NO, no support for audio
@@ -94,13 +93,13 @@ of the recipe support in pdiiif:
 </details>
 
 <details>
-<summary><strong>Image Recipes</strong> (5 of 6 supported)</summary>
+<summary><strong>Image Recipes</strong> (6 of 6 supported)</summary>
 
 - [x] [Simplest Manifest - Single Image File](https://iiif.io/api/cookbook/recipe/0001-mvm-image/): Partial, only for JPEG images, **Cookbook example doesn't work** due to use of PNG
 - [x] [Image and Canvas with Differing Dimensions](https://iiif.io/api/cookbook/recipe/0004-canvas-size/): YES
 - [x] [Support Deep Viewing with Basic Use of a IIIF Image Service](https://iiif.io/api/cookbook/recipe/0005-image-service/): YES, Deep Viewing isn't useful in PDF, but IIIF Image Services are fully supported
 - [x] [Simple Manifest - Book](https://iiif.io/api/cookbook/recipe/0009-book-1/): YES
-- [ ] [Viewing direction and Its Effect on Navigation (viewingDirection)](https://iiif.io/api/cookbook/recipe/0010-book-2-viewing-direction/): NO
+- [x] [Viewing direction and Its Effect on Navigation (viewingDirection)](https://iiif.io/api/cookbook/recipe/0010-book-2-viewing-direction/): Partially, `right-to-left` and `left-to-right` only, viewer support very spotty
 - [x] [Load Manifest Beginning with a Specific Canvas (start)](https://iiif.io/api/cookbook/recipe/0202-start-canvas/): YES
 </details>
 

@@ -572,12 +572,19 @@ export async function convertManifest(
   const pdfGen = new PDFGenerator({
     writer: countingWriter,
     metadata: pdfMetadata,
-    canvasInfos: getCanvasImages(canvases).map((ci, idx) => ({ canvasIdx: idx, ...ci })),
+    canvasInfos: getCanvasImages(canvases).map((ci, idx) => ({
+      canvasIdx: idx,
+      ...ci,
+    })),
     langPref: languagePreference,
     pageLabels: labels,
     outline,
     hasText,
     initialCanvas: await fetchStartCanvasInfo(manifest),
+    readingDirection:
+      manifest.viewingDirection === 'right-to-left'
+        ? 'right-to-left'
+        : 'left-to-right',
     manifestJson,
     zipPolyglot: polyglotZipPdf,
     zipBaseDir: polyglotZipBaseDir,

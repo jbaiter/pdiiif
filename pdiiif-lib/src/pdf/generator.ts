@@ -103,6 +103,8 @@ export type GeneratorParams = {
   outline: TocItem[];
   // Whether the PDF should include a hidden text layer
   hasText?: boolean;
+  // Reading direction of the PDF
+  readingDirection?: 'right-to-left' | 'left-to-right';
   // Information about the canvas (or canvas region) that should be displayed initially
   initialCanvas?: StartCanvasInfo;
   // The manifest to build the PDF from
@@ -158,6 +160,7 @@ export default class PDFGenerator {
   private _manifestJson?: Manifest | ManifestV2;
   private _zipCatalog?: Array<CentralDirectoryFileSpec>;
   private _zipBaseDir?: string;
+  private _readingDirection: 'right-to-left' | 'left-to-right';
 
   constructor({
     writer,
@@ -166,6 +169,7 @@ export default class PDFGenerator {
     langPref,
     pageLabels,
     outline = [],
+    readingDirection = 'left-to-right',
     hasText = false,
     initialCanvas,
     manifestJson,
@@ -177,6 +181,7 @@ export default class PDFGenerator {
     this._pageLabels = pageLabels;
     this._outline = outline;
     this._hasText = hasText;
+    this._readingDirection = readingDirection;
     this._langPref = langPref;
     this._initialCanvas = initialCanvas;
     this._polyglot = zipPolyglot;
@@ -238,6 +243,9 @@ export default class PDFGenerator {
       }
     } else {
       catalog.PageMode = '/UseThumbs';
+    }
+    catalog.ViewerPreferences = {
+      Direction: this._readingDirection === 'right-to-left' ? '/R2L' : '/L2R'
     }
     if (this._hasText) {
       await this._setupHiddenTextFont();
