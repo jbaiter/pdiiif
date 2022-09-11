@@ -29,13 +29,14 @@ import { OcrPage, OcrSpan } from '../ocr.js';
 import pdiiifVersion from '../version.js';
 import log from '../log.js';
 import { CanvasImage, StartCanvasInfo } from '../download.js';
-import { CanvasInfo, getI18nValue } from '../iiif.js';
+import { Annotation, CanvasInfo, getI18nValue } from '../iiif.js';
 import {
   buildCentralFileDirectory,
   buildLocalZipHeader,
   CentralDirectoryFileSpec,
 } from './pkzip.js';
 import { crc32 } from '../util.js';
+import { exportPdfAnnotation } from './annos.js';
 
 const PRODUCER = `pdiiif v${pdiiifVersion}`;
 
@@ -115,7 +116,7 @@ export type GeneratorParams = {
   // Base directory name for the polyglot ZIP archive, if not set the resources will be
   // top-level in the archive
   zipBaseDir?: string;
-}
+};
 
 export default class PDFGenerator {
   // Keep track of how many bytes have been written so far
@@ -174,7 +175,7 @@ export default class PDFGenerator {
     initialCanvas,
     manifestJson,
     zipPolyglot = false,
-    zipBaseDir
+    zipBaseDir,
   }: GeneratorParams) {
     this._writer = writer;
     this._canvasInfos = canvasInfos;
@@ -245,8 +246,8 @@ export default class PDFGenerator {
       catalog.PageMode = '/UseThumbs';
     }
     catalog.ViewerPreferences = {
-      Direction: this._readingDirection === 'right-to-left' ? '/R2L' : '/L2R'
-    }
+      Direction: this._readingDirection === 'right-to-left' ? '/R2L' : '/L2R',
+    };
     if (this._hasText) {
       await this._setupHiddenTextFont();
     }
@@ -347,7 +348,7 @@ export default class PDFGenerator {
       .data as PdfDictionary;
     const embeddedFiles: PdfArray = [
       `(manifest.json)`,
-      makeRef(this._firstPageObjectNum! - (this._polyglot ? 3 : 2))
+      makeRef(this._firstPageObjectNum! - (this._polyglot ? 3 : 2)),
     ];
     for (const [idx, canvas] of this._canvasInfos.entries()) {
       if (!canvas.ocr) {
@@ -573,7 +574,7 @@ export default class PDFGenerator {
     const maybeCompressed = await tryDeflateStream(data);
     const embeddedFile = {
       Type: '/EmbeddedFile',
-      Subtype: mimeType,
+      Subtype: `(${mimeType})`,
       ...maybeCompressed.dict,
     };
 
@@ -585,15 +586,14 @@ export default class PDFGenerator {
       } else {
         zipData = data;
       }
-      const extraDataLength =
-        this._getSerializedSize(
-          {
-            num: this._nextObjNo + 2,
-            data: { ...embeddedFile, ...maybeCompressed.dict },
-            stream: maybeCompressed.stream,
-          },
-          true
-        );
+      const extraDataLength = this._getSerializedSize(
+        {
+          num: this._nextObjNo + 2,
+          data: { ...embeddedFile, ...maybeCompressed.dict },
+          stream: maybeCompressed.stream,
+        },
+        true
+      );
       this._insertZipHeaderDummyObject({
         filename,
         data: zipData,
@@ -607,7 +607,9 @@ export default class PDFGenerator {
     this._addObject(embeddedFile, undefined, maybeCompressed.stream);
   }
 
-  private async _embedManifest(manifestJson: ManifestV2 | Manifest): Promise<void> {
+  private async _embedManifest(
+    manifestJson: ManifestV2 | Manifest
+  ): Promise<void> {
     let manifestMime = 'application/ld+json';
     if (Array.isArray(manifestJson['@context'])) {
       const manifestProfile = manifestJson['@context'].find((p) =>
@@ -687,7 +689,7 @@ export default class PDFGenerator {
       );
     }
 
-    if (this._canvasInfos.some((ci) => ci.images.some((i) => i.isOptional))) {
+    if (this._canvasInfos.some((ci) => ci.images.some((i) => i.choiceState))) {
       // We're *very* explicit with the visibility of the various OCGs to
       // ensure as broad a viewer support as possible (especially pdf.js
       // needed it...)
@@ -701,11 +703,11 @@ export default class PDFGenerator {
         let ocgIdx = 0;
         const rbGroup = [];
         for (const img of images) {
-          if (!img.isOptional) {
+          if (!img.choiceState) {
             continue;
           }
           const ref = makeRef(ocgStart + ocgIdx);
-          if (ocgIdx === 0) {
+          if (img.choiceState.enabled) {
             initiallyEnabledOCGs.push(ref);
           } else {
             initiallyDisabledOCGs.push(ref);
@@ -775,6 +777,7 @@ export default class PDFGenerator {
       height: canvasHeight,
     }: { width: number; height: number },
     images: CanvasImage[],
+    annotations: Annotation[],
     ocrText?: OcrPage,
     ppi = 300
   ): Promise<void> {
@@ -844,19 +847,16 @@ export default class PDFGenerator {
     // Since we need the finalized page dictionary in order to determine
     // the offset for the the local zip header, we pre-generate all the
     // relevant information
-    const imageObjectNums = [...images.keys()].map(idx => {
+    const imageObjectNums = [...images.keys()].map((idx) => {
       if (this._polyglot) {
-        return this._nextObjNo + (idx * 2) + 1
+        return this._nextObjNo + idx * 2 + 1;
       } else {
         return this._nextObjNo + idx;
       }
     });
     const optionalGroupObjectNums: { [imgId: string]: number } = {};
     if (images.some((i) => i.isOptional)) {
-      for (const [
-        idx,
-        { isOptional },
-      ] of images.entries()) {
+      for (const [idx, { isOptional }] of images.entries()) {
         const imageId = `/Im${idx + 1}`;
         if (!isOptional) {
           continue;
@@ -946,6 +946,14 @@ export default class PDFGenerator {
         ocrText.mimeType,
         ocrText.markup
       );
+    }
+
+    // Add annotations, if present
+    if (annotations && annotations.length > 0) {
+      log.debug('Creating annotations for page');
+      pageDict.Annots = annotations
+        .flatMap((anno) => exportPdfAnnotation(anno, unitScale, canvasHeight))
+        .map((pdfAnno) => makeRef(this._addObject(pdfAnno)));
     }
 
     // Write out all of the objects
@@ -1161,7 +1169,7 @@ export default class PDFGenerator {
     let numObjects =
       images.length + // 1 per image
       2 + // Page dictionary and content
-      images.filter((i) => i.isOptional).length; // 1 Optional Content Group per optional image
+      images.filter((i) => i.choiceState !== undefined).length; // 1 Optional Content Group per optional image
     if (this._polyglot) {
       // For a polyglot PDF, we need to precede every XObject that we'd like
       // to expose as a file in the ZIP with a separate XObject that contains
@@ -1329,7 +1337,7 @@ export default class PDFGenerator {
       await this._writeStructureTree();
     }
     */
-    log.debug('Writing trailer');
+    log.debug('Writing xref table');
     type XrefEntry = [number, number, 'f' | 'n'];
     const xrefEntries: Array<XrefEntry> = [
       [0, 65535, 'f'],
@@ -1357,19 +1365,28 @@ export default class PDFGenerator {
       `\ntrailer\n${serialize(trailerDict)}`,
       `\nstartxref\n${xrefOffset}\n%%EOF`,
     ].join('');
-    await this._write(trailer);
     if (this._polyglot && this._zipCatalog) {
+      log.debug('Writing zip end of central directory');
       await this._write(
         buildCentralFileDirectory({
           files: this._zipCatalog,
-          trailingLength: 0,
+          trailingLength: trailer.length,
           offset: this._offset,
         })
       );
     }
-    await this._writer.waitForDrain();
+    await this._flush();
+    log.debug('Writing trailer');
+    await this._write(trailer);
+    log.debug('Flushing');
+    await this._flush();
+    // FIXME: Never resolves on Node.js, is it really
+    // needed in browsers?
+    //log.debug('Waiting for drainage');
+    //await this._writer.waitForDrain();
     log.debug('PDF finished, closing writer');
     await this._writer.close();
+    log.debug('Writer closed');
     this._writer = undefined;
   }
 
@@ -1410,7 +1427,9 @@ export default class PDFGenerator {
       crc32: crc32(data),
       dataLength: data.length,
       // skip 2 bytes for zlib header
-      compressedDataLength: deflatedData ? deflatedData.length - 2 : data.length,
+      compressedDataLength: deflatedData
+        ? deflatedData.length - 2
+        : data.length,
       filename,
     });
   }

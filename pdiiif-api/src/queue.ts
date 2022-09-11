@@ -16,7 +16,13 @@ export class GeneratorQueue {
     onAdvance?: (pos: number) => void
   ): Promise<R> {
     if (!this.queues.has(mainImageApiHost)) {
-      const q = new PQueue({ concurrency: this.maxConcurrency });
+      let q;
+      // FIXME: Why is this neccessary?
+      if ('default' in PQueue) {
+        q = new (PQueue as any).default({ concurrency: this.maxConcurrency });
+      } else {
+        q = new PQueue({ concurrency: this.maxConcurrency });
+      }
       q.addListener('add', () =>
         metrics.generatorQueueSize.set({ iiif_host: mainImageApiHost }, q.size)
       );

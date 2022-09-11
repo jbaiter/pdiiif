@@ -11,9 +11,12 @@ import {
   ContentResource,
   Service,
   ImageService,
+  AnnotationNormalized,
+  ResourceProviderNormalized,
+  Annotation as IIIF3Annotation,
 } from '@iiif/presentation-3';
-import { Manifest as ManifestV2 } from '@iiif/presentation-2';
-import { ResourceProviderNormalized } from '@iiif/presentation-3/resources/provider';
+import Presentation2 from '@iiif/presentation-2';
+import { convertPresentation2 } from '@iiif/parser/presentation-2';
 import { meanBy, sampleSize, orderBy } from 'lodash-es';
 import PQueue from 'p-queue';
 
@@ -39,7 +42,14 @@ import {
 import metrics from './metrics.js';
 import { isDefined, now } from './util.js';
 import log from './log.js';
-import { getI18nValue, getThumbnail, getCanvasImages, vault } from './iiif.js';
+import {
+  getI18nValue,
+  getThumbnail,
+  getCanvasInfo,
+  vault,
+  parseAnnotation,
+  Annotation,
+} from './iiif.js';
 
 /** Progress information for rendering a progress bar or similar UI elements. */
 export interface ProgressStatus {
@@ -89,6 +99,12 @@ export interface CoverPageParams {
 
 /** Options for converting a IIIF Manifest to a PDF. */
 export interface ConvertOptions {
+  /** Callback to provide annotations for a given canvas identifier.
+   * Should return either a `sc:AnnotationList` (IIIF2) or an `AnnotationPage` (IIIF3).
+   */
+  fetchCanvasAnnotations?: (
+    canvasId: string
+  ) => Promise<Array<IIIF3Annotation> | Array<Presentation2.Annotation>>;
   /** Pixels per inch to assume for the full resolution version of each canvas.
       If not set, the conversion will use an available IIIF Physical Dimensions
       service to calculate the page dimensions instead. */
@@ -140,7 +156,7 @@ export interface ConvertOptions {
 /** Parameters for size estimation */
 export interface EstimationParams {
   /** The manifest to determine the PDF size for */
-  manifest: string | Manifest | ManifestV2;
+  manifest: string | Manifest | Presentation2.Manifest;
   /** Restrict the image size to include in the PDF by downscaling by a fixed factor.
    * The value must be a number between 0.1 and 1.
    * Only works with Level 2 Image API services that allow arbitrary downscaling, the
@@ -173,7 +189,8 @@ export async function estimatePdfSize({
     manifestId = inputManifest;
   } else {
     manifestId =
-      (inputManifest as Manifest).id ?? (inputManifest as ManifestV2)['@id'];
+      (inputManifest as Manifest).id ??
+      (inputManifest as Presentation2.Manifest)['@id'];
   }
   const manifest = await vault.loadManifest(manifestId);
   if (!manifest) {
@@ -457,21 +474,22 @@ async function getCoverPagePdf(
 }
 
 export async function convertManifest(
-  inputManifest: string | Manifest | ManifestV2,
+  inputManifest: string | Manifest | Presentation2.Manifest,
   outputStream: Writable | WritableStream,
   options: ConvertOptions
 ): Promise<void>;
 export async function convertManifest(
-  inputManifest: string | Manifest | ManifestV2,
+  inputManifest: string | Manifest | Presentation2.Manifest,
   outputStream: undefined,
   options: ConvertOptions
 ): Promise<Blob>;
 /** Convert a IIIF manifest to a PDF,  */
 export async function convertManifest(
   /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
-  inputManifest: string | Manifest | ManifestV2,
+  inputManifest: string | Manifest | Presentation2.Manifest,
   outputStream: Writable | WritableStream | undefined,
   {
+    fetchCanvasAnnotations = () => Promise.resolve([]),
     filterCanvases = () => true,
     languagePreference = [Intl.DateTimeFormat().resolvedOptions().locale],
     scaleFactor,
@@ -515,15 +533,16 @@ export async function convertManifest(
   }
 
   let manifestId: string;
-  let manifestJson: Manifest | ManifestV2;
+  let manifestJson: Manifest | Presentation2.Manifest;
   if (typeof inputManifest === 'string') {
     manifestId = inputManifest;
     manifestJson = (await (await fetchRespectfully(manifestId)).json()) as
       | Manifest
-      | ManifestV2;
+      | Presentation2.Manifest;
   } else {
     manifestId =
-      (inputManifest as ManifestV2)['@id'] ?? (inputManifest as Manifest).id;
+      (inputManifest as Presentation2.Manifest)['@id'] ??
+      (inputManifest as Manifest).id;
     manifestJson = inputManifest;
   }
   const manifest = await vault.loadManifest(manifestId, manifestJson);
@@ -572,9 +591,9 @@ export async function convertManifest(
   const pdfGen = new PDFGenerator({
     writer: countingWriter,
     metadata: pdfMetadata,
-    canvasInfos: getCanvasImages(canvases).map((ci, idx) => ({
+    canvasInfos: canvases.map((c, idx) => ({
       canvasIdx: idx,
-      ...ci,
+      ...getCanvasInfo(c),
     })),
     langPref: languagePreference,
     pageLabels: labels,
@@ -633,7 +652,25 @@ export async function convertManifest(
         throw 'Aborted';
       }
       const canvas = vault.get<CanvasNormalized>(canvasData.canvas);
-      const { images, ppi, text } = canvasData;
+      const { images, ppi, text, annotations } = canvasData;
+      const externalAnnotations = await fetchCanvasAnnotations(canvas.id);
+      if (externalAnnotations != null) {
+        const normalized = await Promise.all(
+          externalAnnotations.map((a) => {
+            if (!('id' in a)) {
+              a = convertPresentation2(a) as IIIF3Annotation;
+            }
+            return vault.load<AnnotationNormalized>(a.id, a);
+          })
+        );
+        if (normalized) {
+          normalized
+            .filter((a): a is AnnotationNormalized => a !== undefined)
+            .map((a) => parseAnnotation(a, languagePreference))
+            .filter((a): a is Annotation => a !== undefined)
+            .forEach((a) => annotations.push(a));
+        }
+      }
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       const stopMeasuring = metrics?.pageGenerationDuration.startTimer();
       log.debug(`Rendering canvas #${canvasIdx} into PDF`);
@@ -641,6 +678,7 @@ export async function convertManifest(
         canvasData.canvas.id,
         { width: canvas.width, height: canvas.height },
         images,
+        annotations,
         text,
         ppi
       );

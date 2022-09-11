@@ -359,8 +359,10 @@ app.get(
     }
     let abortController: AbortController | undefined = new AbortController();
     res.addListener('close', () => {
+      // FIXME: At this point, the convertPromise has not yet
+      // resolved, so the abortController is always still there.
+      // Maybe we should track somewhere that we've initiated a closing of the request?
       if (abortController) {
-        log.info('Connection closed prematurely, aborting conversion.');
         abortController.abort();
       }
     });
@@ -392,12 +394,16 @@ app.get(
     try {
       await convertPromise;
     } catch (err) {
-      log.error(log.exceptions.getAllInfo(err as string | Error));
+      log.error('Error converting manifest:', err);
       if (progressToken && typeof progressToken === 'string') {
         const clientResp = progressClients[progressToken];
         if (clientResp) {
           clientResp.write('event: servererror\n');
-          clientResp.write(`data: ${err}\n\n`);
+          clientResp.write(
+            `data: ${JSON.stringify(
+              log.exceptions.getAllInfo(err as string | Error)
+            )}\n\n`
+          );
         }
       }
     }
