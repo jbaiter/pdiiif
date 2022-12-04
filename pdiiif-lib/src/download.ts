@@ -4,7 +4,6 @@ import { minBy } from 'lodash-es';
 import { Mutex } from 'async-mutex';
 import {
   AnnotationNormalized,
-  AnnotationPageNormalized,
   CanvasNormalized,
   ContentResource,
   FragmentSelector,
@@ -28,8 +27,13 @@ import {
   PhysicalDimensionService,
   supportsScaling,
   fetchFullImageService,
+  getCanvasAnnotations,
+  Annotation,
+  getAllPaintingAnnotations,
+  extractChoices,
 } from './iiif.js';
 import { isDefined } from './util.js';
+import { SingleChoice } from '@iiif/vault-helpers/painting-annotations';
 
 /// In absence of more detailed information (from physical dimensions service), use this resolution
 const FALLBACK_PPI = 300;
@@ -260,6 +264,7 @@ export type CanvasData = {
   canvas: Reference<'Canvas'>;
   text?: OcrPage;
   images: CanvasImage[];
+  annotations: Annotation[];
   ppi?: number;
 };
 
@@ -485,15 +490,15 @@ export async function fetchCanvasData(
   canvas: CanvasNormalized,
   { scaleFactor, ppiOverride, abortSignal, sizeOnly = false }: FetchImageOptions
 ): Promise<CanvasData | undefined> {
-  const allAnnos = vault
-    .get<AnnotationPageNormalized>(canvas.items)
-    .flatMap((p) => vault.get<AnnotationNormalized>(p.items));
+  const paintingAnnos = getAllPaintingAnnotations(canvas);
   // FIXME: Refactor this shameful abomination
   const images = (
     await Promise.all(
-      allAnnos.flatMap(async (anno) => {
+      paintingAnnos.flatMap(async (anno) => {
         const body = vault.get<ContentResource>(anno.body);
         const out: Array<CanvasImage> = [];
+
+        // Fetch image from top-level image resource
         if (body.some((r) => r.type === 'Image')) {
           const img = await fetchCanvasImage(anno, {
             scaleFactor,
@@ -504,48 +509,42 @@ export async function fetchCanvasData(
             out.push(img);
           }
         }
-        (
-          await Promise.all(
-            allAnnos.flatMap((anno) => {
-              const body = vault.get<ContentResource>(anno.body);
-              return body
-                .filter((r: any) => r.type === 'Choice')
-                .flatMap((b: any): Promise<CanvasImage | null>[] =>
-                  vault
-                    .get<ContentResource>(b.items)
-                    .filter(
-                      (i: any): i is IIIFExternalWebResource =>
-                        i.type === 'Image'
-                    )
-                    .map(
-                      async (
-                        img: IIIFExternalWebResource,
-                        idx: number
-                      ): Promise<CanvasImage | null> => {
-                        // fetchCanvasImage expects an image annotation, so let's just quickly fake one
-                        const fakeAnno: AnnotationNormalized = {
-                          ...anno,
-                          body: [{ id: img.id!, type: 'ContentResource' }],
-                        };
-                        const canvasImg = await fetchCanvasImage(fakeAnno, {
-                          scaleFactor,
-                          abortSignal,
-                          sizeOnly,
-                        });
-                        if (canvasImg) {
-                          canvasImg.isOptional = true;
-                          canvasImg.label = (img as any).label;
-                          canvasImg.visibleByDefault = idx === 0;
-                        }
-                        return canvasImg;
-                      }
-                    )
-                );
-            })
+
+        // Fetch images from choices in parallel
+        const choice = extractChoices(paintingAnnos);
+        if (choice?.type === 'single-choice') {
+          (
+            await Promise.all(
+              (choice as SingleChoice).items
+                .map((i) => ({
+                  res: vault.get<ContentResource>(i.id),
+                  selected: i.selected,
+                }))
+                .filter((res) => res.res.type === 'Image')
+                .map(async (res) => {
+                  // fetchCanvasImage expects an image annotation, so let's just quickly fake one
+                  const img = res.res;
+                  const fakeAnno: AnnotationNormalized = {
+                    ...anno,
+                    body: [{ id: img.id!, type: 'ContentResource' }],
+                  };
+                  const canvasImg = await fetchCanvasImage(fakeAnno, {
+                    scaleFactor,
+                    abortSignal,
+                    sizeOnly,
+                  });
+                  if (canvasImg) {
+                    canvasImg.isOptional = true;
+                    canvasImg.label = (img as any).label;
+                    canvasImg.visibleByDefault = res.selected ?? false;
+                  }
+                  return canvasImg;
+                })
+            )
           )
-        )
-          .filter(isDefined<CanvasImage>)
-          .forEach((i) => out.push(i));
+            .filter(isDefined<CanvasImage>)
+            .forEach((i) => out.push(i));
+        }
         return out;
       })
     )
@@ -564,5 +563,6 @@ export async function fetchCanvasData(
     images,
     ppi,
     text,
+    annotations: getCanvasAnnotations(canvas),
   };
 }

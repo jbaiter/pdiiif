@@ -2,6 +2,7 @@
 /* eslint-disable complexity */
 /// Utilities for parsing OCR text from hOCR, ALTO and IIIF Annotations
 import { max } from 'lodash-es';
+import fetch from 'cross-fetch';
 import jsdom from 'jsdom';
 import {
   Annotation,
@@ -621,8 +622,16 @@ const isHocr = (resource: ExternalWebResourceWithProfile) =>
   resource.profile?.startsWith('http://kba.github.io/hocr-spec/');
 
 /** Wrapper around fetch() that returns the content as text */
-async function fetchOcrMarkup(url: string): Promise<string> {
+async function fetchOcrMarkup(url: string): Promise<string | undefined> {
   const resp = await fetch(url);
+  if (resp.status === 404) {
+    return undefined;
+  }
+  if (resp.status != 200) {
+    throw new Error(
+      `Could not fetch OCR markup from ${url}, got status code ${resp.status}`
+    );
+  }
   return resp.text();
 }
 
@@ -660,6 +669,9 @@ export async function fetchAndParseText(
         status: 'success',
         limited: rateLimitRegistry.isLimited(seeAlso.id!).toString(),
       });
+      if (!markup) {
+        return undefined;
+      }
     } catch (err) {
       stopMeasuring?.({
         status: 'error',

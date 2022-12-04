@@ -59,9 +59,10 @@ describe('PDF generation', () => {
           images: [
             {
               img: { id: 'foo', type: 'ContentResource' },
-              isOptional: false,
+              choiceState: { enabled: undefined },
             },
           ],
+          numAnnotations: 0,
         },
       ],
       outline: [],
@@ -84,6 +85,7 @@ describe('PDF generation', () => {
           visibleByDefault: true,
         },
       ],
+      [],
       undefined,
       72
     );

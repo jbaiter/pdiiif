@@ -1,3 +1,4 @@
+import fetch from 'cross-fetch';
 import {
   InternationalString,
   ManifestNormalized,
@@ -9,10 +10,29 @@ import {
   Reference,
   AnnotationPageNormalized,
   AnnotationNormalized,
+  Creator,
+  Agent,
 } from '@iiif/presentation-3';
-import { buildLocaleString, createThumbnailHelper } from '@iiif/vault-helpers';
+import {
+  buildLocaleString,
+  createPaintingAnnotationsHelper,
+  createThumbnailHelper,
+  expandTarget,
+  SingleChoice,
+  SupportedTarget,
+  Paintables,
+  ChoiceDescription,
+} from '@iiif/vault-helpers';
+import { ImageServiceLoader as ImageServiceLoader_ } from '@atlas-viewer/iiif-image-api';
 import { globalVault, Vault } from '@iiif/vault';
 import { getTextSeeAlso } from './ocr.js';
+
+const PURPOSE_ORDER = ['commenting', 'describing', 'tagging', 'no-purpose'];
+const PURPOSE_LABELS: { [purpose: string]: string } = {
+  commenting: 'Comment',
+  describing: 'Description',
+  tagging: 'Tags',
+};
 
 export const vault = globalVault() as Vault;
 
@@ -47,7 +67,36 @@ export function getI18nValue(
   }
 }
 
-const thumbHelper = createThumbnailHelper(vault);
+
+class ImageServiceLoader extends ImageServiceLoader_ {
+  async fetch(input: RequestInfo, init?: RequestInit): Promise<Response> {
+    return fetch(input as any, init as any) as any;
+  }
+}
+
+// FIXME: Remove type hints once vault-helpers has had a release
+const thumbHelper = createThumbnailHelper(vault, {
+  imageServiceLoader: new ImageServiceLoader(),
+});
+export const { getPaintables, getAllPaintingAnnotations, extractChoices } =
+  createPaintingAnnotationsHelper(vault) as {
+    getAllPaintingAnnotations: (
+      canvasOrId: string | CanvasNormalized | undefined | null
+    ) => AnnotationNormalized[];
+    getPaintables: (
+      paintingAnnotationsOrCanvas:
+        | string
+        | CanvasNormalized
+        | AnnotationNormalized[],
+      enabledChoices?: string[]
+    ) => Paintables;
+    extractChoices: (
+      paintingAnnotationsOrCanvas:
+        | string
+        | CanvasNormalized
+        | AnnotationNormalized[]
+    ) => ChoiceDescription | null;
+  };
 
 export async function getThumbnail(
   manifest: ManifestNormalized,
@@ -110,61 +159,208 @@ export async function fetchFullImageService(
   return res as ImageService;
 }
 
+type CanvasInfoImage = {
+  img: Reference<'ContentResource'>;
+  choiceState?: { enabled?: true };
+  label?: InternationalString;
+};
+
 export type CanvasInfo = {
   canvas: Reference<'Canvas'>;
   ocr?: {
     id: string;
   };
-  images: {
-    img: Reference<'ContentResource'>;
-    isOptional: boolean;
-    label?: InternationalString;
-  }[];
+  images: CanvasInfoImage[];
+  numAnnotations: number;
 };
 
-export function getCanvasImages(canvases: CanvasNormalized[]): CanvasInfo[] {
-  return canvases.map((c) => {
-    const annos = vault
-      .get<AnnotationPageNormalized>(c.items)
-      .flatMap((p) => vault.get<AnnotationNormalized>(p.items));
-    const images = annos
-      .flatMap((a) =>
-        a.body.filter((b) => vault.get<ContentResource>(b).type === 'Image')
-      )
-      .map((i) => ({ img: i, isOptional: false }));
-    annos
-      .flatMap((a) =>
-        vault
-          .get<ContentResource>(a.body)
-          .filter((r) => (r as any).type === 'Choice')
-          .flatMap(
-            (c) =>
-              vault
-                .get<ContentResource>((c as any).items)
-                .filter((b: any) => b.type === 'Image')
-                .map((i: any) => {
-                  return {
-                    img: {
-                      id: (i as any).id as string,
-                      type: 'ContentResource',
-                    },
-                    isOptional: true,
-                    label: i.label,
-                  };
-                }) as {
-                img: Reference<'ContentResource'>;
-                isOptional: boolean;
-              }[]
-          )
-      )
-      .forEach((i) => images.push(i));
-    const text = getTextSeeAlso(c);
-    return {
-      canvas: { id: c.id, type: 'Canvas' },
-      images,
-      ocr: text ? { id: text.id! } : undefined,
-    };
-  });
+export function getCanvasAnnotations(canvas: CanvasNormalized): Annotation[] {
+  return vault
+    .get<AnnotationPageNormalized>(canvas.annotations)
+    .flatMap((p) => vault.get<AnnotationNormalized>(p.items))
+    .filter((a) =>
+      Array.isArray(a.motivation)
+        ? a.motivation.find((m) => PURPOSE_LABELS[m] !== undefined) !==
+          undefined
+        : PURPOSE_LABELS[a.motivation ?? 'invalid'] !== undefined
+    )
+    .map((a) => parseAnnotation(a, []))
+    .filter((a): a is Annotation => a !== undefined);
+}
+
+export function getCanvasInfo(canvas: CanvasNormalized): CanvasInfo {
+  const paintables = getPaintables(canvas);
+  // FIXME: complex choices are currently untested
+  const choiceImageIds =
+    paintables.choice?.items
+      ?.flatMap((i) => {
+        if ('items' in i) {
+          return i.items;
+        } else {
+          return [i];
+        }
+      })
+      .map((i) => i.id) ?? [];
+  const images: Array<CanvasInfoImage> = paintables.items
+    .filter((p) => p.type === 'image')
+    .filter(
+      (p) =>
+        p.resource.id !== undefined &&
+        choiceImageIds?.indexOf(p.resource.id) < 0
+    )
+    .map((i) => ({
+      img: {
+        id: i.resource.id,
+        type: 'ContentResource',
+      } as Reference<'ContentResource'>,
+      isOptional: false,
+    }));
+  // TODO: Add support for complex choices?
+  if (paintables.choice?.type === 'single-choice') {
+    const choice = paintables.choice as SingleChoice;
+    for (const itm of choice.items) {
+      const res = vault.get<ContentResource>(itm.id);
+      if (res.type !== 'Image') {
+        continue;
+      }
+      images.push({
+        img: { id: itm.id, type: 'ContentResource' },
+        choiceState: { enabled: itm.selected },
+        label: itm.label,
+      });
+    }
+  }
+  const text = getTextSeeAlso(canvas);
+  return {
+    canvas: { id: canvas.id, type: 'Canvas' },
+    images,
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    ocr: text ? { id: text.id! } : undefined,
+    numAnnotations: getCanvasAnnotations(canvas).length,
+  };
+}
+
+export interface Annotation {
+  id: string;
+  target: SupportedTarget;
+  markup: string;
+  lastModified?: Date;
+  author?: string;
+}
+
+function agentToString(agent: Agent): string {
+  let name = Array.isArray(agent.name) ? agent.name.join('; ') : agent.name;
+  if (!name) {
+    name = agent.nickname ?? 'unknown';
+  }
+  if (agent.email) {
+    return `${name} <${agent.email}>`;
+  }
+  return name;
+}
+
+function creatorToString(creator: Creator): string {
+  if (Array.isArray(creator)) {
+    if (typeof creator[0] === 'string') {
+      return creator.join('; ');
+    } else {
+      return creator.map((a) => agentToString(a as Agent)).join('; ');
+    }
+  }
+  if (typeof creator === 'string') {
+    return creator;
+  }
+  return agentToString(creator);
+}
+
+export function parseAnnotation(
+  anno: AnnotationNormalized,
+  langPrefs: readonly string[]
+): Annotation | undefined {
+  if (!anno.target) {
+    return;
+  }
+  const annoBody = anno.body.map((bodyRef) =>
+    vault.get<ContentResource>(bodyRef)
+  );
+  const creatorNames: Array<string> = annoBody
+    .map((body) => body.creator)
+    .filter((v: Creator | undefined): v is Creator => v !== undefined)
+    .map(creatorToString);
+  const modifiedDates: Array<number> = annoBody
+    .map((body) => body.modified)
+    .filter((v: string | undefined): v is string => v !== undefined)
+    .map((v: string) => new Date(v).getTime());
+  const target = expandTarget(anno.target);
+  const markup = buildAnnotationMarkup(annoBody);
+  if (!markup) {
+    // TODO: Log?
+    throw `No valid textual content in annotation.`;
+  }
+  return {
+    id: anno.id,
+    target,
+    markup,
+    lastModified:
+      modifiedDates.length > 0
+        ? new Date(Math.max(...modifiedDates))
+        : undefined,
+    author: creatorNames.length > 0 ? creatorNames.join('; ') : undefined,
+  };
+}
+
+function buildAnnotationMarkup(
+  bodies: Array<ContentResource>
+): string | undefined {
+  const parts: { [purpose: string]: Array<string> } = {};
+  for (const body of bodies) {
+    if (
+      body.type !== 'TextualBody' ||
+      (body.format !== 'text/plain' && body.format !== 'text/html') ||
+      body.value === undefined
+    ) {
+      continue;
+    }
+    let { purpose } = body;
+    if (Array.isArray(purpose)) {
+      purpose = purpose[0];
+    } else if (!purpose) {
+      purpose = 'no-purpose';
+    }
+    if (!parts[purpose]) {
+      parts[purpose] = [];
+    }
+    parts[purpose].push(body.value);
+  }
+  if (Object.keys(parts).length === 0) {
+    return undefined;
+  }
+  const out: Array<string> = [];
+  for (const purpose of PURPOSE_ORDER) {
+    const purposeLabel = PURPOSE_LABELS[purpose];
+    if (!parts[purpose]) {
+      continue;
+    }
+    if (parts[purpose].length > 1) {
+      if (purposeLabel) {
+        out.push(`<p><b>${purposeLabel}:</b></p>`);
+      }
+      for (const part of parts[purpose]) {
+        // TODO: Convert HTML to PDF rich text
+        out.push(`<p>${part}</p>`);
+      }
+    } else {
+      out.push('<p>');
+      if (purposeLabel) {
+        out.push(`<b>${purposeLabel}:</b> `);
+      }
+      out.push(`${parts[purpose][0]}</p>`);
+    }
+  }
+  if (out.length === 0) {
+    return undefined;
+  }
+  return out.join('\n');
 }
 
 export interface CompatibilityReport {
