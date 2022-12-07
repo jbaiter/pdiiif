@@ -423,7 +423,7 @@ async function getCoverPagePdf(
     params.provider = {
       label: getI18nValue(provider.label, languagePreference, '; '),
       homepage: provider.homepage?.[0].id,
-      logo: provider.logo?.[0].id,
+      logo: provider.logo?.[0]?.id,
     };
     // FIXME: Currently this is assigned by @iiif/parser when converting from v2 to v3
     if (params.provider.label === 'Unknown') {
