@@ -408,11 +408,6 @@ export class ObjectParser {
         this.current++;
       }
     }
-    if (chars.length === 1) {
-      throw new Error(
-        'Illegal name, encountered delimiter or whitespace directly after slash.'
-      );
-    }
     return chars.join('');
   }
 
