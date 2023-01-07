@@ -24,12 +24,13 @@
 
   export let apiEndpoint: string = 'http://localhost:31337/api';
   export let coverPageEndpoint: string = `${apiEndpoint}/coverpage`;
+  export let initialManifestUrl: string | null = null;
   export let onError: ((err: ErrorIcon) => void) | undefined = undefined;
 
   // We use a self-hosted MITM page for the streamsaver service worker
   // to avoid GDPR issues.
   streamSaver.mitm = `${location.href.replace(
-    /\/$/,
+    /\/?(?:\?.*)?$/,
     ''
   )}/streamsaver-mitm.html`;
 
@@ -37,7 +38,7 @@
   let isFirstVisit = window.localStorage.getItem('firstVisit') === null;
 
   // Form input state
-  let manifestUrl: string = '';
+  let manifestUrl = initialManifestUrl ?? '';
   let scaleFactor = 1;
   let notifyWhenDone = false;
 
@@ -65,14 +66,6 @@
   // Ref to manifest input
   let manifestInput: HTMLInputElement | undefined;
 
-  $: if (manifestInfo?.imageApiHasCors) {
-    estimatePromise = estimatePdfSize({
-      manifest: manifestInfo.manifest.id,
-      concurrency: 4,
-      scaleFactor,
-      numSamples: 8,
-    });
-  }
 
   $: if (notifyWhenDone && window.Notification.permission === 'default') {
     window.Notification.requestPermission().then((status) => {
@@ -80,7 +73,7 @@
     });
   }
 
-  $: if (manifestUrl) {
+  $: if (manifestUrl && manifestInput) {
     // Updated manifest URL means all old messages are no longer relevant
     clearNotifications();
 
@@ -93,7 +86,7 @@
       manifestUrlIsValid = true;
       onValidManifestUrl();
     }
-  } else {
+  } else if (manifestInput) {
     resetState();
   }
 
@@ -139,6 +132,13 @@
           addNotification({
             type: 'warn',
             message: $_('errors.cors'),
+          });
+        } else {
+          estimatePromise = estimatePdfSize({
+            manifest: manifestInfo.manifest.id,
+            concurrency: 4,
+            scaleFactor,
+            numSamples: 8,
           });
         }
         return info;
@@ -367,8 +367,8 @@
     pdfFinished = true;
   }
 
-  async function generatePdf(evt: Event): Promise<void> {
-    evt.preventDefault();
+  async function generatePdf(evt?: Event): Promise<void> {
+    evt?.preventDefault();
     pdfFinished = false;
     let promise: Promise<void>;
     let generateOnClient: boolean;
@@ -455,8 +455,7 @@
     {#if infoPromise}
       <Preview {infoPromise} {estimatePromise} />
     {/if}
-    <div class="relative text-gray-700">
-      <input
+    <div class="relative flex text-gray-700 justify-end"> <input
         bind:this={manifestInput}
         class={classNames(
           'w-full h-10 pl-3 pr-10 text-base placeholder-gray-600 rounded-lg',
@@ -474,18 +473,19 @@
       <button
         on:click={generatePdf}
         disabled={!manifestUrlIsValid || (currentProgress && !pdfFinished)}
-        class="absolute inset-y-0 right-0 flex items-center px-1 font-bold text-white disabled:opacity-25 bg-indigo-600 rounded-r-lg hover:bg-indigo-500 focus:bg-indigo-700"
+        class="absolute inset-y-0 right-0 flex items-center p-1 px-2 font-bold text-white disabled:opacity-25 bg-brand rounded-r whitespace-nowrap"
       >
         <svg
           viewBox="0 0 24 24"
           aria-hidden="true"
-          class="w-7 h-7 fill-current"
+          class="w-7 h-7 fill-current mr-2"
         >
           <title>{$_('buttons.generate')}</title>
           <path
             d="M20 2H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-8.5 7.5c0 .83-.67 1.5-1.5 1.5H9v2H7.5V7H10c.83 0 1.5.67 1.5 1.5v1zm5 2c0 .83-.67 1.5-1.5 1.5h-2.5V7H15c.83 0 1.5.67 1.5 1.5v3zm4-3H19v1h1.5V11H19v2h-1.5V7h3v1.5zM9 9.5h1v-1H9v1zM4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm10 5.5h1v-3h-1v3z"
           />
         </svg>
+        {$_('buttons.generate')}
       </button>
     </div>
     {#if manifestInfo}

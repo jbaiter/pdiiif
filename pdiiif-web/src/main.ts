@@ -13,6 +13,9 @@ export function render(
   target: HTMLElement,
   { apiEndpoint, coverPageEndpoint }: Options
 ): App {
+  const searchParams = new URLSearchParams(window.location.search);
+  const initialManifestUrl = searchParams.get('manifest') || null;
+
   setLogger(new ConsoleLogger(import.meta.env.DEV ? 'debug' : 'warn'));
   addMessages('de', de);
   addMessages('en', en);
@@ -22,7 +25,7 @@ export function render(
   });
 
   return new App({
-    props: { apiEndpoint, coverPageEndpoint },
+    props: { apiEndpoint, coverPageEndpoint, initialManifestUrl },
     target,
   });
 }
@@ -48,7 +51,7 @@ let apiEndpoint = import.meta.env.PDIIIF_API_ENDPOINT as string;
 if (!apiEndpoint) {
   apiEndpoint = import.meta.env.DEV
     ? 'http://localhost:31337/api'
-    : `${window.location.toString().replace(/\/$/g, '')}/api`;
+    : `${window.location.toString().replace(/\/?(?:\?.*)?$/g, '')}/api`;
 }
 
 render(document.getElementById('app'), {
