@@ -6,6 +6,7 @@
 
   export let infoPromise: Promise<ManifestInfo | void>;
   export let estimatePromise: Promise<number> | undefined;
+  export let canvasIdentifiers: string[] | undefined;
 </script>
 
 <div class="flex bg-indigo-100 p-2 rounded-md mb-4">
@@ -22,7 +23,7 @@
         <h2 class="font-bold text-lg mt-4">{manifestInfo.label}</h2>
         <ul class="mt-4">
           <li>
-            {manifestInfo.numPages}
+            {canvasIdentifiers?.length || manifestInfo.canvasIds.length}
             {$_('number_of_pages')}
           </li>
           {#if estimatePromise}

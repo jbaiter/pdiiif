@@ -6,7 +6,9 @@
         "write_perm": "No permission to write to '{fileName}'",
         "pdf_failure": "Failed to generate PDF: {errorMsg}",
         "pdf_failure_conn": "Failed to generate PDF: Could not connect to server at {apiEndpoint}",
-        "estimate_failure": "Failed to load size estimate."
+        "estimate_failure": "Failed to load size estimate.",
+        "invalid_canvas_range": "Invalid canvas range: {range}",
+        "invalid_canvas_range_bad_index": "Invalid canvas range: {range}, only values between 1 and {canvasCount} are allowed."
     },
     "notifications": {
         "success": "PDF successfully generated.",
@@ -26,7 +28,8 @@
         "notify": "Notify me when the PDF is ready"
     },
     "settings": {
-        "img_width": "Image size"
+        "img_width": "Image size",
+        "canvases": "Pages"
     },
     "links": {
         "source": "Source Code",

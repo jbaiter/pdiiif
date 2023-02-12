@@ -6,7 +6,9 @@
         "write_perm": "Keine Berechtigung um PDF nach '{fileName}' zu schreiben",
         "pdf_failure": "PDF-Erstellung fehlgeschlagen: {errorMsg}",
         "pdf_failure_conn": "PDF-Erstellung fehlgeschlagen: Konnte keine Verbindung zum Server {apiEndpoint} herstellen",
-        "estimate_failure": "Dateigrößen-Schätzung fehlgeschlagen:"
+        "estimate_failure": "Dateigrößen-Schätzung fehlgeschlagen:",
+        "invalid_canvas_range": "Ungültiger Seiten-Abschnitt: {range}",
+        "invalid_canvas_range_bad_index": "Ungültiger Seiten-Abschnitt: {range}, nur Werte zwischen 1 und {canvasCount} sind zulässig."
     },
     "notifications": {
         "success": "PDF erfolgreich erstellt.",
@@ -26,7 +28,8 @@
         "notify": "Benachrichtigung wenn PDF fertig ist"
     },
     "settings": {
-        "img_width": "Bildgröße"
+        "img_width": "Bildgröße",
+        "canvases": "Seiten"
     },
     "links": {
         "source": "Quelltext",

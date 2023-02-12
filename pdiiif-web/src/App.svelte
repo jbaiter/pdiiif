@@ -19,7 +19,11 @@
   import logoSvgUrl from '../assets/logo.svg';
   import ErrorIcon from './icons/Exclamation.svelte';
   import ProgressBar from './icons/ProgressBar.svelte';
-  import { getMaximumBlobSize, supportsStreamsaver } from './util';
+  import {
+    buildCanvasFilterString,
+    getMaximumBlobSize,
+    supportsStreamsaver,
+  } from './util';
   import { KeepAliveStreamSaver } from './io';
 
   export let apiEndpoint: string = 'http://localhost:31337/api';
@@ -41,6 +45,7 @@
   let manifestUrl = initialManifestUrl ?? '';
   let scaleFactor = 1;
   let notifyWhenDone = false;
+  let canvasIdentifiers: string[] | undefined = undefined;
 
   // Validation state
   let manifestUrlIsValid: boolean | undefined;
@@ -90,6 +95,16 @@
     resetState();
   }
 
+  $: if (manifestInfo) {
+      estimatePromise = estimatePdfSize({
+        manifest: manifestInfo.manifest.id,
+        filterCanvases: canvasIdentifiers,
+        concurrency: 4,
+        scaleFactor,
+        numSamples: 8,
+      });
+    }
+
   // Show notification if file system api is available
   onMount(async () => {
     if (!isFirstVisit) {
@@ -136,6 +151,7 @@
         } else {
           estimatePromise = estimatePdfSize({
             manifest: manifestInfo.manifest.id,
+            filterCanvases: canvasIdentifiers,
             concurrency: 4,
             scaleFactor,
             numSamples: 8,
@@ -186,9 +202,12 @@
     }
   }
 
-  /// Generate a PDF completely on the client side, using the
-  /// File System Access API available in newer WebKit browsers
-  /// or via a Blob otherwise.
+  /// Generate a PDF completely on the client side.
+  /// This uses one of three approaches, depending on the browser
+  /// and the estimated size of the manifest:
+  ///  - File System Access API available in newer WebKit browsers
+  ///  - Using StreamSaver.js (simulating a HTTP download via a service worker)
+  ///  - Otherwise through a `Blob`, if the manifest is small enough
   async function generatePdfClientSide(): Promise<void> {
     let manifestResp: Response;
     try {
@@ -249,6 +268,9 @@
         },
         { once: true }
       );
+    } else {
+      // pdiiif uses a `BlobWriter` if no output stream is provided
+      // by the user
     }
     abortController.signal.addEventListener(
       'abort',
@@ -264,6 +286,7 @@
     );
     try {
       const res = await convertManifest(manifestJson, webWritable, {
+        filterCanvases: canvasIdentifiers,
         concurrency: 4,
         languagePreference: window.navigator.languages,
         onProgress: (status) => {
@@ -360,9 +383,14 @@
         queueState.current = queuePosition;
       }
     });
-    window.open(
-      `${pdfEndpoint}?${new URLSearchParams({ manifestUrl, progressToken })}`
-    );
+    const params: Record<string, string> = { manifestUrl, progressToken };
+    if (canvasIdentifiers?.length) {
+      params.canvasNos = buildCanvasFilterString(
+        manifestInfo.canvasIds,
+        canvasIdentifiers
+      );
+    }
+    window.open(`${pdfEndpoint}?${new URLSearchParams(params)}`);
     await promise;
     pdfFinished = true;
   }
@@ -453,9 +481,10 @@
   </div>
   <div class="flex flex-col bg-blue-400 m-auto p-4 rounded-md shadow-lg">
     {#if infoPromise}
-      <Preview {infoPromise} {estimatePromise} />
+      <Preview {infoPromise} {estimatePromise} {canvasIdentifiers} />
     {/if}
-    <div class="relative flex text-gray-700 justify-end"> <input
+    <div class="relative flex text-gray-700 justify-end">
+      <input
         bind:this={manifestInput}
         class={classNames(
           'w-full h-10 pl-3 pr-10 text-base placeholder-gray-600 rounded-lg',
@@ -491,6 +520,7 @@
     {#if manifestInfo}
       <Settings
         bind:scaleFactor
+        bind:canvasIdentifiers
         {manifestInfo}
         disabled={currentProgress && !pdfFinished}
       />

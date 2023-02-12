@@ -38,3 +38,33 @@ export function supportsStreamsaver(): boolean {
   }
   return true;
 }
+
+export function buildCanvasFilterString(allIdentifiers: string[], filteredIdentifiers?: string[]): string | undefined {
+  if (!filteredIdentifiers?.length) {
+    return undefined;
+  }
+  let parts = [];
+  let currentRange = [];
+  for (const ident of filteredIdentifiers) {
+    const idx = allIdentifiers.indexOf(ident);
+    if (currentRange.length < 2) {
+      // New range
+      currentRange.push(idx);
+    } else if (currentRange[1] === idx - 1) {
+      // Extend range
+      currentRange.push(idx);
+    } else {
+      // Finish range
+      if (currentRange.length == 1) {
+        parts.push(currentRange[0].toString());
+      } else if (currentRange[0] + 1 === currentRange[1]) {
+        parts.push(currentRange[0].toString());
+        parts.push(currentRange[1].toString());
+      } else {
+        parts.push(currentRange.join('-'));
+      }
+      currentRange = [idx];
+    }
+  }
+  return parts.join(',');
+}

@@ -25,7 +25,7 @@ export interface ManifestInfo {
   maximumImageWidth: number;
   supportsDownscale: boolean;
   imageApiHasCors: boolean;
-  numPages: number;
+  canvasIds: string[];
 }
 
 // TODO: Use manifesto.js for i18n and better 2/3 cross-compatibility
@@ -79,6 +79,6 @@ export async function fetchManifestInfo(
     manifest,
     supportsDownscale,
     imageApiHasCors,
-    numPages: canvasIds.length,
+    canvasIds,
   };
 }
