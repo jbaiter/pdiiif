@@ -1364,26 +1364,27 @@ export default class PDFGenerator {
       )
       .join('\n');
     const xrefOffset = this._offset;
-    await this._write(`xref\n0 ${xrefEntries.length}\n${xRefTable}`);
+    await this._write(`xref\n0 ${xrefEntries.length}\n${xRefTable}\n`);
     const trailerDict: PdfDictionary = {
       Size: xrefEntries.length,
       Root: this._objRefs.Catalog,
       Info: this._objRefs.Info,
       ID: [randomData(32), randomData(32)],
     };
-    const trailer = [
-      `\ntrailer\n${serialize(trailerDict)}`,
-      `\nstartxref\n${xrefOffset}\n%%EOF`,
-    ].join('');
+    await this._write(`\ntrailer\n${serialize(trailerDict)}`);
+    const trailer = `startxref\n${xrefOffset}\n%%EOF`;
     if (this._polyglot && this._zipCatalog) {
       log.debug('Writing zip end of central directory');
+      await this._write('9990 0 obj\n<<>>\nstream\n');
+      const endObj = '\nendstream\nendobj\n';
       await this._write(
         buildCentralFileDirectory({
           files: this._zipCatalog,
-          trailingLength: trailer.length,
+          trailingLength: trailer.length + endObj.length,
           offset: this._offset,
         })
       );
+      await this._write(endObj);
     }
     await this._flush();
     log.debug('Writing trailer');
