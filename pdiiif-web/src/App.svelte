@@ -586,6 +586,7 @@
       <a
         href="https://github.com/jbaiter/pdiiif"
         target="_blank"
+        rel="noreferrer"
         class="hover:text-gray-800"
         ><GitHubIcon classes="text-gray-500 inline align-text-top w-4 h-4" />
         {$_('links.source')}</a
@@ -595,6 +596,7 @@
       <a
         href="https://github.com/jbaiter/pdiiif/discussions"
         target="_blank"
+        rel="noreferrer"
         class="hover:text-gray-800"
       >
         <QuestionIcon classes="text-gray-500 inline align-text-top w-4 h-4" />
@@ -605,6 +607,7 @@
       <a
         href="https://github.com/jbaiter/pdiiif/issues/new"
         target="_blank"
+        rel="noreferrer"
         class="hover:text-gray-800"
         ><ErrorIcon classes="text-gray-500 inline align-text-top w-4 h-4" />
         {$_('links.problem')}</a

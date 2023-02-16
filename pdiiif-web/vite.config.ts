@@ -20,9 +20,7 @@ export default defineConfig(({ command, mode }) => {
             postcss: postssConfig,
           }),
         ],
-        experimental: {
-          prebundleSvelteLibraries: true,
-        },
+        prebundleSvelteLibraries: true,
       }),
       mkcert(),
     ],
