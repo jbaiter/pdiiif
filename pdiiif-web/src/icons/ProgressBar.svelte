@@ -6,7 +6,7 @@
 </script>
 
 <div
-  class="relative mt-4 h-8 w-full rounded-md bg-gray-300 border-2 border-white"
+  class="relative mt-4 h-8 w-full rounded-md bg-white border-2 border-white"
 >
   <div style={progressStyle} class="h-full rounded-md bg-blue-600" />
   <div

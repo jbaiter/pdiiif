@@ -487,7 +487,7 @@
       <input
         bind:this={manifestInput}
         class={classNames(
-          'w-full h-10 pl-3 pr-10 text-base placeholder-gray-600 rounded-lg',
+          'w-full h-10 px-3 text-base placeholder-gray-600 rounded-l-lg',
           {
             'border-4 border-red-500':
               manifestUrl.length > 0 && !manifestUrlIsValid,
@@ -502,7 +502,7 @@
       <button
         on:click={generatePdf}
         disabled={!manifestUrlIsValid || (currentProgress && !pdfFinished)}
-        class="absolute inset-y-0 right-0 flex items-center p-1 px-2 font-bold text-white disabled:opacity-25 bg-brand rounded-r whitespace-nowrap"
+        class="inset-y-0 right-0 flex items-center p-1 px-2 font-bold text-white disabled:opacity-25 bg-brand rounded-r whitespace-nowrap"
       >
         <svg
           viewBox="0 0 24 24"

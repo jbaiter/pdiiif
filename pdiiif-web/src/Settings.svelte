@@ -110,9 +110,9 @@
 </script>
 
 {#if settingsAvailable}
-  <div class="mt-4 w-full flex justify-end">
+  <div class="mt-4 w-full flex justify-end h-full">
     <div
-      class="bg-green-200 p-2 rounded-md w-full {showSettings ? '' : 'hidden'}"
+      class="bg-green-200 p-2 rounded-md w-full h-full {showSettings ? '' : 'hidden'}"
     >
       <button
         class="float-right flex items-center justify-center w-6 h-6 bg-gray-200 rounded-full"
@@ -123,9 +123,12 @@
         }}>×</button
       >
       {#if manifestInfo.supportsDownscale}
-        <label class="block">
-          {$_('settings.img_width')}
+        <label class="flex mt-2">
+          <span class="w-32">
+            {$_('settings.img_width')}
+          </span>
           <input
+            class="flex-grow"
             type="range"
             name="max-img-width"
             min="10"
@@ -136,12 +139,15 @@
             }}
             bind:value={maxWidthPct}
           />
-          <span class="ml-2">{maxWidthPct}%</span>
+          <span class="ml-2 mr-8">{maxWidthPct}%</span>
         </label>
       {/if}
-      <label class="block">
-        {$_('settings.canvases')}
+      <label class="flex mb-2 mt-4">
+        <span class="w-32">
+          {$_('settings.canvases')}
+        </span>
         <input
+          class="flex-grow mr-12"
           type="text"
           name="canvases"
           on:change={onCanvasRangeChange}
@@ -154,7 +160,7 @@
     </div>
     <button
       type="button"
-      class="bg-green-200 disabled:bg-gray-500 rounded-lg items-center p-1 text-gray-700 {showSettings
+      class="bg-green-200 disabled:bg-gray-500 rounded-lg items-center p-2 text-gray-700 {showSettings
         ? 'hidden'
         : ''}"
       title={$_('buttons.settings')}
