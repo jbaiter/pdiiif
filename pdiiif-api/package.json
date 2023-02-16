@@ -1,5 +1,5 @@
 {
-  "name": "pdiiif-web",
+  "name": "pdiiif-server",
   "version": "0.1.0",
   "type": "module",
   "scripts": {
@@ -92,7 +92,13 @@
     "node": ">=16.15.0"
   },
   "engineStrict": true,
-  "main": "./dist/server.js",
+  "files": [
+    "./dist",
+    "./assets"
+  ],
+  "bin": {
+    "pdiiif-server": "./dist/server.js"
+  },
   "prettier": {
     "trailingComma": "es5",
     "tabWidth": 2,
