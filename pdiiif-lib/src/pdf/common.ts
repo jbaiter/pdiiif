@@ -1,5 +1,3 @@
-import { padStart as pad } from 'lodash-es';
-
 import { IS_BIG_ENDIAN } from './util.js';
 
 const PDF_INDENTATION = 2;
@@ -128,12 +126,12 @@ export function serialize(value: PdfValue, dictIndent = 0): string {
       .join('')}>`;
   } else if (value instanceof Date) {
     const dateString =
-      `D:${pad(value.getUTCFullYear().toString(10), 4, '0')}` +
-      pad(value.getUTCMonth().toString(10) + 1, 2, '0') +
-      pad(value.getUTCDate().toString(10), 2, '0') +
-      pad(value.getUTCHours().toString(10), 2, '0') +
-      pad(value.getUTCMinutes().toString(10), 2, '0') +
-      pad(value.getUTCSeconds().toString(10), 2, '0') +
+      `D:${value.getUTCFullYear().toString(10).padStart(4, '0')}` +
+      (value.getUTCMonth() + 1).toString(10).padStart(2, '0') +
+      value.getUTCDate().toString(10).padStart(2, '0') +
+      value.getUTCHours().toString(10).padStart(2, '0') +
+      value.getUTCMinutes().toString(10).padStart(2, '0') +
+      value.getUTCSeconds().toString(10).padStart(2, '0') +
       'Z';
     return `(${dateString})`;
   } else if (Array.isArray(value)) {

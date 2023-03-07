@@ -17,7 +17,6 @@ import {
 } from '@iiif/presentation-3';
 import Presentation2 from '@iiif/presentation-2';
 import { convertPresentation2 } from '@iiif/parser/presentation-2';
-import { meanBy, sampleSize, orderBy } from 'lodash-es';
 import PQueue from 'p-queue';
 
 import PDFGenerator from './pdf/generator.js';
@@ -216,11 +215,18 @@ export async function estimatePdfSize({
   let samplePixels = totalCanvasPixels;
   let sampleCanvases = canvases;
   if (canvases.length > numSamples) {
-    const meanPixels = meanBy(canvases, (c) => c.width * c.height);
+    const meanPixels = canvases.reduce(
+      (x, { width, height }) => x + width * height, 0) / canvases.length;
     const candidateCanvases = canvases.filter(
       (c) => Math.abs(meanPixels - c.width * c.height) <= 0.25 * meanPixels
     );
-    sampleCanvases = sampleSize(candidateCanvases, numSamples);
+    sampleCanvases = []
+    while (sampleCanvases.length < numSamples) {
+      const candidate = candidateCanvases[Math.floor(Math.random() * candidateCanvases.length)]
+      if (sampleCanvases.indexOf(candidate) < 0) {
+        sampleCanvases.push(candidate)
+      }
+    }
     samplePixels = sampleCanvases.reduce(
       (sum, canvas) => sum + canvas.width * canvas.height,
       0
@@ -270,11 +276,12 @@ async function buildOutlineFromRanges(
     if (seenRanges.has(range.id)) {
       return;
     }
-    const firstCanvas = orderBy(
-      // Double filtering with `isCanvas` is necessary because of TS limitations
-      range.items.filter(isCanvas).filter(c => canvasIds.indexOf(c.id) >= 0).filter(isCanvas),
-      c => canvasIds.indexOf(c.id)
-    )[0];
+    // Double filtering with `isCanvas` is necessary because of TS limitations
+    const firstCanvas = range.items
+      .filter(isCanvas)
+      .filter(c => canvasIds.indexOf(c.id) >= 0)
+      .filter(isCanvas)
+      .sort((a, b) => canvasIds.indexOf(a.id) > canvasIds.indexOf(b.id) ? -1 : 1)[0];
     const rangeLabel = getI18nValue(
       range.label ?? '<untitled>',
       languagePreference,

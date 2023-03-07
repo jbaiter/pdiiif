@@ -1,5 +1,3 @@
-import { findIndex, findLastIndex, sortBy } from 'lodash-es';
-
 import { Reader } from '../io.js';
 import { PdfObject, PdfValue, PdfDictionary, PdfRef } from './common.js';
 import { textDecoder, textEncoder } from './util.js';
@@ -23,7 +21,7 @@ async function* parseCrossRefSection(
   if (!testForString(buf, 0, 'xref')) {
     throw 'Invalid crossreference section, did not start with `xref` line.';
   }
-  const trailerIdx = findIndex(buf, (_x, idx) =>
+  const trailerIdx = buf.findIndex((_x, idx) =>
     testForString(buf, idx, 'trailer')
   );
   // Split into lines and skip first line (`xref`)
@@ -70,10 +68,10 @@ async function* parseCrossRefSection(
     yield currentSection;
   }
   const trailerBuf = buf.subarray(trailerIdx);
-  const trailerStartIdx = findIndex(trailerBuf, (_x, idx) =>
+  const trailerStartIdx = trailerBuf.findIndex((_x, idx) =>
     testForString(trailerBuf, idx, '<<')
   );
-  const trailerEndIdx = findIndex(trailerBuf, (_x, idx) =>
+  const trailerEndIdx = trailerBuf.findIndex((_x, idx) =>
     testForString(trailerBuf, idx, '>>')
   );
   /*
@@ -529,7 +527,7 @@ export class PdfParser {
     if (!testForString(trailerBuf, eofIdx, '%%EOF')) {
       throw 'Invalid PDF, missing EOF comment at end of file';
     }
-    const startXrefPos = findLastIndex(trailerBuf, (_x, idx) =>
+    const startXrefPos = trailerBuf.findLastIndex((_x, idx) =>
       testForString(trailerBuf, idx, 'startxref')
     );
     if (startXrefPos < 0) {
@@ -543,10 +541,10 @@ export class PdfParser {
       10
     );
     const dictEnd =
-      findLastIndex(trailerBuf, (_x, idx) =>
+      trailerBuf.findLastIndex((_x, idx) =>
         testForString(trailerBuf, idx, '>>')
       ) + 2;
-    const dictStart = findLastIndex(trailerBuf, (_x, idx) =>
+    const dictStart = trailerBuf.findLastIndex((_x, idx) =>
       testForString(trailerBuf, idx, '<<')
     );
     const trailerDict = new ObjectParser(
@@ -587,7 +585,7 @@ export class PdfParser {
   ) {
     this.reader = reader;
     this.objectOffsets = objOffsets;
-    this.sortedOffsets = sortBy(objOffsets);
+    this.sortedOffsets = [...objOffsets].sort();;
     this.objGenerations = objGenerations;
     this.catalogNum = (trailerDict.Root as PdfRef).refObj;
     this.infoNum = (trailerDict.Info as PdfRef).refObj;
@@ -671,10 +669,10 @@ export class PdfParser {
       this.pdfSize;
     const buf = new Uint8Array(nextOffset - offset);
     await this.reader.read(buf, 0, offset, buf.length);
-    const objEndIdx = findIndex(buf, (_x, idx) =>
+    const objEndIdx = buf.findIndex((_x, idx) =>
       testForString(buf, idx, 'endobj')
     );
-    let streamIdx = findIndex(buf, (_x, idx) =>
+    let streamIdx = buf.findIndex((_x, idx) =>
       testForString(buf, idx, 'stream')
     );
     if (streamIdx >= 0) {

@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import fetch from 'cross-fetch';
-import { minBy } from 'lodash-es';
 import { Mutex } from 'async-mutex';
 import {
   AnnotationNormalized,
@@ -202,9 +201,7 @@ export function getImageSize(
   if (scaleFactor < 1 && !supportsScaleByWh) {
     if (imgService.sizes) {
       // AR-compliant downscaling is not supported, find the closest available size
-      requestedWidth = minBy(
-        imgService.sizes.map((dims) => Math.abs(requestedWidth - dims.width))
-      )!;
+      requestedWidth = Math.min(...imgService.sizes.map((dims) => Math.abs(requestedWidth - dims.width)));
       sizeStr = `${requestedWidth},`;
     } else {
       // No sizes available, so we can't downscale.

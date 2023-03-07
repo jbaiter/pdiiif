@@ -32,7 +32,6 @@
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^1.0.2",
     "@tsconfig/svelte": "^2.0.1",
-    "@types/lodash-es": "^4.17.6",
     "@types/node": "^18.13.0",
     "@types/streamsaver": "^2.0.1",
     "@types/web": "^0.0.71",
@@ -61,7 +60,6 @@
     "@sentry/tracing": "^7.37.2",
     "@types/ua-parser-js": "^0.7.36",
     "classnames": "^2.3.2",
-    "lodash-es": "^4.17.21",
     "pdiiif": "workspace:^0.1.0",
     "streamsaver": "^2.0.6",
     "svelte-i18n": "^3.6.0",

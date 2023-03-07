@@ -1,5 +1,3 @@
-import { max } from 'lodash-es';
-
 import type {
   ManifestNormalized,
   CanvasNormalized,
@@ -28,7 +26,6 @@ export interface ManifestInfo {
   canvasIds: string[];
 }
 
-// TODO: Use manifesto.js for i18n and better 2/3 cross-compatibility
 export async function fetchManifestInfo(
   manifestUrl: string
 ): Promise<ManifestInfo> {
@@ -70,7 +67,7 @@ export async function fetchManifestInfo(
     imageApiHasCors = false;
   }
 
-  const maximumImageWidth = max(images.map((i) => i.width ?? 0));
+  const maximumImageWidth = Math.max(...images.map((i) => i.width ?? 0));
 
   return {
     label: getValue(manifest.label),

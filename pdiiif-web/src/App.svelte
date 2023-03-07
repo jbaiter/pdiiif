@@ -2,7 +2,6 @@
   /// <reference types="wicg-file-system-access"/>
   import { onMount } from 'svelte';
   import { _ } from 'svelte-i18n';
-  import { without } from 'lodash-es';
   import classNames from 'classnames';
   import { convertManifest, estimatePdfSize, ProgressStatus } from 'pdiiif';
   import { getValue } from '@iiif/vault-helpers';
@@ -472,7 +471,7 @@
         choices={notification.choices}
         on:close={() => {
           notification.onClose?.();
-          notifications = without(notifications, notification);
+          notifications = notifications.filter(n => n !== notification);
         }}
       >
         {notification.message}

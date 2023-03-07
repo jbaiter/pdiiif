@@ -1,4 +1,3 @@
-import { sum } from 'lodash-es';
 import util from 'util';
 import zlib from 'zlib';
 import { zlibSync } from 'fflate';
@@ -32,7 +31,7 @@ export interface TocItem {
 
 export function getNumChildren(itm: TocItem): number {
   const children = itm.children ?? [];
-  return children.length + sum(children.map(getNumChildren));
+  return children.length + children.map(getNumChildren).reduce((a, b) => a + b, 0);
 }
 
 export function randomData(length: number): Uint8Array {

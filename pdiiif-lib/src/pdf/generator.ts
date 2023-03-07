@@ -4,7 +4,6 @@
 /// PDF generation code
 // FIXME: This is currently one hell of a mess, learning about PDF and coming up
 // with good abstractions at the same time was too much of a challenge for me 🙈
-import { flatten, isObject, padStart as pad } from 'lodash-es';
 import dedent from 'dedent-js';
 import { Manifest } from '@iiif/presentation-3';
 import { Manifest as ManifestV2 } from '@iiif/presentation-2';
@@ -447,6 +446,7 @@ export default class PDFGenerator {
     refName?: string,
     stream?: Uint8Array | string
   ): PdfObject {
+    const isObject = (x: unknown): x is object => typeof x === 'object' && x !== null;
     if (stream) {
       if (!isObject(val)) {
         throw new Error(
@@ -638,15 +638,14 @@ export default class PDFGenerator {
     if (this._pageLabels) {
       catalog.PageLabels = makeRef(
         this._addObject({
-          Nums: flatten(
-            this._pageLabels
-              .map((label, idx) =>
-                label
-                  ? [idx + this._numCoverPages, { P: `( ${label} )` }]
-                  : undefined
-              )
-              .filter((x) => x !== undefined) as PdfArray
-          ),
+          Nums: this._pageLabels
+            .map((label, idx) =>
+              label
+                ? [idx + this._numCoverPages, { P: `( ${label} )` }]
+                : undefined
+            )
+            .filter((x) => x !== undefined)
+            .flat() as PdfArray
         })
       );
     }
@@ -1175,7 +1174,7 @@ export default class PDFGenerator {
       // 1 XObject per image
       images.length +
       // Page dictionary and content
-      2 + 
+      2 +
       // 1 Optional Content Group per optional image
       images.filter((i) => i.choiceState !== undefined).length +
       // 1 XObject per annotation
@@ -1356,8 +1355,8 @@ export default class PDFGenerator {
     const xRefTable = xrefEntries
       .map(([off, gen, free]) =>
         [
-          pad(off.toString(10), 10, '0'),
-          pad(gen.toString(10), 5, '0'),
+          off.toString(10).padStart(10, '0'),
+          gen.toString(10).padStart(5, '0'),
           free,
           '',
         ].join(' ')

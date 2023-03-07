@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 /* eslint-disable complexity */
 /// Utilities for parsing OCR text from hOCR, ALTO and IIIF Annotations
-import { max } from 'lodash-es';
 import fetch from 'cross-fetch';
 import jsdom from 'jsdom';
 import {
@@ -499,8 +498,8 @@ export function parseAlto(
  */
 function getFallbackImageSize(lines: OcrSpan[]): Dimensions {
   return {
-    width: max(lines.map(({ x, width }) => x + (width ?? 0))) ?? 0,
-    height: max(lines.map(({ y, height }) => y + height)) ?? 0,
+    width: Math.max(...lines.map(({ x, width }) => x + (width ?? 0))) ?? 0,
+    height: Math.max(...lines.map(({ y, height }) => y + height)) ?? 0,
   };
 }
 
