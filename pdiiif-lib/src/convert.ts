@@ -307,10 +307,16 @@ async function buildOutlineFromRanges(
     };
   };
 
+  let tocRanges = vault.get<RangeNormalized>(manifest.structures);
+  const topRange = tocRanges.find(r => (r.behavior as string[]).indexOf("top") >= 0);
+  // If there's a 'top' range, only use that as the single top-level ToC node
+  if (topRange) {
+    tocRanges = [topRange];
+  }
+
   return (
     (
-      await Promise.all(
-        vault.get<RangeNormalized>(manifest.structures).map(handleTocRange)
+      await Promise.all(tocRanges.map(handleTocRange)
       )
     ).filter(isDefined<TocItem>) ?? []
   );
