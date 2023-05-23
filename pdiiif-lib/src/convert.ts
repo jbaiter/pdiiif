@@ -253,6 +253,8 @@ async function buildOutlineFromRanges(
   // of parent-child relationships for ranges.
 
   // All canvas identifiers in the order they appear as in the sequence
+  // Note that this is a *filtered* list of canvases, i.e. if the user only selected a subset of the
+  // canvases for PDF generation, not every Range in the manifest will have all of its canvases in here
   const canvasIds = canvases.map((canvas) => canvas.id);
 
   // We have to recurse, this small closure handles each node in the tree
@@ -268,8 +270,10 @@ async function buildOutlineFromRanges(
     if (seenRanges.has(range.id)) {
       return;
     }
-    const firstCanvas = orderBy(range.items.filter(isCanvas), (c) =>
-      canvasIds.indexOf(c.id)
+    const firstCanvas = orderBy(
+      // Double filtering with `isCanvas` is necessary because of TS limitations
+      range.items.filter(isCanvas).filter(c => canvasIds.indexOf(c.id) >= 0).filter(isCanvas),
+      c => canvasIds.indexOf(c.id)
     )[0];
     const rangeLabel = getI18nValue(
       range.label ?? '<untitled>',
@@ -285,12 +289,17 @@ async function buildOutlineFromRanges(
     if (range.start) {
       startCanvas = await fetchStartCanvasInfo(range);
     }
-    if (!startCanvas && firstCanvas) {
+    seenRanges.add(range.id);
+    if (children.length === 0 && !firstCanvas) {
+      // Range with no canvases and no child ranges, ignore
+      // This usually happens when the user filtered the canvases to be included in the
+      // PDF and the range and its children only contains canvases that were filtered out
+      return;
+    } else if (!startCanvas && firstCanvas) {
       startCanvas = firstCanvas.id;
     } else {
       startCanvas = children[0].startCanvas;
     }
-    seenRanges.add(range.id);
     return {
       label: rangeLabel,
       startCanvas,
