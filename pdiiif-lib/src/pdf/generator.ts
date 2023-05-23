@@ -932,6 +932,7 @@ export default class PDFGenerator {
       }
     }
 
+    const canvasInfo = this._canvasInfos[canvasIdx];
     if (ocrText?.markup) {
       const canvasIdx = this._canvasInfos.findIndex(
         (ci) => ci.canvas.id === canvasId
@@ -950,6 +951,16 @@ export default class PDFGenerator {
         ocrText.mimeType,
         ocrText.markup
       );
+    } else if (canvasInfo.ocr) {
+      // Canvas Info says we have OCR, but none was passed, possible
+      // when he OCR doesn't have CORS or fetching failed for another reason
+      // Add two empty objects so object references are still valid
+      this._addObject({});
+      this._addObject({});
+      // Add one more if we have a polyglot PDF/ZIP
+      if (this._polyglot) {
+        this._addObject({});
+      }
     }
 
     // Add annotations, if present

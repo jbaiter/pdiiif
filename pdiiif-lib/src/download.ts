@@ -553,7 +553,12 @@ export async function fetchCanvasData(
       ppi = ppi * scaleFactor;
     }
   }
-  const text = await fetchAndParseText(canvas, undefined);
+  let text;
+  try {
+    text = await fetchAndParseText(canvas, undefined);
+  } catch (err) {
+    log.warn(`Failed to fetch text for canvas ${canvas.id}: ${err}`);
+  }
   return {
     canvas,
     // FIXME: Shouldn't we signal to the user somehow if some images failed to download?
