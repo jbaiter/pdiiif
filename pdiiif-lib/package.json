@@ -1,7 +1,7 @@
 {
   "name": "pdiiif",
-  "version": "0.1.0",
-  "description": "Generate PDFs with page labels and a table of contents from IIIF manifests",
+  "version": "0.1.1",
+  "description": "Generate fully featured PDFs from IIIF manifests",
   "type": "module",
   "sideEffects": false,
   "scripts": {
@@ -26,14 +26,16 @@
   },
   "keywords": [
     "iiif",
-    "pdf"
+    "pdf",
+    "ocr",
+    "annotations"
   ],
   "author": "Johannes Baiter <johannes.baiter@gmail.com>",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/jbaiter/pdiiif-lib/issues"
+    "url": "https://github.com/jbaiter/pdiiif/issues"
   },
-  "homepage": "https://github.com/jbaiter/pdiiif-lib#readme",
+  "homepage": "https://github.com/jbaiter/pdiiif/blob/main/pdiiif-lib/README.md",
   "dependencies": {
     "@atlas-viewer/iiif-image-api": "^2.1.1",
     "@iiif/parser": "^1.1.2",

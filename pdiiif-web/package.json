@@ -1,6 +1,6 @@
 {
   "name": "pdiiif-web",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "scripts": {
     "dev": "vite",
     "compile": "cross-env NODE_ENV=production vite build",
@@ -25,7 +25,7 @@
   "bugs": {
     "url": "https://github.com/jbaiter/pdiiif/issues"
   },
-  "homepage": "https://github.com/jbaiter/pdiiif/tree/pdiiif-web#readme",
+  "homepage": "https://github.com/jbaiter/pdiiif#readme",
   "files": [
     "dist"
   ],
