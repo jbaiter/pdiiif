@@ -585,7 +585,7 @@ export class PdfParser {
   ) {
     this.reader = reader;
     this.objectOffsets = objOffsets;
-    this.sortedOffsets = [...objOffsets].sort();;
+    this.sortedOffsets = [...objOffsets].sort((a, b,) => a - b);
     this.objGenerations = objGenerations;
     this.catalogNum = (trailerDict.Root as PdfRef).refObj;
     this.infoNum = (trailerDict.Info as PdfRef).refObj;

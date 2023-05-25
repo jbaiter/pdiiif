@@ -1,6 +1,6 @@
 {
   "name": "pdiiif-web",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "scripts": {
     "dev": "vite",
     "compile": "cross-env NODE_ENV=production vite build",
