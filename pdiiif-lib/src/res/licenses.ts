@@ -69,7 +69,7 @@ export const licenses: LicenseList = {
   },
   'http://creativecommons.org/licenses/by-nd-nc/1.0/': {
     text: 'Creative Commons Attribution Non Commercial No Derivatives 1.0 Generic (CC-BY-NC-ND-1.0)',
-    logo: 'https://mirrors.creativecommons.org/presskit/buttons/88x31/svg/by-nd-nc.svg',
+    logo: 'https://mirrors.creativecommons.org/presskit/buttons/88x31/svg/by-nc-nd.svg',
   },
   'http://creativecommons.org/licenses/by-nd/3.0/': {
     text: 'Creative Commons Attribution No Derivatives 3.0 Unported (CC-BY-ND-3.0)',
@@ -185,7 +185,7 @@ export const licenses: LicenseList = {
   },
   'http://creativecommons.org/publicdomain/zero/1.0/': {
     text: 'Creative Commons Zero v1.0 Universal (CC0-1.0)',
-    logo: 'https://mirrors.creativecommons.org/presskit/buttons/88x31/svg/zero.svg',
+    logo: 'https://mirrors.creativecommons.org/presskit/buttons/88x31/svg/cc-zero.svg',
   },
   'http://creativecommons.org/licenses/by/2.5/au/': {
     text: 'Creative Commons Attribution 2.5 Australia (CC-BY-2.5-AU)',
