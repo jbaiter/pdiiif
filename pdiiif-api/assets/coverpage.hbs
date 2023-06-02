@@ -6,7 +6,6 @@
     </title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    {{! TODO: Make fonts configurable}}
     <link
       href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&family=Noto+Sans:wght@400;700&family=Noto+Serif:wght@400;700&display=swap"
       rel="stylesheet"
@@ -249,7 +248,7 @@
                 {{this.[0]}}
               </dt>
               <dd class="value">
-                {{#ifArray this.[1]}}
+                {{#if (isArray this.[1])}}
                   <ul>
                     {{#each this.[1]}}
                       <li>
@@ -259,7 +258,7 @@
                   </ul>
                 {{else}}
                   {{#sanitizeHtml this.[1]}}{{/sanitizeHtml}}
-                {{/ifArray}}
+                {{/if}}
               </dd>
             </div>
           {{/each}}

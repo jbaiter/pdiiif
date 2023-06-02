@@ -10,10 +10,12 @@ import sanitizeHtml from 'sanitize-html';
 import { sortBy } from 'lodash-es';
 import { dirname } from 'path';
 import { fileURLToPath } from 'url';
+import installHandleBarsHelpers from 'handlebars-helpers';
 import { version as serverVersion } from 'pdiiif';
 
 import metrics from './metrics.js';
 
+installHandleBarsHelpers({ handlebars: Handlebars});
 Handlebars.registerHelper('qrcode', function (value, options) {
   const {
     width = 128,
@@ -33,17 +35,6 @@ Handlebars.registerHelper('qrcode', function (value, options) {
     ecl,
   });
   return qr.svg();
-});
-Handlebars.registerHelper('ifArray', function (potentialArray, options) {
-  if (Array.isArray(potentialArray)) {
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore: Shadowed outer 'this'
-    return options.fn(this);
-  } else {
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore: Shadowed outer 'this'
-    return options.inverse(this);
-  }
 });
 Handlebars.registerHelper('sanitizeHtml', function (value) {
   return new Handlebars.SafeString(
