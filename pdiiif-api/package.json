@@ -12,7 +12,7 @@
     "lint": "eslint . --ext .ts && tsc --noemit",
     "pretest": "tsc --noemit",
     "posttest": "eslint . --ext .ts",
-    "prepack": "rm -rf dist && tsc -b"
+    "prepack": "rm -rf dist && tsc -b && cd ../pdiiif-web && pnpm i && pnpm run build &&  cp -R dist ../pdiiif-api/dist/public"
   },
   "repository": {
     "type": "git",
@@ -73,7 +73,6 @@
     "node-fetch": "^3.3.0",
     "p-queue": "6.6.2",
     "pdiiif": "workspace:^0.1.0",
-    "pdiiif-web": "workspace:^0.1.0",
     "prom-client": "^14.1.1",
     "puppeteer": "^15.5.0",
     "qrcode-svg": "^1.1.0",

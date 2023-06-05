@@ -67,9 +67,6 @@ importers:
       pdiiif:
         specifier: workspace:^0.1.0
         version: link:../pdiiif-lib
-      pdiiif-web:
-        specifier: workspace:^0.1.0
-        version: link:../pdiiif-web
       prom-client:
         specifier: ^14.1.1
         version: 14.1.1

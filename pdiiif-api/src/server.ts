@@ -132,7 +132,13 @@ const progressClients: { [token: string]: Response } = {};
 const globalConvertQueue = new GeneratorQueue(2);
 
 const app: Express = express();
-app.use(express.static('node_modules/pdiiif-web/dist'));
+if (fs.existsSync('../pdiiif-web/dist')) {
+  app.use(express.static('../pdiiif-web/dist'));
+} else if (fs.existsSync('./public')) {
+  app.use(express.static('./public'));
+} else {
+  console.warn('Could not find pdiiif distribution bundle, will not be able to serve webapp!')
+}
 app.use(bodyParser.json());
 app.use(bodyParser.text());
 app.use(openApiMiddleware);
