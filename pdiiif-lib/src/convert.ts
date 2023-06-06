@@ -171,6 +171,28 @@ export interface EstimationParams {
   concurrency?: number;
 }
 
+function getCanvasesForSampling(canvases: CanvasNormalized[], numSamples: number): CanvasNormalized[] {
+  if (canvases.length <= numSamples) {
+    return canvases;
+  }
+  const meanPixels = canvases.reduce(
+    (x, { width, height }) => x + width * height, 0) / canvases.length;
+  const candidateCanvases = canvases.filter(
+    (c) => Math.abs(meanPixels - c.width * c.height) <= 0.25 * meanPixels
+  );
+  if (candidateCanvases.length <= numSamples) {
+    return candidateCanvases;
+  }
+  const sampleCanvases: CanvasNormalized[] = []
+  while (sampleCanvases.length < numSamples) {
+    const candidate = candidateCanvases[Math.floor(Math.random() * candidateCanvases.length)]
+    if (sampleCanvases.indexOf(candidate) < 0) {
+      sampleCanvases.push(candidate)
+    }
+  }
+  return sampleCanvases;
+}
+
 /** Estimate the final size of the PDF for a given manifest.
  *
  * This will randomly sample a few representative canvases from the manifest,
@@ -212,26 +234,11 @@ export async function estimatePdfSize({
     (sum, canvas) => sum + canvas.width * canvas.height,
     0
   );
-  let samplePixels = totalCanvasPixels;
-  let sampleCanvases = canvases;
-  if (canvases.length > numSamples) {
-    const meanPixels = canvases.reduce(
-      (x, { width, height }) => x + width * height, 0) / canvases.length;
-    const candidateCanvases = canvases.filter(
-      (c) => Math.abs(meanPixels - c.width * c.height) <= 0.25 * meanPixels
-    );
-    sampleCanvases = []
-    while (sampleCanvases.length < numSamples) {
-      const candidate = candidateCanvases[Math.floor(Math.random() * candidateCanvases.length)]
-      if (sampleCanvases.indexOf(candidate) < 0) {
-        sampleCanvases.push(candidate)
-      }
-    }
-    samplePixels = sampleCanvases.reduce(
+  const sampleCanvases = getCanvasesForSampling(canvases, numSamples);
+  const samplePixels = sampleCanvases.reduce(
       (sum, canvas) => sum + canvas.width * canvas.height,
       0
     );
-  }
   const queue = new PQueue({ concurrency });
   const canvasData = await Promise.all(
     sampleCanvases.map((c) =>
