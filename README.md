@@ -11,7 +11,7 @@ For the most part, it runs both in browsers and as a Node.js server-side
 application. When generating a PDF in the browser, almost all communication happens
 directly between the user's browser and the IIIF APIs referenced from the Manifest.
 The only exception is for generating the cover page, which by default needs to be
-generated on the server.
+generated on the server. (see [this section](#cover-page-endpoints) for more details)
 
 It comes with a small **sample web application** that demonstrates
 how to use the library in the browser, you can check out a public instance
@@ -20,12 +20,11 @@ of it at https://pdiiif.jbaiter.de, the source code is located in the
 
 A main goal of the library is to be as _memory-efficient_ as possible, by
 never holding more than a few pages in memory and streaming directly to
-the user's disk (via chunked-encoding in the HTTP response on the server,
-and by making use of the new Native Filesystem API in browsers).
+the user's disk (precise method depends on the environment).
 
 It is also well-suited for embedding in other applications due to
-its relatively small footprint, the example web application comes in at
-**~120KiB gzipped** with all dependencies.
+its relatively small footprint, for example, the example web application comes
+in at **~120KiB gzipped** with all dependencies.
 
 In addition to the images on the IIIF Canvases referenced in the manifest,
 the library can create a **hidden text layer** from OCR associated with
@@ -39,7 +38,8 @@ valid ZIP files that contain the manifest and all of the images and OCR files,
 with almost no storage overhead. (thanks to [Ange Albertini](https://github.com/corkami)
 and his work on [Poc||GTFO](https://pocorgtfo.hacke.rs/) for the inspiration!)
 
-**Features**
+
+## Features
 
 - [x] PDF Page for every single-image Canvas in a Manifest
 - [x] Rendering Canvases with multiple images
@@ -51,7 +51,20 @@ and his work on [Poc||GTFO](https://pocorgtfo.hacke.rs/) for the inspiration!)
 - [x] Include IIIF Manifest and referenced OCR files as PDF attachments
 - [x] Generate polyglot PDFs that are also ZIP files of all resources
 
-**Cookbook Matrix**
+
+## Quickstart
+
+Besides using the public instance at https://pdiiif.jbaiter.de, you can also run the app yourself.
+The easiest way to do this is with Docker:
+
+```
+$ docker build . -t pdiiif
+# SYS_ADMIN capabilities are required (for Puppeteer's headless Chrome instance to generate cover page PDFs)
+$ docker run -p 8080:8080 --cap-add=SYS_ADMIN --name pdiiif pdiiif
+```
+
+
+## Cookbook Matrix
 
 The [IIIF Cookbook](https://iiif.io/api/cookbook/) has a matrix of "recipes" with viewer support, here's an overview
 of the recipe support in pdiiif:
@@ -119,18 +132,7 @@ of the recipe support in pdiiif:
 - [x] Embedded or referenced Annotations: YES
 </details>
 
-**Quickstart**
-
-Besides using the public instance at https://pdiiif.jbaiter.de, you can also run the app yourself.
-The easiest way to do this is with Docker:
-
-```
-$ docker build . -t pdiiif
-# SYS_ADMIN capabilities are required (for Puppeteer's headless Chrome instance to generate cover page PDFs)
-$ docker run -p 8080:8080 --cap-add=SYS_ADMIN --name pdiiif pdiiif
-```
-
-**Structure of the repository**
+## Structure of the repository
 
 - [`./pdiiif-lib`](https://github.com/jbaiter/pdiiif/tree/main/pdiiif-lib): Contains the library source code
 - [`./pdiiif-api`](https://github.com/jbaiter/pdiiif/tree/main/pdiiif-api): Small node.js server application that
@@ -138,3 +140,52 @@ $ docker run -p 8080:8080 --cap-add=SYS_ADMIN --name pdiiif pdiiif
     the Native Filesystem API or service workers.
 - [`./pdiiif-web`](https://github.com/jbaiter/pdiiif/tree/main/pdiiif-web): Sample web application (using Svelte)
   to demonstrate using pdiiif in the browser
+
+## Cover Page Endpoints
+
+pdiiif tries to includes a cover page with a thumbnail, descriptive metadata and rights and attribution information.
+Since typesetting these pages is beyond the scope of what our bespoke PDF generator can provide (most notably, TTF/OTF
+font retrieval for arbitrary langues/scripts and font subsetting), this cover page currently needs to be generated
+elsewhere. By default, the library is using a public endpoint at https://pdiiif.jbaiter.de/api/coverpage, which generates
+a PDF with the default template. The endpoint can be changed with the `coverPageEndpoint` configuration parameter in the
+options passed to the `convertManifest` function.
+
+If you want to customize the template that is being used, you can either host the API provided in this repository yourself
+(see [Quickstart](quickstart)) and override the template by mounting your own custom [Handlebars](https://handlebarsjs.com/)
+template into the image at `/opt/pdiiif/pdiiif-api/dist/asses/coverpage.hbs`. For a list of available helpers that you can
+use, refer to [`handlebars-helpers`](https://github.com/helpers/handlebars-helpers#helpers). Also available are these two
+custom helpers:
+- `qrcode`, takes a value and an optional `{ width, height, padding, color, background, ecl }` options object and returns
+  the value encoded as a SVG QR code image
+- `sanitize-html`, takes an arbitrary HTML string and sanitizes it according to the [IIIF HTML rules](https://iiif.io/api/presentation/3.0/#45-html-markup-in-property-values)
+
+If you want to provide your own implementation, make sure that your HTTP endpoint generates a valid PDF and accepts a JSON
+POST body with the following shape (i.e. does not throw an error when encountering any of these fields):
+
+```typescript
+{
+  title: string;
+  manifestUrl: string;
+  thumbnail?: {
+    url: string;
+    iiifImageService?: string;
+  };
+  provider?: {
+    label: string;
+    homepage?: string;
+    logo?: string;
+  };
+  requiredStatement?: {
+    label: string;
+    value: string;
+  };
+  rights?: {
+    text: string;
+    url?: string;
+    logo?: string;
+  };
+  // [key, value] pairs, with value either single- or multi-valued
+  metadata?: Array<[string, string | Array<string>]>;
+  pdiiifVersion: string;
+}
+```
