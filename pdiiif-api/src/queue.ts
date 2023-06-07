@@ -45,9 +45,10 @@ export class GeneratorQueue {
       };
       queue.on('next', onNext);
       onAdvance(position);
-      return prom.finally(() => queue.removeListener('next', onNext));
+      // FIXME: Are the casts in the next two statements OK? When can these promises return void?
+      return prom.finally(() => queue.removeListener('next', onNext)) as Promise<R>;
     } else {
-      return prom;
+      return prom as Promise<R>;
     }
   }
 

@@ -1,5 +1,5 @@
 // Only needed for svelte-jester and IDEs
-const sveltePreprocess = require('svelte-preprocess');
-module.exports = {
+import sveltePreprocess from 'svelte-preprocess';
+export default {
   preprocess: sveltePreprocess({ typescript: true}),
 };

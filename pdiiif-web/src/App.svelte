@@ -3,7 +3,7 @@
   import { onMount } from 'svelte';
   import { _ } from 'svelte-i18n';
   import classNames from 'classnames';
-  import { convertManifest, estimatePdfSize, ProgressStatus } from 'pdiiif';
+  import { convertManifest, estimatePdfSize, type ProgressStatus } from 'pdiiif';
   import { getValue } from '@iiif/vault-helpers';
   import streamSaver from 'streamsaver';
 

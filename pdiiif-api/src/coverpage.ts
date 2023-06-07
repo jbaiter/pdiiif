@@ -3,7 +3,7 @@ import { PathLike, promises as fs } from 'fs';
 
 import fetch from 'node-fetch';
 import { AbortSignal } from 'node-fetch/externals';
-import puppeteer from 'puppeteer';
+import puppeteer, { type Browser } from 'puppeteer';
 import Handlebars from 'handlebars';
 import QRCode from 'qrcode-svg';
 import sanitizeHtml from 'sanitize-html';
@@ -88,7 +88,7 @@ export type CoverPageParams = {
 export class CoverPageGenerator {
   private coverTemplatePath: PathLike;
   private coverPageTemplate: Handlebars.TemplateDelegate | undefined;
-  private browser?: puppeteer.Browser;
+  private browser?: Browser;
 
   constructor(
     coverTemplatePath: PathLike = path.join(
@@ -104,7 +104,7 @@ export class CoverPageGenerator {
   async start(): Promise<void> {
     this.browser = await puppeteer.launch({
       product: 'chrome',
-      headless: true,
+      headless: 'new',
       args: ['--font-render-hinting=none', '--force-color-profile=srgb'],
       executablePath: process.env.CFG_PUPPETEER_BROWSER_EXECUTABLE,
     });

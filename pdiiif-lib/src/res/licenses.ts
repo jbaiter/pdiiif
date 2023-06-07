@@ -187,6 +187,10 @@ export const licenses: LicenseList = {
     text: 'Creative Commons Zero v1.0 Universal (CC0-1.0)',
     logo: 'https://mirrors.creativecommons.org/presskit/buttons/88x31/svg/cc-zero.svg',
   },
+  'http://creativecommons.org/publicdomain/mark/1.0/': {
+    text: 'Public Domain Mark 1.0: No Copyright',
+    logo: 'https://mirrors.creativecommons.org/presskit/buttons/88x31/svg/publicdomain.svg',
+  },
   'http://creativecommons.org/licenses/by/2.5/au/': {
     text: 'Creative Commons Attribution 2.5 Australia (CC-BY-2.5-AU)',
     logo: 'https://mirrors.creativecommons.org/presskit/buttons/88x31/svg/by.svg',
