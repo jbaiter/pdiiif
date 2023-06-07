@@ -2,6 +2,19 @@ import { Reader } from '../io.js';
 import { PdfObject, PdfValue, PdfDictionary, PdfRef } from './common.js';
 import { textDecoder, textEncoder } from './util.js';
 
+// Polyfill Uint8Array.findLastIndex for older browsers
+if (!Uint8Array.prototype.findLastIndex) {
+  Uint8Array.prototype.findLastIndex = function (
+    predicate: (value: number, index: number, obj: Uint8Array) => boolean
+  ): number {
+    let l = this.length;
+    while (l--) {
+      if (predicate(this[l], l, this)) return l;
+    }
+    return -1;
+  }
+}
+
 //          offset/nextFree|generation|inUse?
 //                      ▼       ▼        ▼
 type CrossRefEntry = [number, number, boolean];
