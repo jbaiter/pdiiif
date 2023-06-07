@@ -145,7 +145,7 @@ of the recipe support in pdiiif:
 
 pdiiif tries to includes a cover page with a thumbnail, descriptive metadata and rights and attribution information.
 Since typesetting these pages is beyond the scope of what our bespoke PDF generator can provide (most notably, TTF/OTF
-font retrieval for arbitrary langues/scripts and font subsetting), this cover page currently needs to be generated
+font retrieval for arbitrary languages/scripts and font subsetting), this cover page currently needs to be generated
 elsewhere. By default, the library is using a public endpoint at https://pdiiif.jbaiter.de/api/coverpage, which generates
 a PDF with the default template. The endpoint can be changed with the `coverPageEndpoint` configuration parameter in the
 options passed to the `convertManifest` function.
