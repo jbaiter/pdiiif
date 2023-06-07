@@ -52,17 +52,6 @@ export function randomData(length: number): Uint8Array {
   return buf;
 }
 
-export function findLastIndex<T>(
-  array: Array<T>,
-  predicate: (value: T, index: number, obj: Array<T>) => boolean
-): number {
-  let l = array.length;
-  while (l--) {
-    if (predicate(array[l], l, array)) return l;
-  }
-  return -1;
-}
-
 export async function tryDeflateStream(
   pdfStream: Uint8Array | string
 ): Promise<{ stream: Uint8Array | string; dict: PdfDictionary }> {
