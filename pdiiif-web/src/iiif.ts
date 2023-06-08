@@ -12,6 +12,7 @@ import {
   supportsCustomSizes,
   getImageServices,
 } from '@atlas-viewer/iiif-image-api';
+import { fetchManifestJson } from 'pdiiif';
 
 const vault: Vault = globalVault();
 const thumbHelper = createThumbnailHelper(vault);
@@ -29,7 +30,8 @@ export interface ManifestInfo {
 export async function fetchManifestInfo(
   manifestUrl: string
 ): Promise<ManifestInfo> {
-  const manifest = await vault.loadManifest(manifestUrl);
+  const manifestJson = await fetchManifestJson(manifestUrl);
+  const manifest = await vault.loadManifest(manifestUrl, manifestJson);
   const canvases = vault.get<CanvasNormalized>(manifest.items);
   const canvasIds = canvases.map((c) => c.id);
   const images = canvases

@@ -37,6 +37,7 @@ import {
   CanvasData,
   fetchStartCanvasInfo,
   StartCanvasInfo,
+  fetchManifestJson,
 } from './download.js';
 import metrics from './metrics.js';
 import { isDefined, now } from './util.js';
@@ -213,7 +214,8 @@ export async function estimatePdfSize({
       (inputManifest as Manifest).id ??
       (inputManifest as Presentation2.Manifest)['@id'];
   }
-  const manifest = await vault.loadManifest(manifestId);
+  const manifestJson = await fetchManifestJson(manifestId);
+  const manifest = await vault.loadManifest(manifestId, manifestJson);
   if (!manifest) {
     throw new Error(`Failed to load manifest from ${manifestId}`);
   }
@@ -569,7 +571,7 @@ export async function convertManifest(
   let manifestJson: Manifest | Presentation2.Manifest;
   if (typeof inputManifest === 'string') {
     manifestId = inputManifest;
-    manifestJson = (await (await fetchRespectfully(manifestId)).json()) as
+    manifestJson = await fetchManifestJson(manifestId) as
       | Manifest
       | Presentation2.Manifest;
   } else {
