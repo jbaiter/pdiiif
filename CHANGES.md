@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.5] - 2023-06-08
+
+### Fixed
+- pdiiif-lib: Fix coverpage parsing on browsers that don't support
+  `TypedArray#findLastIndex` by implementing a polyfill for it
+  (#24, thanks @andybuki for reporting)
+
+
+## [0.1.4] - 2023-06-07
+
+No changes for this release, limited to `pdiiif-server` npm package due
+to a messed up npm deploymennt.
+
+
 ## [0.1.3] - 2023-06-07
 
 ### Added

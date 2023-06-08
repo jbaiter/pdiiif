@@ -1,6 +1,6 @@
 {
   "name": "pdiiif-server",
-  "version": "0.1.3",
+  "version": "0.1.5",
   "type": "module",
   "scripts": {
     "build": "tsc --build",
