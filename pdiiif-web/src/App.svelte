@@ -3,7 +3,7 @@
   import { onMount } from 'svelte';
   import { _ } from 'svelte-i18n';
   import classNames from 'classnames';
-  import { convertManifest, estimatePdfSize, type ProgressStatus } from 'pdiiif';
+  import { convertManifest, estimatePdfSize, type Estimation, type ProgressStatus } from 'pdiiif';
   import { getValue } from '@iiif/vault-helpers';
   import streamSaver from 'streamsaver';
 
@@ -57,7 +57,7 @@
   // External resources
   let manifestInfo: ManifestInfo | undefined;
   let infoPromise: Promise<ManifestInfo | void> | undefined;
-  let estimatePromise: Promise<number> | undefined;
+  let estimatePromise: Promise<Estimation> | undefined;
 
   // Only relevant for client-side generation
   let abortController: AbortController | undefined;
@@ -93,16 +93,6 @@
   } else if (manifestInput) {
     resetState();
   }
-
-  $: if (manifestInfo) {
-      estimatePromise = estimatePdfSize({
-        manifest: manifestInfo.manifest.id,
-        filterCanvases: canvasIdentifiers,
-        concurrency: 4,
-        scaleFactor,
-        numSamples: 8,
-      });
-    }
 
   // Show notification if file system api is available
   onMount(async () => {
@@ -141,21 +131,22 @@
     infoPromise = fetchManifestInfo(manifestUrl)
       .then((info) => {
         manifestInfo = info;
-        if (!manifestInfo.imageApiHasCors) {
-          // Show a warning if the Image API endpoint does not support CORS
-          addNotification({
-            type: 'warn',
-            message: $_('errors.cors'),
-          });
-        } else {
-          estimatePromise = estimatePdfSize({
-            manifest: manifestInfo.manifest.id,
-            filterCanvases: canvasIdentifiers,
-            concurrency: 4,
-            scaleFactor,
-            numSamples: 8,
-          });
-        }
+        estimatePromise = estimatePdfSize({
+          manifest: manifestInfo.manifest.id,
+          filterCanvases: canvasIdentifiers,
+          concurrency: 4,
+          scaleFactor,
+          numSamples: 8,
+        }).then((estimation) => {
+          if (!estimation.corsSupported) {
+            // Show a warning if the Image API endpoint does not support CORS
+            addNotification({
+              type: 'warn',
+              message: $_('errors.cors'),
+            });
+          }
+          return estimation;
+        });
         return info;
       })
       .catch((err) => {
@@ -399,12 +390,12 @@
     pdfFinished = false;
     let promise: Promise<void>;
     let generateOnClient: boolean;
-    if (!manifestInfo.imageApiHasCors) {
+    const { size: sizeEstimate, corsSupported } = await estimatePromise;
+    if (!corsSupported) {
       generateOnClient = false;
     } else if (supportsFilesystemAPI || supportsStreamsaver()) {
       generateOnClient = true;
     } else {
-      const sizeEstimate = await estimatePromise;
       generateOnClient = sizeEstimate <= getMaximumBlobSize();
       if (!generateOnClient) {
         try {

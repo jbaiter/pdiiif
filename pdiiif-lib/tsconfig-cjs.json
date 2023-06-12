@@ -6,10 +6,10 @@
     "outDir": "lib/commonjs",
     "rootDir": "src",
     "strict": true,
-    "target": "es2015",
+    "target": "es2022",
     "esModuleInterop": true,
     "resolveJsonModule": true,
-    "lib": ["ES2019", "DOM.Iterable"]
+    "lib": ["ES2022", "DOM.Iterable"]
   },
   "include": [
     "src/**/*.ts",

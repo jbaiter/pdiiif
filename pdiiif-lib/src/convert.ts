@@ -172,6 +172,14 @@ export interface EstimationParams {
   concurrency?: number;
 }
 
+export type Estimation = {
+  /** Estimated size of the PDF in bytes */
+  size: number;
+  /** If CORS is enabled for all of the images referenced in the sample canvases */
+  corsSupported: boolean;
+
+}
+
 function getCanvasesForSampling(canvases: CanvasNormalized[], numSamples: number): CanvasNormalized[] {
   if (canvases.length <= numSamples) {
     return canvases;
@@ -198,6 +206,8 @@ function getCanvasesForSampling(canvases: CanvasNormalized[], numSamples: number
  *
  * This will randomly sample a few representative canvases from the manifest,
  * check their size in bytes and extrapolate from that to all canvases.
+ *
+ * @throws {Error} if the manifest cannot be loaded
  */
 export async function estimatePdfSize({
   manifest: inputManifest,
@@ -205,7 +215,7 @@ export async function estimatePdfSize({
   scaleFactor,
   filterCanvases = () => true,
   numSamples = 8,
-}: EstimationParams): Promise<number> {
+}: EstimationParams): Promise<Estimation> {
   let manifestId;
   if (typeof inputManifest === 'string') {
     manifestId = inputManifest;
@@ -244,15 +254,25 @@ export async function estimatePdfSize({
   const queue = new PQueue({ concurrency });
   const canvasData = await Promise.all(
     sampleCanvases.map((c) =>
-      queue.add(() => fetchCanvasData(c, { scaleFactor, sizeOnly: true }))
+      queue.add(async () => {
+        const info = getCanvasInfo(c);
+        return fetchCanvasData(c, info.images, { scaleFactor, sizeOnly: true });
+      })
     )
   );
+  const corsSupported = canvasData
+    .filter(isDefined<CanvasData>)
+    .flatMap((c) => c.images)
+    .every(i => i.corsAvailable);
   const sampleBytes = canvasData
     .filter(isDefined<CanvasData>)
     .flatMap((c) => c.images)
     .reduce((size: number, data) => size + (data?.numBytes ?? 0), 0);
   const bpp = sampleBytes / samplePixels;
-  return bpp * totalCanvasPixels;
+  return {
+    size: bpp * totalCanvasPixels,
+    corsSupported,
+  };
 }
 
 async function buildOutlineFromRanges(
@@ -313,7 +333,7 @@ async function buildOutlineFromRanges(
       return;
     } else if (!startCanvas && firstCanvas) {
       startCanvas = firstCanvas.id;
-    } else {
+    } else if (!startCanvas) {
       startCanvas = children[0].startCanvas;
     }
     return {
@@ -608,14 +628,16 @@ export async function convertManifest(
   abortController.signal.addEventListener('abort', () => queue.clear(), {
     once: true,
   });
-  const canvasFuts = canvases.map((c) => {
-    return queue.add(() =>
-      fetchCanvasData(c, {
+  const canvasInfos = canvases.map(getCanvasInfo);
+  const canvasFuts = canvases.map((c, idx) => {
+    return queue.add(() => {
+      const info = canvasInfos[idx];
+      return fetchCanvasData(c, info.images, {
         scaleFactor,
         ppiOverride: ppi,
         abortSignal: abortController.signal,
-      })
-    );
+      });
+    });
   });
 
   const outline = await buildOutlineFromRanges(
@@ -628,7 +650,7 @@ export async function convertManifest(
     metadata: pdfMetadata,
     canvasInfos: canvases.map((c, idx) => ({
       canvasIdx: idx,
-      ...getCanvasInfo(c),
+      ...canvasInfos[idx]
     })),
     langPref: languagePreference,
     pageLabels: labels,
@@ -720,7 +742,7 @@ export async function convertManifest(
       stopMeasuring?.();
       progress.updatePixels(
         images.reduce(
-          (acc, img) => acc + img.dimensions.width * img.dimensions.height,
+          (acc, img) => acc + img.width * img.height,
           0
         ),
         canvas.width * canvas.height

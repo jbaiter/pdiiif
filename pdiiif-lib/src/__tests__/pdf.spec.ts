@@ -58,8 +58,11 @@ describe('PDF generation', () => {
           canvas: { id: 'foo', type: 'Canvas' },
           images: [
             {
-              img: { id: 'foo', type: 'ContentResource' },
-              choiceState: { enabled: undefined },
+              resource: { id: 'foo', type: 'Image' },
+              x: 0,
+              y: 0,
+              width: 1024,
+              height: 1024
             },
           ],
           numAnnotations: 0,
@@ -77,12 +80,17 @@ describe('PDF generation', () => {
       { width: 290, height: 400 },
       [
         {
-          dimensions: { width: 290, height: 400 },
-          location: { x: 0, y: 0 },
+          resource: { id: 'someid', type: 'Image' },
+          width: 290, height: 400,
+          x: 0, y: 0,
           data: imgBuf,
           numBytes: imgBuf.length,
-          isOptional: false,
-          visibleByDefault: true,
+          corsAvailable: true,
+          choiceInfo: {
+            enabled: true,
+            optional: false,
+            visibleByDefault: true
+          }
         },
       ],
       [],

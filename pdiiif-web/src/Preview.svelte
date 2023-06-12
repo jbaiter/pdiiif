@@ -3,9 +3,10 @@
 
   import type { ManifestInfo } from './iiif';
   import Spinner from './Spinner.svelte';
+  import type { Estimation } from 'pdiiif';
 
   export let infoPromise: Promise<ManifestInfo | void>;
-  export let estimatePromise: Promise<number> | undefined;
+  export let estimatePromise: Promise<Estimation> | undefined;
   export let canvasIdentifiers: string[] | undefined;
 </script>
 
@@ -28,11 +29,16 @@
           </li>
           {#if estimatePromise}
             <li>
-              {$_('estimated_pdf_size')}:
               {#await estimatePromise}
+                {$_('estimated_pdf_size')}:
                 <Spinner />
-              {:then size}
-                <strong>{(size / 1024 / 1024).toFixed(2)} MiB</strong>
+              {:then { size }}
+                {#if size > 0}
+                  {$_('estimated_pdf_size')}:
+                  <strong>{(size / 1024 / 1024).toFixed(2)} MiB</strong>
+                {:else}
+                  <strong>{$_('errors.estimate_failure')}</strong>
+                {/if}
               {:catch}
                 <strong>{$_('errors.estimate_failure')}</strong>
               {/await}
@@ -40,6 +46,10 @@
           {/if}
         </ul>
       </div>
+    {:else}
+      <p>{$_('errors.estimate_failure')}</p>
     {/if}
+  {:catch}
+    <p>{$_('errors.estimate_failure')}</p>
   {/await}
 </div>

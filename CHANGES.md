@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] - 2023-06-??
+
+### Changed
+- pdiiif-lib: `estimatePdfSize` now returns a `{ size: number; corsEnabled: boolean }`
+  object instead of simply a `number`. This allows you to check if the Image API
+  endpoints that were sampled to determine the size have CORS available
+
+### Fixed
+- pdiiif-web: Detection for unavailability of CORS is now working properly and falling
+  back to server-side PDF generation
+
 ## [0.1.5] - 2023-06-08
 
 ### Fixed

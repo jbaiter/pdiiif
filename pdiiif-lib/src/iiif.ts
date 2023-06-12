@@ -1,8 +1,9 @@
-import fetch from 'cross-fetch';
+import nodeFetch from 'node-fetch';
 import {
   InternationalString,
   ManifestNormalized,
   ExternalWebResource,
+  IIIFExternalWebResource,
   ContentResource,
   ImageProfile,
   ImageService,
@@ -13,19 +14,18 @@ import {
   Creator,
   Agent,
 } from '@iiif/presentation-3';
+import { globalVault, Vault } from '@iiif/vault';
 import {
   buildLocaleString,
   createPaintingAnnotationsHelper,
   createThumbnailHelper,
   expandTarget,
-  SingleChoice,
   SupportedTarget,
-  Paintables,
-  ChoiceDescription,
 } from '@iiif/vault-helpers';
 import { ImageServiceLoader as ImageServiceLoader_ } from '@atlas-viewer/iiif-image-api';
-import { globalVault, Vault } from '@iiif/vault';
+
 import { getTextSeeAlso } from './ocr.js';
+import log from './log.js';
 
 const PURPOSE_ORDER = ['commenting', 'describing', 'tagging', 'no-purpose'];
 const PURPOSE_LABELS: { [purpose: string]: string } = {
@@ -34,8 +34,18 @@ const PURPOSE_LABELS: { [purpose: string]: string } = {
   tagging: 'Tags',
 };
 
+// Fetch for node
+let fetchImpl: typeof fetch = fetch;
+if (typeof fetch === 'undefined') {
+  fetchImpl = nodeFetch as typeof fetch;
+}
+
 export const vault = globalVault() as Vault;
 
+/** Given a language preference in descending order,
+ * determine the best set of strings from the
+ * internationalized string.
+ */
 export function getI18nValue(
   val: string | InternationalString,
   languagePreference: readonly string[]
@@ -68,36 +78,25 @@ export function getI18nValue(
 }
 
 
+/** Custom image loader to deal with browser + node intercompatibility */
 class ImageServiceLoader extends ImageServiceLoader_ {
   async fetch(input: RequestInfo, init?: RequestInit): Promise<Response> {
-    return fetch(input as any, init as any) as any;
+    return fetchImpl(input as any, init as any) as any;
   }
 }
 
-// FIXME: Remove type hints once vault-helpers has had a release
 const thumbHelper = createThumbnailHelper(vault, {
   imageServiceLoader: new ImageServiceLoader(),
 });
-export const { getPaintables, getAllPaintingAnnotations, extractChoices } =
-  createPaintingAnnotationsHelper(vault) as {
-    getAllPaintingAnnotations: (
-      canvasOrId: string | CanvasNormalized | undefined | null
-    ) => AnnotationNormalized[];
-    getPaintables: (
-      paintingAnnotationsOrCanvas:
-        | string
-        | CanvasNormalized
-        | AnnotationNormalized[],
-      enabledChoices?: string[]
-    ) => Paintables;
-    extractChoices: (
-      paintingAnnotationsOrCanvas:
-        | string
-        | CanvasNormalized
-        | AnnotationNormalized[]
-    ) => ChoiceDescription | null;
-  };
 
+// A few helpers to deal with painting annotations
+export const {
+  getPaintables,
+  getAllPaintingAnnotations,
+  extractChoices
+} = createPaintingAnnotationsHelper(vault);
+
+/** Determine best thumbnail image for the manifest. */
 export async function getThumbnail(
   manifest: ManifestNormalized,
   maxDimension: number
@@ -109,10 +108,14 @@ export async function getThumbnail(
   return thumb.best?.id;
 }
 
+/** Like a regular external web resourc, but with an associated
+ profile URI, needed for OCR discovery */
 export interface ExternalWebResourceWithProfile extends ExternalWebResource {
   profile: string;
 }
 
+/** Check if a resource is an external resource with an
+ * associated profile. */
 export function isExternalWebResourceWithProfile(
   res: ContentResource
 ): res is ExternalWebResourceWithProfile {
@@ -125,6 +128,7 @@ export function isExternalWebResourceWithProfile(
   );
 }
 
+/** See https://iiif.io/api/annex/services/#physical-dimensions */
 export interface PhysicalDimensionService {
   '@context': 'http://iiif.io/api/annex/services/physdim/1/context.json';
   profile: 'http://iiif.io/api/annex/services/physdim';
@@ -133,6 +137,7 @@ export interface PhysicalDimensionService {
   physicalUnits: 'in' | 'cm' | 'mm';
 }
 
+/** Check if a service is a IIIF Physical Dimensions service */
 export function isPhysicalDimensionService(
   service: any // eslint-disable-line @typescript-eslint/explicit-module-boundary-types
 ): service is PhysicalDimensionService {
@@ -142,6 +147,8 @@ export function isPhysicalDimensionService(
   );
 }
 
+
+/** Check if a IIIF Image endpoint supports arbitrary downscaling. */
 export function supportsScaling(profile: ImageProfile): boolean {
   if (typeof profile === 'string') {
     return profile.indexOf('level2') >= 0;
@@ -150,30 +157,51 @@ export function supportsScaling(profile: ImageProfile): boolean {
   }
 }
 
+/** Fetch the full IIIF Image service definition from
+ * its info.json endpoint. */
 export async function fetchFullImageService(
   serviceRef: ImageService
 ): Promise<ImageService> {
   const serviceUrl = `${serviceRef['@id'] ?? serviceRef.id}/info.json`;
-  const resp = await fetch(serviceUrl);
+  const resp = await fetchImpl(serviceUrl);
   const res = await resp.json();
   return res as ImageService;
 }
 
-type CanvasInfoImage = {
-  img: Reference<'ContentResource'>;
-  choiceState?: { enabled?: true };
-  label?: InternationalString;
-};
+export type ImageInfo = {
+  // The 'Image' content resource
+  resource: (ExternalWebResource | IIIFExternalWebResource) & { type: 'Image' };
+  // Where to draw on the corresponding canvas
+  x: number;
+  y: number
+  // At what size to draw on the canvas?
+  width: number;
+  height: number;
+  // What is the image's size, if available?
+  nativeWidth?: number;
+  nativeHeight?: number;
+  ppi?: number;
+  choiceInfo?: {
+    enabled: boolean;
+    optional: boolean;
+    visibleByDefault: boolean;
+    label?: InternationalString;
+  }
+}
 
+/** Information about a canvas that can be obtained without
+ *  fetching any external resources */
 export type CanvasInfo = {
   canvas: Reference<'Canvas'>;
   ocr?: {
     id: string;
   };
-  images: CanvasInfoImage[];
+  images: ImageInfo[];
   numAnnotations: number;
 };
 
+/** Extract all non-painting annotations that are of interest for PDF generation
+ * from a canvas */
 export function getCanvasAnnotations(canvas: CanvasNormalized): Annotation[] {
   return vault
     .get<AnnotationPageNormalized>(canvas.annotations)
@@ -181,65 +209,29 @@ export function getCanvasAnnotations(canvas: CanvasNormalized): Annotation[] {
     .filter((a) =>
       Array.isArray(a.motivation)
         ? a.motivation.find((m) => PURPOSE_LABELS[m] !== undefined) !==
-          undefined
+        undefined
         : PURPOSE_LABELS[a.motivation ?? 'invalid'] !== undefined
     )
     .map((a) => parseAnnotation(a, []))
     .filter((a): a is Annotation => a !== undefined);
 }
 
+/** Obtain all information about a canvas and its images
+ * without hitting any external endpoints.
+ */
 export function getCanvasInfo(canvas: CanvasNormalized): CanvasInfo {
-  const paintables = getPaintables(canvas);
-  // FIXME: complex choices are currently untested
-  const choiceImageIds =
-    paintables.choice?.items
-      ?.flatMap((i) => {
-        if ('items' in i) {
-          return i.items;
-        } else {
-          return [i];
-        }
-      })
-      .map((i) => i.id) ?? [];
-  const images: Array<CanvasInfoImage> = paintables.items
-    .filter((p) => p.type === 'image')
-    .filter(
-      (p) =>
-        p.resource.id !== undefined &&
-        choiceImageIds?.indexOf(p.resource.id) < 0
-    )
-    .map((i) => ({
-      img: {
-        id: i.resource.id,
-        type: 'ContentResource',
-      } as Reference<'ContentResource'>,
-      isOptional: false,
-    }));
-  // TODO: Add support for complex choices?
-  if (paintables.choice?.type === 'single-choice') {
-    const choice = paintables.choice as SingleChoice;
-    for (const itm of choice.items) {
-      const res = vault.get<ContentResource>(itm.id);
-      if (res.type !== 'Image') {
-        continue;
-      }
-      images.push({
-        img: { id: itm.id, type: 'ContentResource' },
-        choiceState: { enabled: itm.selected },
-        label: itm.label,
-      });
-    }
-  }
+  const imageInfos = getImageInfos(canvas);
   const text = getTextSeeAlso(canvas);
   return {
     canvas: { id: canvas.id, type: 'Canvas' },
-    images,
+    images: imageInfos,
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     ocr: text ? { id: text.id! } : undefined,
     numAnnotations: getCanvasAnnotations(canvas).length,
   };
 }
 
+/** A annotation prepared for rendering to PDF. */
 export interface Annotation {
   id: string;
   target: SupportedTarget;
@@ -248,6 +240,7 @@ export interface Annotation {
   author?: string;
 }
 
+/** Format an annotation agent to a human readable string. */
 function agentToString(agent: Agent): string {
   let name = Array.isArray(agent.name) ? agent.name.join('; ') : agent.name;
   if (!name) {
@@ -259,6 +252,8 @@ function agentToString(agent: Agent): string {
   return name;
 }
 
+/** Format a annotation creator definition to a human readable
+ * string. */
 function creatorToString(creator: Creator): string {
   if (Array.isArray(creator)) {
     if (typeof creator[0] === 'string') {
@@ -273,6 +268,8 @@ function creatorToString(creator: Creator): string {
   return agentToString(creator);
 }
 
+/** Parse a IIIF annotation into a format that is more
+ *  suitable for rendering to a PDF. */
 export function parseAnnotation(
   anno: AnnotationNormalized,
   langPrefs: readonly string[]
@@ -280,6 +277,7 @@ export function parseAnnotation(
   if (!anno.target) {
     return;
   }
+  // TODO: i18n?
   const annoBody = anno.body.map((bodyRef) =>
     vault.get<ContentResource>(bodyRef)
   );
@@ -309,6 +307,7 @@ export function parseAnnotation(
   };
 }
 
+/** Convert Annotation HTML to PDF Markup */
 function buildAnnotationMarkup(
   bodies: Array<ContentResource>
 ): string | undefined {
@@ -393,4 +392,76 @@ export function checkCompatibility(
     // TODO: Check for the presence of non-painting annotations
   }
   return undefined;
+}
+
+/** Parse a IIIF target specification */
+export function parseTarget(targetStr: string): { x: number; y: number, width: number, height: number } {
+  const [canvasId, fragment] = targetStr.split('#xywh=');
+  if (fragment) {
+    const [x, y, width, height] = fragment
+      .split(',')
+      .map((x) => parseInt(x, 10));
+    return { x, y, width, height };
+  } else {
+    const canvas = vault.get<CanvasNormalized>(canvasId);
+    // Draw to fit canvas
+    return { x: 0, y: 0, width: canvas.width, height: canvas.height };
+  }
+}
+
+/** Get information about images on a Canvas. */
+export function getImageInfos(canvas: CanvasNormalized): ImageInfo[] {
+  const imageInfos: ImageInfo[] = [];
+  const paintingAnnos = getAllPaintingAnnotations(canvas);
+  for (const anno of paintingAnnos) {
+    if (typeof anno.target !== 'string') {
+      log.error(`Annotation ${anno.id} has a non-string target, currently not supported.`);
+      continue;
+    }
+    const target = parseTarget(anno.target);
+
+    const body = vault.get<ContentResource>(anno.body);
+    for (const resource of body) {
+      if (resource.type !== 'Image') {
+        continue;
+      }
+      imageInfos.push({
+        resource: resource as (ExternalWebResource | IIIFExternalWebResource) & { type: 'Image' },
+        ...target,
+        nativeWidth: (resource as any).width as number | undefined,
+        nativeHeight: (resource as any).height as number | undefined,
+      });
+    }
+  }
+
+  const choice = extractChoices(paintingAnnos);
+  if (choice?.type !== 'single-choice') {
+    // Return early if there are no choices available
+    return imageInfos;
+  }
+
+  for (const choiceItem of choice.items) {
+    const resource = vault.get<ContentResource>(choiceItem);
+    if (resource.type !== 'Image') {
+      continue;
+    }
+    imageInfos.push({
+      resource: resource as (ExternalWebResource | IIIFExternalWebResource) & { type: 'Image' },
+      // FIXME: Can't choice images have a location and rendering dimensions?
+      x: 0,
+      y: 0,
+      width: canvas.width,
+      height: canvas.height,
+      nativeWidth: (resource as any).width as number | undefined,
+      nativeHeight: (resource as any).height as number | undefined,
+      choiceInfo: {
+        enabled: choiceItem.selected ?? false,
+        optional: true,
+        label: (resource as any).label,
+        visibleByDefault: choiceItem.selected ?? false,
+      }
+    });
+  }
+
+  return imageInfos;
 }

@@ -1,10 +1,10 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
-import fetch from 'cross-fetch';
 import { Mutex } from 'async-mutex';
 import {
   AnnotationNormalized,
   CanvasNormalized,
   ContentResource,
+  ExternalWebResource,
   FragmentSelector,
   IIIFExternalWebResource,
   ImageService,
@@ -16,6 +16,7 @@ import {
   Selector,
   Service,
 } from '@iiif/presentation-3';
+import nodeFetch from 'node-fetch';
 
 import { OcrPage, fetchAndParseText } from './ocr.js';
 import metrics from './metrics.js';
@@ -28,12 +29,15 @@ import {
   fetchFullImageService,
   getCanvasAnnotations,
   Annotation,
-  getAllPaintingAnnotations,
-  extractChoices,
+  ImageInfo,
 } from './iiif.js';
 import { isDefined } from './util.js';
-import { SingleChoice } from '@iiif/vault-helpers/painting-annotations';
-import { CorsError } from './errors.js';
+
+// fetch for node
+let fetchImpl: typeof fetch = fetch;
+if (typeof fetch === 'undefined') {
+  fetchImpl = nodeFetch as typeof fetch;
+}
 
 /// In absence of more detailed information (from physical dimensions service), use this resolution
 const FALLBACK_PPI = 300;
@@ -98,22 +102,17 @@ export async function fetchRespectfully(
   let rateLimitMutex = rateLimitRegistry.getMutex(host);
   let numRetries = -1;
   let resp: Response | undefined;
-  let waitMs = 1000;
+  let waitMs = 5000;
   let lastError: unknown;
   // If we're fetching from a rate-limited host, wait until there's no other fetch for it
   // going on
   const release = await rateLimitMutex?.acquire();
   try {
     do {
-      try {
-        resp = await fetch(url, init);
-        if (resp.ok) {
-          break;
-        }
-      } catch (e) {
-        log.error(`Error fetching ${url}: ${e}`);
-        lastError = e;
-        resp = undefined;
+      // Don't catch network errors, let them bubble up
+      resp = await fetchImpl(url, init);
+      if (resp.ok || resp.status < 500) {
+        break;
       }
       numRetries++;
 
@@ -262,30 +261,31 @@ export function getPointsPerInch(services: Service[]): number | null {
   return ppi;
 }
 
-/** All the data relevant for the canvas: images and text
- *
- * TODO: Should annotations also be a part of this?
- */
+/** All the data relevant for the canvas: images and text */
 export type CanvasData = {
   canvas: Reference<'Canvas'>;
   text?: OcrPage;
   images: CanvasImage[];
   annotations: Annotation[];
   ppi?: number;
+  imageFailures: {
+    [ident: string]: Error
+  }
 };
 
-/** An image on a canvas, optionally with its image data */
-export type CanvasImage = {
+/** Data and additional information for an image on a canvas. */
+export type CanvasImage = ImageInfo & CanvasImageData;
+
+/** Data and additional info for a canvas image, based on retrieval
+ *  of external resources.
+ */
+export type CanvasImageData = {
   data?: ArrayBuffer;
-  location: { x: number; y: number };
-  dimensions: { width: number; height: number };
-  ppi?: number;
   numBytes: number;
-  // These two are set when the image is part of a `Choice` body on
-  // an annotation
-  isOptional: boolean;
-  visibleByDefault: boolean;
-  label?: InternationalString;
+  corsAvailable: boolean;
+  ppi?: number;
+  nativeWidth?: number;
+  nativeHeight?: number;
 };
 
 /** Options for fetching image */
@@ -300,76 +300,62 @@ export type FetchImageOptions = {
   sizeOnly?: boolean;
 };
 
+/** Download (or only determine size in bytes of) a canvas image. */
 async function fetchCanvasImage(
-  imgAnno: AnnotationNormalized,
+  image: IIIFExternalWebResource | ExternalWebResource,
   { scaleFactor, abortSignal, sizeOnly = false }: FetchImageOptions
-): Promise<CanvasImage | null> {
+): Promise<CanvasImageData | null> {
+  // NOTE: Here be dragons, who'd have thought downloading an image
+  //       could be so complicated?
   if (abortSignal?.aborted) {
     log.debug(
       'Abort signalled, aborting before initiating image data fetching.'
     );
-    return null;
+    throw new Error('Aborted due to client request', { cause: { type: 'abort' } });
   }
-  if (typeof imgAnno.target !== 'string') {
-    log.error(
-      `Target for image annotation ${imgAnno.id} is not a string, currently unsupported!`
+  if (image.type !== 'Image') {
+    throw new Error(`Can only fetch image resources, got ${image.type}`);
+  }
+  let imgService: ImageService | undefined;
+  if ('service' in image) {
+    imgService = image.service?.find(
+      (s: Service): s is ImageService =>
+        ((s as ImageService | undefined)?.type?.startsWith('ImageService') ??
+          false) ||
+        ((s as any)?.['@type']?.startsWith('ImageService') ?? false)
     );
   }
-  const target = imgAnno.target as string;
-  let location: { x: number; y: number };
-  let dimensions: { width: number; height: number };
-  const [canvasId, fragment] = target.split('#xywh=');
-  const canvas = vault.get<CanvasNormalized>(canvasId);
-  if (fragment) {
-    const [x, y, width, height] = fragment
-      .split(',')
-      .map((x) => parseInt(x, 10));
-    location = { x, y };
-    dimensions = { width, height };
-  } else {
-    location = { x: 0, y: 0 };
-    dimensions = { width: canvas.width, height: canvas.height };
-  }
-  const image = vault
-    .get<ContentResource>(imgAnno.body)
-    .find(
-      (r: ContentResource): r is IIIFExternalWebResource => r.type === 'Image'
-    );
-  if (!image) {
-    log.error(`No image for annotation ${imgAnno.id} found!`);
-    return null;
-  }
-  let imgService = image.service?.find(
-    (s: Service): s is ImageService =>
-      ((s as ImageService | undefined)?.type?.startsWith('ImageService') ??
-        false) ||
-      ((s as any)?.['@type']?.startsWith('ImageService') ?? false)
-  );
   let ppi: number | undefined;
   let imageUrl: string;
+  let nativeWidth: number | undefined;
+  let nativeHeight: number | undefined;
   if (imgService) {
     if (!imgService.width) {
       imgService = await fetchFullImageService(imgService);
     }
+    nativeWidth = imgService.width ?? undefined;
+    nativeHeight = imgService.height ?? undefined;
     const sizeInfo = getImageSize(imgService, scaleFactor);
-    imageUrl = `${imgService.id ?? imgService['@id']}/full/${
-      sizeInfo.iiifSize
-    }/0/default.jpg`;
+    imageUrl = `${imgService.id ?? imgService['@id']}/full/${sizeInfo.iiifSize
+      }/0/default.jpg`;
     ppi = getPointsPerInch(imgService.service ?? []) ?? undefined;
     if (ppi) {
       ppi = ppi * (sizeInfo.width / imgService.width!);
     }
   } else if (image.id && image.format === 'image/jpeg') {
     imageUrl = image.id;
+    nativeWidth = (image as any).width as number | undefined;
+    nativeHeight = (image as any).height as number | undefined;
   } else {
     log.error(
-      `No JPEG image identifier for annotation ${imgAnno.id} could be found!`
+      `No JPEG image identifier for resource ${image.id} could be found!`
     );
     return null;
   }
 
   let data: ArrayBuffer | undefined;
   let numBytes: number;
+  let corsAvailable = true;
   const stopMeasuring = metrics?.imageFetchDuration.startTimer({
     iiif_host: new URL(imageUrl).host,
   });
@@ -380,12 +366,12 @@ async function fetchCanvasImage(
     });
     if (imgResp.status >= 400) {
       throw new Error(
-        `Failed to fetch page image from ${imageUrl}, server returned status ${imgResp.status}`
+        `Failed to fetch page image from ${imageUrl}, server returned status ${imgResp.status}`,
+        { cause: { type: 'http-status', status: imgResp.status } }
       );
     }
     if (abortSignal?.aborted) {
-      log.debug('Abort signalled, aborting before fetching image data.');
-      return null;
+      throw new Error('Aborted due to client request', { cause: { type: 'abort' } });
     }
     numBytes = Number.parseInt(imgResp.headers.get('Content-Length') ?? '-1');
     data = sizeOnly && numBytes >= 0 ? undefined : await imgResp.arrayBuffer();
@@ -397,41 +383,72 @@ async function fetchCanvasImage(
       limited: rateLimitRegistry.isLimited(imageUrl).toString(),
     });
   } catch (err) {
-    stopMeasuring?.({
-      status: 'error',
-      limited: rateLimitRegistry.isLimited(imageUrl).toString(),
-    });
-    if ((err as Error).name !== 'AbortError') {
+    // In browsers, we can't differentiate between a 'normal' network error
+    // (like an unavailable server) and a CORS error just from the response
+    // alone, so we we use a small hack involving the DOM
+    const isCorsError = typeof document !== 'undefined' && await isImageUnavailableDueToCors(imageUrl);
+    // No CORS error or CORS error, but need data? Can't continue
+    if (!isCorsError) {
       log.error(`Failed to fetch image data from ${imageUrl}: ${err}`);
+      stopMeasuring?.({
+        status: 'error',
+        limited: rateLimitRegistry.isLimited(imageUrl).toString(),
+        cause: err instanceof Error ? (err.cause as any).type : err
+      });
+      throw err;
+    } else if (!sizeOnly) {
+      throw new Error('Data requested, but no CORS for the image endpoint', { cause: { type: 'no-cors' } });
     }
-    return null;
+    corsAvailable = false;
+    log.warn(
+      `Failed to fetch image data from ${imageUrl}: CORS headers missing!`
+    );
+    // We can get the size without CORS
+    const imgResp = await fetchRespectfully(imageUrl, {
+      method: 'GET',
+      signal: abortSignal,
+      mode: 'no-cors',
+    });
+    numBytes = Number.parseInt(imgResp.headers.get('Content-Length') ?? '-1');
   }
 
   return {
     data,
-    location,
-    dimensions,
     ppi,
     numBytes,
-    isOptional: false,
-    visibleByDefault: true,
+    corsAvailable,
   };
 }
 
+/** Check if an image is unavailable due to missing CORS headers. */
+async function isImageUnavailableDueToCors(imageUrl: string): Promise<boolean> {
+  const imgElem = document.createElement('img');
+  imgElem.src = imageUrl;
+  return new Promise((resolve) => {
+    // Image loads fine for element => Unavailable due to missing CORS headers
+    imgElem.onload = () => resolve(true);
+    // Image also errors when loading via element => Server can't be reached
+    imgElem.onerror = () => resolve(false);
+  });
+}
+
+/** Information about the starting canvas of a Manifet or a Range.
+ * Can point to a whole canvas or to a part of it. */
 export type StartCanvasInfo =
   | string
   | {
-      id: string;
-      ppi: number;
-      dimensions: { width: number; height: number };
-      position: {
-        x: number;
-        y: number;
-        width: number;
-        height: number;
-      };
+    id: string;
+    ppi: number;  // Needed to create link in PDF
+    dimensions: { width: number; height: number };
+    position: {
+      x: number;
+      y: number;
+      width: number;
+      height: number;
     };
+  };
 
+/** Fetch all of the information needed for a start canvas. */
 export async function fetchStartCanvasInfo(
   resource: ManifestNormalized | RangeNormalized
 ): Promise<StartCanvasInfo | undefined> {
@@ -492,69 +509,36 @@ export async function fetchStartCanvasInfo(
   };
 }
 
+/** Fetch all of the data associated with a canvas, including external services. */
 export async function fetchCanvasData(
   canvas: CanvasNormalized,
+  imageInfos: ImageInfo[],
   { scaleFactor, ppiOverride, abortSignal, sizeOnly = false }: FetchImageOptions
 ): Promise<CanvasData | undefined> {
-  const paintingAnnos = getAllPaintingAnnotations(canvas);
-  // FIXME: Refactor this shameful abomination
-  const images = (
-    await Promise.all(
-      paintingAnnos.flatMap(async (anno) => {
-        const body = vault.get<ContentResource>(anno.body);
-        const out: Array<CanvasImage> = [];
-
-        // Fetch image from top-level image resource
-        if (body.some((r) => r.type === 'Image')) {
-          const img = await fetchCanvasImage(anno, {
-            scaleFactor,
-            abortSignal,
-            sizeOnly,
-          });
-          if (img) {
-            out.push(img);
-          }
-        }
-
-        // Fetch images from choices in parallel
-        const choice = extractChoices(paintingAnnos);
-        if (choice?.type === 'single-choice') {
-          (
-            await Promise.all(
-              (choice as SingleChoice).items
-                .map((i) => ({
-                  res: vault.get<ContentResource>(i.id),
-                  selected: i.selected,
-                }))
-                .filter((res) => res.res.type === 'Image')
-                .map(async (res) => {
-                  // fetchCanvasImage expects an image annotation, so let's just quickly fake one
-                  const img = res.res;
-                  const fakeAnno: AnnotationNormalized = {
-                    ...anno,
-                    body: [{ id: img.id!, type: 'ContentResource' }],
-                  };
-                  const canvasImg = await fetchCanvasImage(fakeAnno, {
-                    scaleFactor,
-                    abortSignal,
-                    sizeOnly,
-                  });
-                  if (canvasImg) {
-                    canvasImg.isOptional = true;
-                    canvasImg.label = (img as any).label;
-                    canvasImg.visibleByDefault = res.selected ?? false;
-                  }
-                  return canvasImg;
-                })
-            )
-          )
-            .filter(isDefined<CanvasImage>)
-            .forEach((i) => out.push(i));
-        }
-        return out;
-      })
-    )
-  ).flat();
+  const imagePromises = imageInfos.map(i => i.resource).map(r => fetchCanvasImage(r, { scaleFactor, abortSignal, sizeOnly }));
+  const results = await Promise.allSettled(imagePromises);
+  const canvasImages = results
+    .reduce((acc, x, idx) => {
+      if (x.status !== 'fulfilled' || x.value === null) {
+        return acc;
+      }
+      const imgInfo = imageInfos[idx];
+      acc.push({
+        ...imgInfo,
+        ...x.value,
+      // FIXME: How can we get rid of the cast?
+      } as CanvasImage);
+      return acc;
+    }, [] as CanvasImage[])
+  const failures = results
+    .reduce((acc, x, idx) => {
+      if (x.status !== 'rejected') {
+        return acc;
+      }
+      const imgId = imageInfos[idx].resource.id!;
+      acc[imgId] = x.reason as Error;
+      return acc;
+    }, {} as {[ident: string]: Error});
   const ppi = ppiOverride;
   if (!ppiOverride) {
     let ppi = getPointsPerInch(canvas.service) ?? undefined;
@@ -570,19 +554,29 @@ export async function fetchCanvasData(
   }
   return {
     canvas,
-    // FIXME: Shouldn't we signal to the user somehow if some images failed to download?
-    images,
+    images: canvasImages,
+    imageFailures: failures,
     ppi,
     text,
     annotations: getCanvasAnnotations(canvas),
   };
 }
 
+/** Download the JSON data for a manifest, handling stuff like broken CORS implementations
+ *  and Content-Negotiation for IIIFv3 */
 export async function fetchManifestJson(manifestUrl: string): Promise<any> {
-  const resp = await fetch(manifestUrl, {
-    headers: {
-      Accept: MANIFEST_ACCEPT_HEADER
-    }
-  });
-  return await resp.json();
+  try {
+    const resp = await fetchImpl(manifestUrl, {
+      headers: {
+        Accept: MANIFEST_ACCEPT_HEADER
+      }
+    });
+    return await resp.json();
+  } catch (err) {
+    // Check if fetching failed due to CORS by downgrading the request to a
+    // 'simple' request by removing the `Accept` header, which makes the
+    // request CORS-unsafe due to double quotes and the colon in the URL
+    const resp = await fetchImpl(manifestUrl);
+    return await resp.json();
+  }
 }

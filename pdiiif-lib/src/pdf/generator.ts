@@ -688,7 +688,7 @@ export default class PDFGenerator {
       );
     }
 
-    if (this._canvasInfos.some((ci) => ci.images.some((i) => i.choiceState))) {
+    if (this._canvasInfos.some((ci) => ci.images.some((i) => i.choiceInfo))) {
       // We're *very* explicit with the visibility of the various OCGs to
       // ensure as broad a viewer support as possible (especially pdf.js
       // needed it...)
@@ -706,11 +706,11 @@ export default class PDFGenerator {
         let ocgIdx = 0;
         const rbGroup = [];
         for (const img of images) {
-          if (!img.choiceState) {
+          if (!img.choiceInfo) {
             continue;
           }
           const ref = makeRef(ocgStart + ocgIdx);
-          if (img.choiceState.enabled) {
+          if (img.choiceInfo.enabled) {
             initiallyEnabledOCGs.push(ref);
           } else {
             initiallyDisabledOCGs.push(ref);
@@ -815,15 +815,15 @@ export default class PDFGenerator {
     const optionalGroupIds: { [imgId: string]: string } = {};
     for (const [
       idx,
-      { dimensions, location, isOptional },
+      { x, y, width, height, choiceInfo },
     ] of images.entries()) {
-      const drawWidth = unitScale * dimensions.width;
-      const drawHeight = unitScale * dimensions.height;
-      const drawX = unitScale * location.x;
-      const drawY = unitScale * (canvasHeight - dimensions.height - location.y);
+      const drawWidth = unitScale * width;
+      const drawHeight = unitScale * height;
+      const drawX = unitScale * x;
+      const drawY = unitScale * (canvasHeight - height - y);
       const imageId = `/Im${idx + 1}`;
 
-      if (isOptional) {
+      if (choiceInfo?.optional) {
         const ocId = `/oc${Object.keys(optionalGroupIds).length + 1}`;
         optionalGroupIds[imageId] = ocId;
         contentOps.push(`/OC ${ocId} BDC`);
@@ -831,7 +831,7 @@ export default class PDFGenerator {
       contentOps.push(`q ${drawWidth} 0 0 ${drawHeight} ${drawX} ${drawY} cm`);
       contentOps.push(`${imageId} Do`);
       contentOps.push('Q');
-      if (isOptional) {
+      if (choiceInfo?.optional) {
         contentOps.push('EMC');
       }
     }
@@ -858,10 +858,10 @@ export default class PDFGenerator {
       }
     });
     const optionalGroupObjectNums: { [imgId: string]: number } = {};
-    if (images.some((i) => i.isOptional)) {
-      for (const [idx, { isOptional }] of images.entries()) {
+    if (images.some((i) => i.choiceInfo?.optional)) {
+      for (const [idx, { choiceInfo }] of images.entries()) {
         const imageId = `/Im${idx + 1}`;
-        if (!isOptional) {
+        if (!choiceInfo?.optional) {
           continue;
         }
         // FIXME: This is broken for the layers example!
@@ -910,24 +910,24 @@ export default class PDFGenerator {
       this._objects.push(imageObj);
     }
 
-    if (images.some((i) => i.isOptional)) {
+    if (images.some((i) => i.choiceInfo?.optional)) {
       log.debug('Creating optional content groups for page');
       for (const [
         idx,
-        { isOptional, label, visibleByDefault },
+        { choiceInfo },
       ] of images.entries()) {
         const imageId = `/Im${idx + 1}`;
-        if (!isOptional) {
+        if (!choiceInfo) {
           continue;
         }
         optionalGroupObjectNums[imageId] = this._nextObjNo;
         this._addObject({
           Type: '/OCG',
-          Name: label
-            ? `(${getI18nValue(label, this._langPref, '/')})`
+          Name: choiceInfo.label
+            ? `(${getI18nValue(choiceInfo.label, this._langPref, '/')})`
             : undefined,
           Intent: '/View',
-          Usage: visibleByDefault ? '/ON' : '/OFF',
+          Usage: choiceInfo.visibleByDefault ? '/ON' : '/OFF',
         } as PdfDictionary);
       }
     }
@@ -1187,7 +1187,7 @@ export default class PDFGenerator {
       // Page dictionary and content
       2 +
       // 1 Optional Content Group per optional image
-      images.filter((i) => i.choiceState !== undefined).length +
+      images.filter((i) => i.choiceInfo !== undefined).length +
       // 1 XObject per annotation
       numAnnotations;
     if (this._polyglot) {

@@ -23,7 +23,6 @@ export interface ManifestInfo {
   manifest: ManifestNormalized;
   maximumImageWidth: number;
   supportsDownscale: boolean;
-  imageApiHasCors: boolean;
   canvasIds: string[];
 }
 
@@ -60,15 +59,6 @@ export async function fetchManifestInfo(
   const supportsDownscale =
     images.flatMap(getImageServices).find(supportsCustomSizes) !== undefined;
 
-  let imageApiHasCors: boolean;
-  try {
-    let testImgResp = await fetch(images[0]['@id'] ?? images[0].id);
-    let testImgData = new Uint8Array(await testImgResp.arrayBuffer());
-    imageApiHasCors = testImgData[0] !== undefined;
-  } catch {
-    imageApiHasCors = false;
-  }
-
   const maximumImageWidth = Math.max(...images.map((i) => i.width ?? 0));
 
   return {
@@ -77,7 +67,6 @@ export async function fetchManifestInfo(
     maximumImageWidth,
     manifest,
     supportsDownscale,
-    imageApiHasCors,
     canvasIds,
   };
 }
