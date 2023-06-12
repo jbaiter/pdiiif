@@ -18,6 +18,7 @@ import {
 import Presentation2 from '@iiif/presentation-2';
 import { convertPresentation2 } from '@iiif/parser/presentation-2';
 import PQueue from 'p-queue';
+import events from 'events';
 
 import PDFGenerator from './pdf/generator.js';
 import {
@@ -559,6 +560,9 @@ export async function convertManifest(
     polyglotZipBaseDir,
   }: ConvertOptions
 ): Promise<void | Blob> {
+  if (typeof events !== "undefined") {
+    events.setMaxListeners(100, abortController.signal);
+  }
   let writer: Writer;
   if (!outputStream) {
     log.debug('Writing to Blob');

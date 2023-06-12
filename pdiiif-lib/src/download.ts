@@ -46,9 +46,9 @@ const FALLBACK_PPI = 300;
 // Thanks to @jcoyne:
 // https://github.com/ProjectMirador/mirador/pull/3770/files#diff-166256fe28a89c78ada7b08488a3233671fc0511fd39d323c5cfc9433026e2a1R108-R112
 const MANIFEST_ACCEPT_HEADER = 'application/ld+json;q=0.9;profile="http://iiif.io/api/presentation/3/context.json", '
-                               + 'application/ld+json;q=0.7;profile="http://iiif.io/api/presentation/2/context.json", '
-                               + 'application/ls+json;q=0.5, '
-                               + 'application/json;q=0.2';
+  + 'application/ld+json;q=0.7;profile="http://iiif.io/api/presentation/2/context.json", '
+  + 'application/ld+json;q=0.5, '
+  + 'application/json;q=0.2';
 
 /** Maps rate-limited hosts to a mutex that limits the concurrent fetching. */
 class RateLimitingRegistry {

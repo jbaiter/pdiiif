@@ -71,7 +71,7 @@
     "@types/dompurify": "^3.0.2",
     "@types/jest": "^29.5.2",
     "@types/jsdom": "^21.1.1",
-    "@types/node": "^10.17.60",
+    "@types/node": "^16.18.32",
     "@types/node-fetch": "^2.6.4",
     "@types/tmp": "^0.2.3",
     "@types/wicg-file-system-access": "^2020.9.6",
@@ -99,6 +99,7 @@
   "browser": {
     "jsdom": false,
     "util": false,
+    "events": false,
     "zlib": false,
     "prom-client": false,
     "color-convert": false,

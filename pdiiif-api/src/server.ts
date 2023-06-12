@@ -287,18 +287,19 @@ app.get(
         .parse(acceptLangHeader)
         .map((l) => (l.region ? `${l.code}-${l.region}` : l.code));
     } else {
-      languagePreference = ['none'];
+      languagePreference = [];
     }
+    languagePreference = [...languagePreference, 'none']
     const cleanLabel = buildLocaleString(
       manifest.label,
       languagePreference[0],
-      { closest: true, fallbackLanguages: languagePreference.slice(1) }
+      { closest: false, fallbackLanguages: languagePreference.slice(1) }
     )?.substring(0, 200); // Limit file name length
 
     res.writeHead(200, {
       'Content-Type': 'application/pdf',
       'Transfer-Encoding': 'chunked',
-      'Content-Disposition': `attachment; filename="${cleanLabel}.pdf"`,
+      'Content-Disposition': `attachment; filename="${cleanLabel ?? 'manifest'}.pdf"`,
     });
 
     // Get optional canvas identifiers to filter by
