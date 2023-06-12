@@ -441,7 +441,7 @@ export function getImageInfos(canvas: CanvasNormalized): ImageInfo[] {
   }
 
   for (const choiceItem of choice.items) {
-    const resource = vault.get<ContentResource>(choiceItem);
+    const resource = vault.get<ContentResource>(choiceItem.id);
     if (resource.type !== 'Image') {
       continue;
     }

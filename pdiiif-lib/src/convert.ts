@@ -560,7 +560,8 @@ export async function convertManifest(
     polyglotZipBaseDir,
   }: ConvertOptions
 ): Promise<void | Blob> {
-  if (typeof events !== "undefined") {
+  // Prevent warning when running in Node.js
+  if (typeof process !== "undefined") {
     events.setMaxListeners(100, abortController.signal);
   }
   let writer: Writer;
