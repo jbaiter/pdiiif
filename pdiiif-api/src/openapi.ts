@@ -11,7 +11,7 @@ export const middleware = openapi({
 
 export const progressPath = middleware.path({
   description: `Provide a \`text/event-stream\` with progress updates for an ongoing PDF generation process, identified by a progress token.
-    
+
   The stream can emit one of three events:
   - \`progress\`: Progress has been updated, has a \`ProgressStatus\` JSON payload
   - \`cancel\`: Signals that the client has cancelled the PDF generation

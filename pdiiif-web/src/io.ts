@@ -27,16 +27,14 @@ export class KeepAliveStreamSaver {
   getWriter(): WritableStreamDefaultWriter<Uint8Array> {
     const writer = this._streamSaver.getWriter();
     let lastWrite = window.performance.now();
-    const heartbeat = setInterval(() => {
+    const heartbeat = setInterval(async () => {
       const timestamp = window.performance.now();
       if (writer.closed) {
         clearInterval(heartbeat);
       }
       if (timestamp - lastWrite > (20 * 1000 /* 20 seconds */)) {
-        navigator.locks.request('streamsaver-write', () => {
-          console.debug('💓');
-          writer.write(new Uint8Array([0x20]));
-        });
+        console.debug('💓');
+        await writer.write(new Uint8Array([0x20]));
       }
     }, 1000);
 
@@ -60,13 +58,11 @@ export class KeepAliveStreamSaver {
         return writer.releaseLock();
       },
       write(chunk?: Uint8Array): Promise<void> {
-        return new Promise((resolve) =>
-          navigator.locks.request('streamsaver-write', async () => {
+        return new Promise(async (resolve) => {
             await writer.write(chunk);
             lastWrite = window.performance.now();
             resolve();
-          })
-        );
+        });
       },
     };
   }

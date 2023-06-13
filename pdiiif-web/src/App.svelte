@@ -7,8 +7,7 @@
   import { getValue } from '@iiif/vault-helpers';
   import streamSaver from 'streamsaver';
 
-  import type { ManifestInfo } from './iiif';
-  import { fetchManifestInfo } from './iiif';
+  import { fetchManifestInfo, type ManifestInfo } from './iiif';
   import Preview from './Preview.svelte';
   import Settings from './Settings.svelte';
   import Notification from './Notification.svelte';
@@ -423,10 +422,12 @@
     if (generateOnClient) {
       promise = generatePdfClientSide();
     } else {
-      addNotification({
-        type: 'info',
-        message: $_('notifications.server_generation'),
-      });
+      if (corsSupported) {
+        addNotification({
+          type: 'info',
+          message: $_('notifications.server_generation'),
+        });
+      }
       promise = generatePdfServerSide();
     }
     await promise;

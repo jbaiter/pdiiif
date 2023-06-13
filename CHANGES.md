@@ -11,10 +11,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - pdiiif-lib: `estimatePdfSize` now returns a `{ size: number; corsEnabled: boolean }`
   object instead of simply a `number`. This allows you to check if the Image API
   endpoints that were sampled to determine the size have CORS available
+- pdiiif-web: The `KeepAliveStreamSaver` class no longer relies on the `navigator.locks`
+  API, increasing compatibility with older browsers
+
+### Added
+- pdiiif-lib: Content-Negotation for IIIF Presentation API 3 manifests is now implemented
 
 ### Fixed
 - pdiiif-web: Detection for unavailability of CORS is now working properly and falling
   back to server-side PDF generation
+- pdiiif-lib: Choice parsing could fail under some circumstances, this has been fixed
+- pdiiif-api: PDF filenames would sometimes fail to generate properly, resulting in
+  a `.pdf` filename, this has been fixed
 
 ## [0.1.5] - 2023-06-08
 
