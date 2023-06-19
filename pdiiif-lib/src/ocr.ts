@@ -25,6 +25,7 @@ if (typeof fetch === 'undefined') {
   fetchImpl = nodeFetch as typeof fetch;
 }
 
+// Environment-specific DOM parser and text types, native in browser, jsdom in node
 let parser: DOMParser;
 let TextType: typeof Text;
 if (typeof window === 'undefined') {

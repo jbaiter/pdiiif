@@ -8,7 +8,7 @@ export interface Logger {
   error(message: string, ...args: any[]): void;
 }
 
-/** Simple logger that ismply outputs to the console */
+/** Simple logger that simply outputs to the console */
 export class ConsoleLogger implements Logger {
   private level: LogLevel;
   constructor(level: LogLevel = 'warn') {

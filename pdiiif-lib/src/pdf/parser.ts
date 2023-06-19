@@ -15,6 +15,17 @@ if (!Uint8Array.prototype.findLastIndex) {
   }
 }
 
+const ESCAPE_CHARS: Record<string, string> = {
+  n: '\n',
+  r: '\r',
+  t: '\t',
+  b: '\b',
+  f: '\f',
+  '(': '(',
+  ')': ')',
+  '\\': '\\',
+};
+
 //          offset/nextFree|generation|inUse?
 //                      ▼       ▼        ▼
 type CrossRefEntry = [number, number, boolean];
@@ -24,12 +35,19 @@ interface CrossRefSubSection {
   entries: Array<CrossRefEntry>;
 }
 
+/** Parse a section of the x-ref table, yielding `CrossRefSubSection` objects as
+ *  we encounter them.
+ *
+ * @param reader The reader to read from.
+ * @param offset The offset of the x-ref section in the file.
+ * @param length The length of the x-ref section.
+ */
 async function* parseCrossRefSection(
   reader: Reader,
   offset: number,
-  maxLength: number
+  length: number
 ): AsyncGenerator<CrossRefSubSection> {
-  const buf = new Uint8Array(maxLength);
+  const buf = new Uint8Array(length);
   offset += await reader.read(buf, 0, offset, buf.length);
   if (!testForString(buf, 0, 'xref')) {
     throw 'Invalid crossreference section, did not start with `xref` line.';
@@ -67,7 +85,7 @@ async function* parseCrossRefSection(
         break;
       }
       const [startNum, numObjs] = part
-        .trimRight()
+        .trimEnd()
         .split(' ')
         .map((p) => Number.parseInt(p, 10));
       currentSection = {
@@ -87,20 +105,8 @@ async function* parseCrossRefSection(
   const trailerEndIdx = trailerBuf.findIndex((_x, idx) =>
     testForString(trailerBuf, idx, '>>')
   );
-  /*
-  const fileSize = await reader.size();
-  while (trailerEndIdx < 0 && offset < fileSize) {
-    const newBuf = new Uint8Array(trailerBuf.length + 1024);
-    newBuf.set(trailerBuf, 0);
-    offset += await reader.read(newBuf, buf.length, offset + buf.length, 1024);
-    trailerBuf = newBuf;
-    trailerEndIdx = findIndex(trailerBuf, (_x, idx) =>
-      testForString(trailerBuf, idx, '>>')
-    );
-  }
-  */
 
-  const trailerDict = new ObjectParser(
+  const trailerDict = new PdfValueParser(
     trailerBuf.subarray(trailerStartIdx, trailerEndIdx + 2)
   ).read() as PdfDictionary;
   if (trailerDict.Prev) {
@@ -113,6 +119,7 @@ async function* parseCrossRefSection(
   }
 }
 
+/** Look for a string from a given location in a buffer. */
 function testForString(
   buf: Uint8Array,
   offset: number,
@@ -135,38 +142,52 @@ function testForString(
   return true;
 }
 
-const escapeChars: Record<string, string> = {
-  n: '\n',
-  r: '\r',
-  t: '\t',
-  b: '\b',
-  f: '\f',
-  '(': '(',
-  ')': ')',
-  '\\': '\\',
-};
-
+/** Check if a string is the representation of an integer digit */
 function isDigit(c: string): boolean {
   return !isNaN(parseInt(c, 10));
 }
 
+/** Check if a character is a hexadecimal digit ([0-9A-F])  */
 function isHex(c: number): boolean {
   return (c >= 0x30 && c <= 0x39) || (c >= 0x41 && c <= 0x46);
 }
 
-export class ObjectParser {
+/** Parse a PDF "value", which can be one of:
+ * - number (integer or float)
+ * - string
+ * - name (represented as a JS string starting with `/`)
+ * - boolean
+ * - null
+ * - date
+ * - XRef
+ * - Array
+ * - Dictionary
+ *
+ * API walkthrough:
+ * - `read()` is the main entry point, it will read the next value from the
+ *   buffer and advance the cursor
+ *  - `match*` methods check if the buffer at the current offset matches a
+ *    certain type of value, either returning a boolean or the section of the
+ *    buffer containing the value as a string.
+ *  - `read*` methods read a value of a specific type from the buffer and
+ *    advance the cursor
+ */
+export class PdfValueParser {
   start = 0;
   current = 0;
   private readonly buf: Uint8Array;
 
+  /** Construct a parser for a buffer containing one or more PDF values. */
   constructor(buf: Uint8Array) {
     this.buf = buf;
   }
 
+  /** Get the buffer content at the current offset as a character. */
   private getChar(): string {
     return String.fromCharCode(this.buf[this.current]);
   }
 
+  /** Compares the buffer contents at the current offset against a string value. */
   private matchValue(value: string): boolean {
     const valueRead = textDecoder.decode(
       this.buf.subarray(
@@ -177,6 +198,10 @@ export class ObjectParser {
     return valueRead === value;
   }
 
+  /** Checks if the buffer at the current offset contains a number.
+   *
+   * See ISO32000-2:2020 section 7.3.3.
+   */
   private matchInteger(resetAfter = true): string | undefined {
     this.start = this.current;
     let chr: string;
@@ -204,6 +229,7 @@ export class ObjectParser {
     return isInt ? chars.join('') : undefined;
   }
 
+  /** Read a PDF value from the current offset, advancing the cursor. */
   read(): PdfValue {
     let c = this.getChar();
     if (this.matchWhiteSpace(c)) {
@@ -255,6 +281,10 @@ export class ObjectParser {
     }
   }
 
+  /** Check if the input string contains PDF whitespace.
+   *
+   * See ISO32000-2:2020 section 7.2.3, Table 1.
+   */
   matchWhiteSpace(c: string): boolean {
     return (
       c === ' ' ||
@@ -266,6 +296,7 @@ export class ObjectParser {
     );
   }
 
+  /** Read an integer from the current offset. */
   readInteger(): number {
     const intStr = this.matchInteger(false);
     if (intStr === undefined) {
@@ -274,6 +305,7 @@ export class ObjectParser {
     return Number.parseInt(intStr, 10);
   }
 
+  /** Read an indirect object from the current offset. */
   readIndirectObject(): PdfRef {
     const match = this.matchIndirectObject(false);
     if (match === undefined) {
@@ -282,6 +314,10 @@ export class ObjectParser {
     return new PdfRef(Number.parseInt(match.split(' ')[0]));
   }
 
+  /** Check if the buffer contains an indirect object at the current offset.
+   *
+   * See ISO32000-2:2020 section 7.3.10.
+   */
   matchIndirectObject(resetAfter = true): string | undefined {
     this.start = this.current;
     let c = this.getChar();
@@ -334,6 +370,10 @@ export class ObjectParser {
     }
   }
 
+  /** Check if the buffer contains a real number at the current offset.
+   *
+   * See ISO32000-2:2020 section 7.3.3.
+   */
   matchRealNumber(resetAfter = true): string | undefined {
     this.start = this.current;
     let isRealNumber = true;
@@ -374,6 +414,7 @@ export class ObjectParser {
     return undefined;
   }
 
+  /** Read a real number from the current offset. */
   readRealNumber(): number {
     const str = this.matchRealNumber(false);
     if (!str) {
@@ -382,6 +423,7 @@ export class ObjectParser {
     return Number.parseFloat(str);
   }
 
+  /** Skip a contiguous sequence of whitespae, advancing the cursor. */
   skipWhiteSpace(): boolean {
     let skipped = false;
     while (!this.atEnd() && this.matchWhiteSpace(this.getChar())) {
@@ -391,10 +433,15 @@ export class ObjectParser {
     return skipped;
   }
 
+  /** Check if we're at the end of the buffer. */
   atEnd(): boolean {
     return this.current >= this.buf.length;
   }
 
+  /** Read a name from the current offset.
+   *
+   * See ISO32000-2:2020 section 7.3.5.
+   */
   readName(): PdfValue {
     const chars: string[] = ['/'];
     this.current++;
@@ -422,10 +469,18 @@ export class ObjectParser {
     return chars.join('');
   }
 
+  /** Check if the current offset contains a delimiter.
+   *
+   * See ISO32000-2:2020 section 7.2.3, Table 2
+   */
   matchDelimiter(c: string): boolean {
     return '[]{}()<>/%'.indexOf(c) >= 0;
   }
 
+  /** Read a hex string from the current offset.
+   *
+   * See ISO32000-2:2020 section 7.3.4.3
+   */
   readHexString(): PdfValue {
     this.current++;
     const vals: Array<number> = [];
@@ -443,6 +498,10 @@ export class ObjectParser {
     return new Uint8Array(vals);
   }
 
+  /** Read a literal string from the current offset.
+   *
+   * See ISO32000-2:2020 section 7.3.4.2
+   */
   readLiteralString(): PdfValue {
     this.current++;
     const chars: string[] = [];
@@ -468,7 +527,7 @@ export class ObjectParser {
           this.current--;
           c = String.fromCharCode(Number.parseInt(cs.join(''), 8));
         } else {
-          c = escapeChars[c];
+          c = ESCAPE_CHARS[c];
           if (c === undefined) {
             throw new Error(
               `Illegal escape sequence in string literal: '\\${c}`
@@ -489,6 +548,10 @@ export class ObjectParser {
     }
   }
 
+  /** Read a dictionary from the current offset.
+   *
+   * See ISO32000-2:2020 section 7.3.7
+   */
   readDict(): PdfValue {
     this.current += 2;
     const obj: Record<string, PdfValue> = {};
@@ -509,6 +572,10 @@ export class ObjectParser {
     return obj;
   }
 
+  /** Read an array from the current offset.
+   *
+   * See ISO32000-2:2020 section 7.3.6
+   */
   readArray(): Array<PdfValue> {
     this.current++;
     const arr: Array<PdfValue> = [];
@@ -521,6 +588,11 @@ export class ObjectParser {
   }
 }
 
+/** Minimalist low-level PDF parser operating on a Reader object.
+ *
+ * Currently only supports discovering page objects and annotation objects, as well
+ * as obtaining arbitrary objects given the object number and generation.
+*/
 export class PdfParser {
   private reader: Reader;
   private objectOffsets: Array<number>;
@@ -530,6 +602,10 @@ export class PdfParser {
   infoNum: number;
   catalogNum: number;
 
+  /** Construct a new parser from a Reader.
+   *
+   * Used instead of the constructor to allow for async initialization.
+  */
   static async parse(reader: Reader): Promise<PdfParser> {
     const trailerBuf = new Uint8Array(1024);
     const pdfSize = await reader.size();
@@ -560,7 +636,7 @@ export class PdfParser {
     const dictStart = trailerBuf.findLastIndex((_x, idx) =>
       testForString(trailerBuf, idx, '<<')
     );
-    const trailerDict = new ObjectParser(
+    const trailerDict = new PdfValueParser(
       trailerBuf.subarray(dictStart, dictEnd)
     ).read() as PdfDictionary;
     for await (const { startNum, entries } of parseCrossRefSection(
@@ -590,6 +666,7 @@ export class PdfParser {
     return new PdfParser(reader, objOffsets, objGenerations, trailerDict);
   }
 
+  /** Private constructor, use factory method above. */
   private constructor(
     reader: Reader,
     objOffsets: Array<number>,
@@ -604,6 +681,7 @@ export class PdfParser {
     this.infoNum = (trailerDict.Info as PdfRef).refObj;
   }
 
+  /** Retrieve the catalog dictionary. */
   async catalog(): Promise<PdfDictionary> {
     const obj = await this.getObject(this.catalogNum);
     if (!obj) {
@@ -612,14 +690,16 @@ export class PdfParser {
     return obj.data as PdfDictionary;
   }
 
+  /** Retrieve the info dictionary. */
   async info(): Promise<PdfDictionary> {
     const obj = await this.getObject(this.infoNum);
     if (!obj) {
-      throw `Document has no catalog object (num as per trailer: ${this.infoNum}!`;
+      throw `Document has no info object (num as per trailer: ${this.infoNum}!`;
     }
     return obj.data as PdfDictionary;
   }
 
+  /** Yield all pages referenced in the given page dictionary. */
   async *_pagesFromPagesObj(
     pagesObj: PdfDictionary
   ): AsyncGenerator<PdfObject> {
@@ -637,6 +717,7 @@ export class PdfParser {
     }
   }
 
+  /** Yield all pages in the PDF. */
   async *pages(): AsyncGenerator<PdfObject> {
     const catalog = await this.catalog();
     const pagesRef = catalog.Pages as PdfRef;
@@ -648,6 +729,7 @@ export class PdfParser {
     yield* this._pagesFromPagesObj(pagesDict);
   }
 
+  /** Yield all annotations for the given page dictionary. */
   async *annotations(pageDict: PdfDictionary): AsyncGenerator<PdfDictionary> {
     const annots = pageDict.Annots;
     if (!annots) {
@@ -662,10 +744,12 @@ export class PdfParser {
     }
   }
 
+  /** Resolve a PDF reference to the corresponding object. */
   resolveRef(ref: PdfRef): Promise<PdfObject | undefined> {
     return this.getObject(ref.refObj, true);
   }
 
+  /** Get an object from the PDF from its number. */
   async getObject(
     num: number,
     withStream = false
@@ -697,7 +781,7 @@ export class PdfParser {
       }
     }
     const objSig = `${num} ${this.objGenerations[num]} obj`;
-    const objParser = new ObjectParser(
+    const objParser = new PdfValueParser(
       buf.subarray(objSig.length, streamIdx < 0 ? objEndIdx : streamIdx)
     );
     const data = objParser.read();

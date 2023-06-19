@@ -1,4 +1,4 @@
-import { ObjectParser } from '../pdf/parser';
+import { PdfValueParser } from '../pdf/parser';
 import { textEncoder } from '../pdf/util';
 import { PdfRef } from '../pdf/common';
 
@@ -21,11 +21,11 @@ const FIXTURES = {
 
 describe('The PDF object value parser', () => {
   it('should correctly parse a string literal with nested parentheses and escaped characters', () => {
-    const parser = new ObjectParser(textEncoder.encode(FIXTURES.specialString));
+    const parser = new PdfValueParser(textEncoder.encode(FIXTURES.specialString));
     expect(parser.read()).toEqual('One (#3))\n\r');
   });
   it('should correctly parse a dictionary with all types', () => {
-    const parser = new ObjectParser(textEncoder.encode(FIXTURES.dict));
+    const parser = new PdfValueParser(textEncoder.encode(FIXTURES.dict));
     const value = parser.read();
     expect(value).toMatchObject({
       TrueBool: true,

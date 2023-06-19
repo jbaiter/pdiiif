@@ -4,6 +4,7 @@ import type nodeFs from 'fs';
 
 import log from './log.js';
 
+/** Base interface to be implemented by all readers.  */
 export interface Reader {
   read(
     dst: Uint8Array,
@@ -14,6 +15,7 @@ export interface Reader {
   size(): Promise<number>;
 }
 
+/** Base interface to be implemented by all writers. */
 export interface Writer {
   /** Write a chunk to the writer */
   write(buffer: Uint8Array | string): Promise<void>;
@@ -25,6 +27,7 @@ export interface Writer {
   waitForDrain(): Promise<void>;
 }
 
+/** Reader implementation using the Web `File` API.  */
 export class WebReader implements Reader {
   private file: File;
 
@@ -72,7 +75,8 @@ export class CountingWriter implements Writer {
   }
 }
 
-/** A Writer that can be used with e.g. a file system stream in the browser. */
+/** A Writer implemented using the `File System Access API` available in
+ *  recent Chrome, Edge and Opera browsers. */
 export class WebWriter implements Writer {
   private _writer: WritableStreamDefaultWriter<any>;
 
@@ -93,10 +97,11 @@ export class WebWriter implements Writer {
   }
 }
 
-// TODO: A good reference seems to be the mega.nz implementation, which has always worked great for me on desktops at least:
-// https://github.com/meganz/webclient/blob/f19289127b68ceaf19a5e884f2f48f15078304da/js/transfers/meths/memory.js
 
+/** Writer implementation using the `Blob` API available in all browsers. */
 export class BlobWriter implements Writer {
+  // TODO: A good reference seems to be the mega.nz implementation, which has always worked great for me on desktops at least:
+  // https://github.com/meganz/webclient/blob/f19289127b68ceaf19a5e884f2f48f15078304da/js/transfers/meths/memory.js
   private _parts: Array<Uint8Array | string>;
   private _blob?: Blob;
 
@@ -136,6 +141,7 @@ export class BlobWriter implements Writer {
   }
 }
 
+/** Reader implentation using the node.js filesystem API. */
 export class NodeReader implements Reader {
   private fileHandle: nodeFs.promises.FileHandle;
 
@@ -163,7 +169,7 @@ export class NodeReader implements Reader {
     return stat.size;
   }
 }
-/** Adapter for Node.js writable streams. */
+/** Writer implementation using the node.js filesystem API. */
 export class NodeWriter implements Writer {
   _writable: NodeWritable;
   _drainWaiters: Array<() => void> = [];
@@ -212,6 +218,7 @@ export class NodeWriter implements Writer {
   }
 }
 
+/** Very basic Reader implementation using an Array. */
 export class ArrayReader implements Reader {
   _buf: Uint8Array;
 

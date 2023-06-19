@@ -78,7 +78,10 @@ export function getI18nValue(
 }
 
 
-/** Custom image loader to deal with browser + node intercompatibility */
+/** Custom image loader to deal with browser + node intercompatibility.
+ *
+ * Used for the thumbnail helper.
+ */
 class ImageServiceLoader extends ImageServiceLoader_ {
   async fetch(input: RequestInfo, init?: RequestInit): Promise<Response> {
     return fetchImpl(input as any, init as any) as any;
@@ -108,7 +111,7 @@ export async function getThumbnail(
   return thumb.best?.id;
 }
 
-/** Like a regular external web resourc, but with an associated
+/** Like a regular external web resource, but with an associated
  profile URI, needed for OCR discovery */
 export interface ExternalWebResourceWithProfile extends ExternalWebResource {
   profile: string;
