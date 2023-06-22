@@ -1,4 +1,4 @@
-FROM node:16.15-bullseye-slim
+FROM node:20-bookworm-slim
 
 ARG PDIIIF_SENTRY_DSN
 ARG PDIIIF_SENTRY_TUNNEL_ENDPOINT
@@ -7,15 +7,15 @@ ARG PDIIIF_SENTRY_TUNNEL_ENDPOINT
 # Note: this installs the necessary libs to make the bundled version of Chromium that Puppeteer
 # installs, work.
 RUN apt-get update \
-    && apt-get install -y wget gnupg \
-    && wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
-    && sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list' \
-    && apt-get update \
-    && apt-get install -y google-chrome-stable fonts-noto libxss1 --no-install-recommends \
+    && apt-get install -y wget gnupg fonts-noto libxss1  ca-certificates fonts-liberation \
+     libasound2 libatk-bridge2.0-0 libatk1.0-0 libatspi2.0-0 libc6 libcairo2 libcups2 \
+     libcurl4 libdbus-1-3 libdrm2 libexpat1 libgbm1 libglib2.0-0 libgtk-3-0 libnspr4 libnss3 \
+     libpango-1.0-0 libu2f-udev libvulkan1 libx11-6 libxcb1 libxcomposite1 libxdamage1 \
+     libxext6 libxfixes3 libxkbcommon0 libxrandr2 xdg-utils --no-install-recommends \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
+RUN npm install -g pnpm
 
-RUN wget -q -O - https://unpkg.com/@pnpm/self-installer | node
 
 # If running Docker >= 1.13.0 use docker run's --init arg to reap zombie processes, otherwise
 # uncomment the following lines to have `dumb-init` as PID 1
@@ -33,10 +33,6 @@ RUN groupadd -r pptruser && useradd -r -g pptruser -G audio,video pptruser \
 
 # Run everything after as non-privileged user.
 USER pptruser
-
-# Skip the chromium download when installing puppeteer.
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD true
-ENV CFG_PUPPETEER_BROWSER_EXECUTABLE google-chrome-stable
 
 COPY --chown=pptruser . .
 

@@ -35,9 +35,11 @@ const PURPOSE_LABELS: { [purpose: string]: string } = {
 };
 
 // Fetch for node
-let fetchImpl: typeof fetch = fetch;
+let fetchImpl: typeof fetch;
 if (typeof fetch === 'undefined') {
   fetchImpl = nodeFetch as typeof fetch;
+} else {
+  fetchImpl = fetch;
 }
 
 export const vault = globalVault() as Vault;

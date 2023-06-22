@@ -209,7 +209,10 @@ if (process.env.CFG_SENTRY_DSN) {
         body: envelope,
       });
     } catch (err) {
-      log.error(err);
+      log.error({
+        msg: 'Failed to forward Sentry envelope',
+        error: err,
+      });
     }
     res.json({}).status(200).send();
   });
@@ -401,7 +404,10 @@ app.get(
     try {
       await convertPromise;
     } catch (err) {
-      log.error('Error converting manifest:', err);
+      log.error({
+        message: 'Error converting manifest',
+        error: err
+      });
       if (progressToken && typeof progressToken === 'string') {
         const clientResp = progressClients[progressToken];
         if (clientResp) {
@@ -518,7 +524,10 @@ process.on('unhandledRejection', function (err: Error) {
     // FIXME: Where do these unhandled promise rejections come from?
     return;
   }
-  log.error(err);
+  log.error({
+    message: 'Unhandled rejection',
+    error: err
+  });
 });
 
 // Terminate cover page generator before exiting, closes the underlying

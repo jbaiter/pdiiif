@@ -2,6 +2,12 @@ import { omit } from 'lodash-es';
 import winston from 'winston';
 import { Logger, setLogger } from 'pdiiif';
 
+const serializeError = ({ message, stack, ...rest }: Error): object => ({
+  message,
+  stack,
+  ...rest,
+})
+
 function createLogger(level: string, logToFiles = true): winston.Logger {
   const transports: any[] = [];
   if (process.env.NODE_ENV === 'production' && logToFiles) {
@@ -14,6 +20,7 @@ function createLogger(level: string, logToFiles = true): winston.Logger {
       new winston.transports.Console({
         format: winston.format.json({
           space: process.env.NODE_ENV === 'production' ? 0 : 2,
+          replacer: (_key, value) => (value instanceof Error ? serializeError(value) : value)
         }),
         level,
       })

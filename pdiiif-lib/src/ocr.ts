@@ -20,9 +20,11 @@ import {
 } from './iiif.js';
 
 // Fetch for node
-let fetchImpl: typeof fetch = fetch;
+let fetchImpl: typeof fetch;
 if (typeof fetch === 'undefined') {
   fetchImpl = nodeFetch as typeof fetch;
+} else {
+  fetchImpl = fetch;
 }
 
 // Environment-specific DOM parser and text types, native in browser, jsdom in node
@@ -150,6 +152,12 @@ function parseHocrNode(
   return spans;
 }
 
+/**  Parse a hOCR line node (class="ocr_line").
+ *
+ * @param {Element} lineNode The hOCR line node
+ * @param {number} scaleFactor How much to scale the coordinates by
+ * @returns {OcrSpan} The parsed line
+ */
 function parseHocrLineNode(lineNode: Element, scaleFactor: number): OcrSpan {
   const wordNodes = lineNode.querySelectorAll('span.ocrx_word');
   if (wordNodes.length === 0) {
@@ -647,6 +655,10 @@ export async function fetchAnnotationResource(url: string): Promise<any> {
   return resp.json();
 }
 
+/** Retrieve a supported 'seeAlso' resource from a Canvas, if present.
+ *
+ * 'Supported' currently means external ALTO or hOCR markup.
+*/
 export function getTextSeeAlso(
   canvas: CanvasNormalized
 ): ExternalWebResourceWithProfile | undefined {

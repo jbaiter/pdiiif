@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.7] - 2023-06-22
+
+## Changed
+- docker: Updated image to Node 20 and Debian bookworm, rely on Puppeteer-provided
+  Chrome version instead of downloading it from the Debian repository
+
+## Fixed
+- pdiiif-lib: fetch polyfill for older Node.js versions works now
+- pdiiif-api: Exceptions are now properly logged
+
 ## [0.1.6] - 2023-06-20
 
 ### Changed

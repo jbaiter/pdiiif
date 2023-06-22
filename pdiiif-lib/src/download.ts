@@ -34,9 +34,11 @@ import {
 import { isDefined } from './util.js';
 
 // fetch for node
-let fetchImpl: typeof fetch = fetch;
+let fetchImpl: typeof fetch;
 if (typeof fetch === 'undefined') {
   fetchImpl = nodeFetch as typeof fetch;
+} else {
+  fetchImpl = fetch;
 }
 
 /// In absence of more detailed information (from physical dimensions service), use this resolution
