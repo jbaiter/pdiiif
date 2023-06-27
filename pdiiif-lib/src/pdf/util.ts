@@ -1,6 +1,7 @@
 import util from 'util';
 import zlib from 'zlib';
 import { zlibSync } from 'fflate';
+import nodeCrypto from 'crypto';
 
 import { StartCanvasInfo } from '../download.js';
 import { PdfDictionary } from './common.js';
@@ -16,6 +17,10 @@ if (typeof window !== 'undefined' && window.TextEncoder && window.TextDecoder) {
   textEncoder = new util.TextEncoder();
   textDecoder = new util.TextDecoder();
 }
+
+// If running in node, use the web compatible crypto implementation
+const crypto = nodeCrypto?.webcrypto ?? window.crypto;
+
 
 export const IS_BIG_ENDIAN = (() => {
   const array = new Uint8Array(4);
@@ -39,10 +44,8 @@ export function randomData(length: number): Uint8Array {
     length = 2 ** 16;
   }
   const buf = new Uint8Array(length);
-  if (typeof window !== 'undefined' && window?.crypto) {
+  if (crypto !== undefined) {
     crypto.getRandomValues(buf);
-  } else if (typeof (global as any)?.crypto !== 'undefined') {
-    return new Uint8Array((global as any).crypto(length));
   } else {
     const u32View = new Uint32Array(buf.buffer);
     for (let i = 0; i < u32View.length; i++) {

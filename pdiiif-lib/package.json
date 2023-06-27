@@ -1,6 +1,6 @@
 {
   "name": "pdiiif",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "Generate fully featured PDFs from IIIF manifests",
   "type": "module",
   "sideEffects": false,
@@ -103,7 +103,8 @@
     "zlib": false,
     "prom-client": false,
     "color-convert": false,
-    "node-fetch": false
+    "node-fetch": false,
+    "crypto": false
   },
   "files": [
     "/lib"
