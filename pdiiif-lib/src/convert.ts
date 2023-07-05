@@ -249,9 +249,9 @@ export async function estimatePdfSize({
   );
   const sampleCanvases = getCanvasesForSampling(canvases, numSamples);
   const samplePixels = sampleCanvases.reduce(
-      (sum, canvas) => sum + canvas.width * canvas.height,
-      0
-    );
+    (sum, canvas) => sum + canvas.width * canvas.height,
+    0
+  );
   const queue = new PQueue({ concurrency });
   const canvasData = await Promise.all(
     sampleCanvases.map((c) =>
@@ -529,16 +529,36 @@ async function getCoverPagePdf(
   }
 }
 
+export type ConversionReport = {
+  fileSizeBytes: number;
+  numPages: number;
+  fileName?: string;
+  failedImages?: Array<{
+    canvasIndex: number;
+    numFailed: number;
+    numTotal: number;
+    details: {
+      [imageUrl: string]: string;
+    }
+  }>;
+  failedOcr?: Array<{
+    canvasIndex: number;
+    ocrUrl: string;
+  }>;
+}
+
+export type ConversionReportWithData = ConversionReport & { data: Blob };
+
 export async function convertManifest(
   inputManifest: string | Manifest | Presentation2.Manifest,
   outputStream: Writable | WritableStream,
   options: ConvertOptions
-): Promise<void>;
+): Promise<ConversionReport>;
 export async function convertManifest(
   inputManifest: string | Manifest | Presentation2.Manifest,
   outputStream: undefined,
   options: ConvertOptions
-): Promise<Blob>;
+): Promise<ConversionReportWithData>;
 /** Convert a IIIF manifest to a PDF,  */
 export async function convertManifest(
   /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
@@ -559,7 +579,7 @@ export async function convertManifest(
     polyglotZipPdf,
     polyglotZipBaseDir,
   }: ConvertOptions
-): Promise<void | Blob> {
+): Promise<ConversionReport | ConversionReportWithData> {
   // Prevent warning when running in Node.js
   if (typeof process !== "undefined") {
     events.setMaxListeners(100, abortController.signal);
@@ -583,6 +603,10 @@ export async function convertManifest(
     writer = new WebWriter(outputStream as WritableStream);
   }
   const countingWriter = new CountingWriter(writer);
+  const report = {
+    fileSizeBytes: 0,
+    numPages: 0,
+  } as ConversionReport;
 
   // Build a canvas predicate function from a list of identifiers, if needed
   let canvasPredicate: (canvasId: string) => boolean;
@@ -714,7 +738,34 @@ export async function convertManifest(
         throw 'Aborted';
       }
       const canvas = vault.get<CanvasNormalized>(canvasData.canvas);
-      const { images, ppi, text, annotations } = canvasData;
+      const canvasInfo = canvasInfos[canvasIdx];
+      const { images, ppi, text, annotations, imageFailures } = canvasData;
+      if (imageFailures.length > 0) {
+        if (!report.failedImages) {
+          report.failedImages = [];
+        }
+        const reportData = {
+          canvasIndex: canvasIdx,
+          numFailed: imageFailures.length,
+          numTotal: images.length + imageFailures.length,
+          details: Object.fromEntries(
+            imageFailures.map((f) => [
+              f.resource.id ?? '<unknown>',
+              f.cause instanceof Error ? f.cause.toString() : f.cause
+            ]))
+        };
+        report.failedImages.push(reportData);
+      }
+      if (canvasInfo.ocr && !text?.markup) {
+        if (!report.failedOcr) {
+          report.failedOcr = [];
+        }
+        const reportData = {
+          canvasIndex: canvasIdx,
+          ocrUrl: canvasInfo.ocr.id,
+        }
+        report.failedOcr.push(reportData);
+      }
       const externalAnnotations = await fetchCanvasAnnotations(canvas.id);
       if (externalAnnotations != null) {
         const normalized = await Promise.all(
@@ -739,7 +790,7 @@ export async function convertManifest(
       await pdfGen.renderPage(
         canvasData.canvas.id,
         { width: canvas.width, height: canvas.height },
-        images,
+        [...images, ...imageFailures],
         annotations,
         text,
         ppi
@@ -752,6 +803,7 @@ export async function convertManifest(
         ),
         canvas.width * canvas.height
       );
+      report.numPages++;
     } catch (err) {
       // Clear queue, cancel all ongoing image fetching
       if (err !== 'Aborted') {
@@ -798,7 +850,10 @@ export async function convertManifest(
   log.debug('Waiting for writer to close.');
   await endPromise;
 
+  report.fileSizeBytes = countingWriter.bytesWritten;
   if (writer instanceof BlobWriter) {
-    return writer.blob;
+    return {...report, data: writer.blob };
+  } else {
+    return report;
   }
 }

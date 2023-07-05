@@ -287,8 +287,9 @@
       });
       pdfFinished = true;
       if (!webWritable) {
-        // FIXME: Why is the casting neccessary?
-        const objectURL = URL.createObjectURL(res as unknown as Blob);
+        const objectURL = URL.createObjectURL(
+          (res as ConversionReportWithData).data
+        );
         const link = document.createElement('a');
         link.download = `${cleanLabel}.pdf`;
         link.rel = 'noopener';
@@ -313,8 +314,8 @@
   }
 
   /// Let some backend server generate the PDF and stream it to us
-  /// Intended for Firefox and older browsers that don't support the
-  /// File System Access API
+  /// Intended for older browsers that don't support neither the File System Access API
+  /// nor service workers.
   async function generatePdfServerSide(): Promise<void> {
     const pdfEndpoint = `${apiEndpoint}/generate-pdf`;
     const progressToken = getRandomToken();

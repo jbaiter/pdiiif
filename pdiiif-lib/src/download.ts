@@ -263,6 +263,10 @@ export function getPointsPerInch(services: Service[]): number | null {
   return ppi;
 }
 
+export function isImageFetchFailure(obj: CanvasImageData | ImageFetchFailure): obj is ImageFetchFailure {
+  return (obj as ImageFetchFailure).cause !== undefined;
+}
+
 /** All the data relevant for the canvas: images and text */
 export type CanvasData = {
   canvas: Reference<'Canvas'>;
@@ -270,10 +274,13 @@ export type CanvasData = {
   images: CanvasImage[];
   annotations: Annotation[];
   ppi?: number;
-  imageFailures: {
-    [ident: string]: Error
-  }
+  imageFailures: ImageFetchFailure[];
 };
+
+export type ImageFetchFailure = ImageInfo & {
+  cause: Error | string;
+}
+
 
 /** Data and additional information for an image on a canvas. */
 export type CanvasImage = ImageInfo & CanvasImageData;
@@ -329,14 +336,10 @@ async function fetchCanvasImage(
   }
   let ppi: number | undefined;
   let imageUrl: string;
-  let nativeWidth: number | undefined;
-  let nativeHeight: number | undefined;
   if (imgService) {
     if (!imgService.width) {
       imgService = await fetchFullImageService(imgService);
     }
-    nativeWidth = imgService.width ?? undefined;
-    nativeHeight = imgService.height ?? undefined;
     const sizeInfo = getImageSize(imgService, scaleFactor);
     imageUrl = `${imgService.id ?? imgService['@id']}/full/${sizeInfo.iiifSize
       }/0/default.jpg`;
@@ -346,8 +349,6 @@ async function fetchCanvasImage(
     }
   } else if (image.id && image.format === 'image/jpeg') {
     imageUrl = image.id;
-    nativeWidth = (image as any).width as number | undefined;
-    nativeHeight = (image as any).height as number | undefined;
   } else {
     log.error(
       `No JPEG image identifier for resource ${image.id} could be found!`
@@ -528,19 +529,19 @@ export async function fetchCanvasData(
       acc.push({
         ...imgInfo,
         ...x.value,
-      // FIXME: How can we get rid of the cast?
+        // FIXME: How can we get rid of the cast?
       } as CanvasImage);
       return acc;
     }, [] as CanvasImage[])
-  const failures = results
-    .reduce((acc, x, idx) => {
-      if (x.status !== 'rejected') {
-        return acc;
+  const failures: ImageFetchFailure[] = results
+    .filter((x): x is PromiseRejectedResult => x.status === 'rejected')
+    .map((x, idx) => {
+      const info = imageInfos[idx];
+      return {
+        ...info,
+        cause: x.reason,
       }
-      const imgId = imageInfos[idx].resource.id!;
-      acc[imgId] = x.reason as Error;
-      return acc;
-    }, {} as {[ident: string]: Error});
+    });
   const ppi = ppiOverride;
   if (!ppiOverride) {
     let ppi = getPointsPerInch(canvas.service) ?? undefined;

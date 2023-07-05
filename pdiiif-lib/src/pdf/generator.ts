@@ -27,7 +27,7 @@ import { PdfParser } from './parser.js';
 import { OcrPage, OcrSpan } from '../ocr.js';
 import pdiiifVersion from '../version.js';
 import log from '../log.js';
-import { CanvasImage, StartCanvasInfo } from '../download.js';
+import { CanvasImage, ImageFetchFailure, StartCanvasInfo, isImageFetchFailure } from '../download.js';
 import { Annotation, CanvasInfo, getI18nValue } from '../iiif.js';
 import {
   buildCentralFileDirectory,
@@ -779,7 +779,7 @@ export default class PDFGenerator {
       width: canvasWidth,
       height: canvasHeight,
     }: { width: number; height: number },
-    images: CanvasImage[],
+    images: (CanvasImage | ImageFetchFailure)[],
     annotations: Annotation[],
     ocrText?: OcrPage,
     ppi = 300
@@ -815,8 +815,12 @@ export default class PDFGenerator {
     const optionalGroupIds: { [imgId: string]: string } = {};
     for (const [
       idx,
-      { x, y, width, height, choiceInfo },
+      image,
     ] of images.entries()) {
+      if (isImageFetchFailure(image)) {
+        continue;
+      }
+      const { x, y, width, height, choiceInfo } = image;
       const drawWidth = unitScale * width;
       const drawHeight = unitScale * height;
       const drawX = unitScale * x;
@@ -859,9 +863,12 @@ export default class PDFGenerator {
     });
     const optionalGroupObjectNums: { [imgId: string]: number } = {};
     if (images.some((i) => i.choiceInfo?.optional)) {
-      for (const [idx, { choiceInfo }] of images.entries()) {
+      for (const [idx, img] of images.entries()) {
+        if (isImageFetchFailure(img)) {
+          continue;
+        }
         const imageId = `/Im${idx + 1}`;
-        if (!choiceInfo?.optional) {
+        if (!img.choiceInfo?.optional) {
           continue;
         }
         // FIXME: This is broken for the layers example!
@@ -873,6 +880,9 @@ export default class PDFGenerator {
     const xObjects: PdfDictionary = {};
     const properties: PdfDictionary = {};
     for (const [idx, num] of imageObjectNums.entries()) {
+      if (isImageFetchFailure(images[idx])) {
+        continue;
+      }
       const imageId = `/Im${idx + 1}`;
       xObjects[imageId.substring(1)] = makeRef(num);
       const ocgNum = optionalGroupObjectNums[imageId];
@@ -890,8 +900,17 @@ export default class PDFGenerator {
     const canvasIdx = this._canvasInfos.findIndex(
       (ci) => ci.canvas.id === canvasId
     );
-    for (const [imgIdx, { data }] of images.entries()) {
-      const imageData = new Uint8Array(data!);
+    for (const [imgIdx, img] of images.entries()) {
+      if (isImageFetchFailure(img)) {
+        // Dummy image data object
+        this._addObject({});
+        if (this._polyglot) {
+          // Dummy dummy zip header object
+          this._addObject({});
+        }
+        continue;
+      }
+      const imageData = new Uint8Array(img.data!);
       const image = PdfImage.open(imageData);
       // TODO: Currently we only support JPEG, if we expand to other
       //       file types we need to consider multiple objects pe rimage
@@ -910,24 +929,29 @@ export default class PDFGenerator {
       this._objects.push(imageObj);
     }
 
-    if (images.some((i) => i.choiceInfo?.optional)) {
+    if (images.some((i) => i?.choiceInfo?.optional)) {
       log.debug('Creating optional content groups for page');
       for (const [
         idx,
-        { choiceInfo },
+        img,
       ] of images.entries()) {
         const imageId = `/Im${idx + 1}`;
-        if (!choiceInfo) {
+        if (!img?.choiceInfo) {
+          continue;
+        }
+        if (isImageFetchFailure(img)) {
+          // Dummy object to maintain precalculated object numbers
+          this._addObject({});
           continue;
         }
         optionalGroupObjectNums[imageId] = this._nextObjNo;
         this._addObject({
           Type: '/OCG',
-          Name: choiceInfo.label
-            ? `(${getI18nValue(choiceInfo.label, this._langPref, '/')})`
+          Name: img.choiceInfo.label
+            ? `(${getI18nValue(img.choiceInfo.label, this._langPref, '/')})`
             : undefined,
           Intent: '/View',
-          Usage: choiceInfo.visibleByDefault ? '/ON' : '/OFF',
+          Usage: img.choiceInfo.visibleByDefault ? '/ON' : '/OFF',
         } as PdfDictionary);
       }
     }
