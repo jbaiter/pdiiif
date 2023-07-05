@@ -54,8 +54,8 @@ import {
 
 /** Progress information for rendering a progress bar or similar UI elements. */
 export interface ProgressStatus {
-  /** Human-readable message about what is currently going on */
-  message?: string;
+  /** Message code that should be mapped to a human readable description in a UI. */
+  messageCode?: ProgressMessageCode;
   /** Expected total number of pages in the PDF */
   totalPages: number;
   /** Number of pages that were submitted for writing */
@@ -128,6 +128,9 @@ export interface ConvertOptions {
   /** Callback that gets called whenever a page has finished, useful to render a
       progress bar. */
   onProgress?: (status: ProgressStatus) => void;
+  /** Callback that gets called with a notification when an error occurs during PDF generation
+   *  that does not cause the conversion to fail. */
+  onNotification?: (notification: ProgressNotification) => void;
   /** Controller that allows aborting the PDF generation. All pending
       downloads will be terminated. The caller is responsible for
       removing underlying partial files and/or other user signaling. */
@@ -359,6 +362,30 @@ async function buildOutlineFromRanges(
   );
 }
 
+export type ProgressMessageCode =
+  'generate-cover-page' |
+  'generate-pages' |
+  'finishing';
+
+export type ProgressNotification =
+  ImageDownloadFailureNotification |
+  OcrDownloadFailureNotification;
+
+export type ImageDownloadFailureNotification = {
+  code: 'image-download-failure';
+  canvasIndex: number;
+  numFailed: number;
+  numTotal: number;
+  details: {
+    [imageUrl: string]: string;
+  }
+}
+export type OcrDownloadFailureNotification = {
+  code: 'ocr-download-failure';
+  canvasIndex: number;
+  ocrUrl: string;
+}
+
 /** Tracks PDF generation progress and various statistics related to that. */
 class ProgressTracker {
   canvasPixels = 0;
@@ -372,12 +399,14 @@ class ProgressTracker {
   totalCanvasPixels = 0;
   countingStream: CountingWriter;
   onProgress?: (status: ProgressStatus) => void;
+  onNotification?: (notification: ProgressNotification) => void;
 
   constructor(
     canvases: CanvasNormalized[],
     countingStream: CountingWriter,
     pdfGen: PDFGenerator,
-    onProgress?: (status: ProgressStatus) => void
+    onProgress?: (status: ProgressStatus) => void,
+    onNotification?: (notification: ProgressNotification) => void
   ) {
     this.totalCanvasPixels = canvases.reduce(
       (sum, canvas) => sum + canvas.width * canvas.height,
@@ -387,6 +416,7 @@ class ProgressTracker {
     this.pdfGen = pdfGen;
     this.countingStream = countingStream;
     this.onProgress = onProgress;
+    this.onNotification = onNotification;
   }
 
   /** Check if there is still data that needs to be written out. */
@@ -395,7 +425,7 @@ class ProgressTracker {
   }
 
   /** Emit a progress update, with an optional message. */
-  emitProgress(pagesWritten: number, message?: string): void {
+  emitProgress(pagesWritten: number, messageCode?: ProgressMessageCode): void {
     if (!this.timeStart) {
       this.timeStart = now();
     }
@@ -415,7 +445,7 @@ class ProgressTracker {
       remainingDuration = (estimatedFileSize - bytesWritten) / writeSpeed;
     }
     this.onProgress?.({
-      message,
+      messageCode,
       pagesWritten,
       totalPages: this.totalPages,
       bytesWritten,
@@ -424,6 +454,12 @@ class ProgressTracker {
       writeSpeed,
       remainingDuration,
     });
+  }
+
+  /** Emit a notification message to inform the user about unexpected stuff that
+   * happens during PDF generation */
+  emitNotification(notification: ProgressNotification) {
+    this.onNotification?.(notification);
   }
 
   /** Update how many actual pixels and 'canvas pixels' have been written. */
@@ -571,6 +607,7 @@ export async function convertManifest(
     scaleFactor,
     metadata = {},
     onProgress,
+    onNotification,
     ppi,
     concurrency = 1,
     abortController = new AbortController(),
@@ -700,13 +737,14 @@ export async function convertManifest(
     canvases,
     countingWriter,
     pdfGen,
-    onProgress
+    onProgress,
+    onNotification,
   );
   progress.emitProgress(0);
 
   if (coverPageCallback || coverPageEndpoint) {
     log.debug(`Generating cover page`);
-    progress.emitProgress(0, 'Generating cover page');
+    progress.emitProgress(0, 'generate-cover-page');
     try {
       const coverPageData = await getCoverPagePdf(
         manifest,
@@ -723,7 +761,7 @@ export async function convertManifest(
     }
   }
 
-  progress.emitProgress(0, 'Downloading images and generating PDF pages');
+  progress.emitProgress(0, 'generate-pages');
   for (let canvasIdx = 0; canvasIdx < canvases.length; canvasIdx++) {
     if (abortController.signal.aborted) {
       log.debug('Abort signalled, aborting while waiting for image data.');
@@ -755,6 +793,10 @@ export async function convertManifest(
             ]))
         };
         report.failedImages.push(reportData);
+        progress.emitNotification({
+          code: 'image-download-failure',
+          ...reportData
+        });
       }
       if (canvasInfo.ocr && !text?.markup) {
         if (!report.failedOcr) {
@@ -765,6 +807,10 @@ export async function convertManifest(
           ocrUrl: canvasInfo.ocr.id,
         }
         report.failedOcr.push(reportData);
+        progress.emitNotification({
+          code: 'ocr-download-failure',
+          ...reportData,
+        });
       }
       const externalAnnotations = await fetchCanvasAnnotations(canvas.id);
       if (externalAnnotations != null) {

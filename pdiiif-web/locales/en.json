@@ -8,7 +8,12 @@
         "pdf_failure_conn": "Failed to generate PDF: Could not connect to server at {apiEndpoint}",
         "estimate_failure": "Failed to load size estimate.",
         "invalid_canvas_range": "Invalid canvas range: {range}",
-        "invalid_canvas_range_bad_index": "Invalid canvas range: {range}, only values between 1 and {canvasCount} are allowed."
+        "invalid_canvas_range_bad_index": "Invalid canvas range: {range}, only values between 1 and {canvasCount} are allowed.",
+        "pdfgen": {
+            "image-download-failure": "{numFailed} {numFailed, plural, one {an image}, other {{numFailed} images}} on page {canvasIndex} could not be downloaded, they will be missing from the page.",
+            "image-download-failure-all": "None of the images on page {canvasIndex} could be downloaded, the page will be empty.",
+            "ocr-download-failure": "Failed to download OCR for page {canvasIndex}, it will not have selectable text."
+        }
     },
     "notifications": {
         "success": "PDF successfully generated.",

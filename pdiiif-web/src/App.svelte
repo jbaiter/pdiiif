@@ -3,7 +3,14 @@
   import { onMount } from 'svelte';
   import { _ } from 'svelte-i18n';
   import classNames from 'classnames';
-  import { convertManifest, estimatePdfSize, type Estimation, type ProgressStatus } from 'pdiiif';
+  import {
+    convertManifest,
+    estimatePdfSize,
+    type ConversionReportWithData,
+    type Estimation,
+    type ProgressStatus,
+    type ProgressNotification,
+  } from 'pdiiif';
   import { getValue } from '@iiif/vault-helpers';
   import streamSaver from 'streamsaver';
 
@@ -279,6 +286,22 @@
         onProgress: (status) => {
           currentProgress = status;
         },
+        onNotification: (msg) => {
+          let i18nKey: string = msg.code;
+          if (
+            msg.code === 'image-download-failure' &&
+            msg.numFailed === msg.numTotal
+          ) {
+            // If all images failed to download, show a different message
+            i18nKey = 'image-download-failure-all';
+          }
+          addNotification({
+            type: 'error',
+            message: $_(`errors.pdfgen.${i18nKey}`, {
+              values: msg as Record<string, string | number>,
+            }),
+          });
+        },
         abortController,
         coverPageEndpoint,
         scaleFactor,
@@ -357,6 +380,23 @@
         }
       })
     );
+    progressSource.addEventListener('notification', (evt) => {
+      const notification = JSON.parse((evt as any).data) as ProgressNotification;
+      let i18nKey: string = notification.code;
+      if (
+        notification.code === 'image-download-failure' &&
+        notification.numFailed === notification.numTotal
+      ) {
+        // If all images failed to download, show a different message
+        i18nKey = 'image-download-failure-all';
+      }
+      addNotification({
+        type: 'error',
+        message: $_(`errors.pdfgen.${i18nKey}`, {
+          values: notification as Record<string, string | number>,
+        }),
+      });
+    });
     progressSource.addEventListener('queue', (evt) => {
       const queuePosition = JSON.parse((evt as any).data).position;
       if (!queueState) {
@@ -462,7 +502,7 @@
         choices={notification.choices}
         on:close={() => {
           notification.onClose?.();
-          notifications = notifications.filter(n => n !== notification);
+          notifications = notifications.filter((n) => n !== notification);
         }}
       >
         {notification.message}

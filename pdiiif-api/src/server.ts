@@ -18,7 +18,7 @@ import {
 } from '@iiif/presentation-3';
 import { globalVault, Vault } from '@iiif/vault';
 import { buildLocaleString } from '@iiif/vault-helpers';
-import { convertManifest, ProgressStatus } from 'pdiiif';
+import { convertManifest, ProgressNotification, ProgressStatus } from 'pdiiif';
 
 import {
   middleware as openApiMiddleware,
@@ -340,6 +340,7 @@ app.get(
       return;
     };
     let onProgress: (status: ProgressStatus) => void | undefined;
+    let onNotification: (msg: ProgressNotification) => void | undefined;
     if (progressToken && typeof progressToken === 'string') {
       res.socket.on('close', () => {
         const clientResp = progressClients[progressToken];
@@ -357,6 +358,13 @@ app.get(
         if (clientResp) {
           clientResp.write('event: progress\n');
           clientResp.write(`data: ${JSON.stringify(progressStatus)}\n\n`);
+        }
+      };
+      onNotification = (notification) => {
+        const clientResp = progressClients[progressToken];
+        if (clientResp) {
+          clientResp.write('event: notification\n');
+          clientResp.write(`data: ${JSON.stringify(notification)}\n\n`);
         }
       };
       onQueueAdvance = (pos) => {
@@ -388,6 +396,7 @@ app.get(
               : Number.parseFloat(scaleFactor as string),
           ppi: ppi === undefined ? undefined : Number.parseInt(ppi as string),
           onProgress,
+          onNotification,
           coverPageCallback: async (params) => {
             const buf = await coverPageGenerator.render(params);
             return new Uint8Array(buf.buffer);
