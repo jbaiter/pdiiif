@@ -19,7 +19,18 @@ if (typeof window !== 'undefined' && window.TextEncoder && window.TextDecoder) {
 }
 
 // If running in node, use the web compatible crypto implementation
-const crypto = nodeCrypto?.webcrypto ?? window.crypto;
+let crypto: Crypto;
+if (nodeCrypto) {
+  try {
+    crypto = nodeCrypto.webcrypto as Crypto;
+  } catch {
+    // For use in vite dev environment where `nodeCrypto` is a Proxy object
+    // NOTE: Can't use import.meta.env here because it's not available in commonjs modules
+    crypto = window.crypto;
+  }
+} else {
+  crypto = window.crypto;
+}
 
 
 export const IS_BIG_ENDIAN = (() => {
