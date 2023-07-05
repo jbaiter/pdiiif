@@ -876,19 +876,20 @@ export async function convertManifest(
   if (!abortController.signal.aborted) {
     let closed = false;
     endPromise.then(() => (closed = true));
-    const progressOnDrain = () => {
+    const progressOnDrain = async () => {
       if (closed) {
         return;
       }
-      progress.emitProgress(canvases.length, 'Finishing PDF generation');
-      if (!closed && progress.writeOutstanding) {
-        writer.waitForDrain().then(progressOnDrain);
+      progress.emitProgress(canvases.length, 'finishing');
+      while (!closed && progress.writeOutstanding) {
+        await writer.waitForDrain();
       }
     };
 
     // Wait for initial drainage event in case the writer isn't already closed
     if (!closed) {
-      writer.waitForDrain().then(progressOnDrain);
+      await writer.waitForDrain();
+      await progressOnDrain();
     }
   }
 
