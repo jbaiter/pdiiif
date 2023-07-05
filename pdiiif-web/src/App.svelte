@@ -22,7 +22,6 @@
     getMaximumBlobSize,
     supportsStreamsaver,
   } from './util';
-  import { KeepAliveStreamSaver } from './io';
 
   export let apiEndpoint: string = 'http://localhost:31337/api';
   export let coverPageEndpoint: string = `${apiEndpoint}/coverpage`;
@@ -68,7 +67,6 @@
 
   // Ref to manifest input
   let manifestInput: HTMLInputElement | undefined;
-
 
   $: if (notifyWhenDone && window.Notification.permission === 'default') {
     window.Notification.requestPermission().then((status) => {
@@ -242,7 +240,7 @@
       }
       webWritable = await handle.createWritable();
     } else if (supportsStreamsaver()) {
-      webWritable = new KeepAliveStreamSaver(`${cleanLabel}.pdf`);
+      webWritable = streamSaver.createWriteStream(`${cleanLabel}.pdf`);
       window.addEventListener('beforeunload', (evt) => {
         if (currentProgress && !cancelled && !pdfFinished) {
           const msg = $_('unload_warning');
