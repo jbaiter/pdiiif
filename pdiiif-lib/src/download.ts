@@ -113,7 +113,7 @@ export async function fetchRespectfully(
     do {
       // Don't catch network errors, let them bubble up
       resp = await fetchImpl(url, init);
-      if (resp.ok || resp.status < 500) {
+      if (resp.ok) {
         break;
       }
       numRetries++;
