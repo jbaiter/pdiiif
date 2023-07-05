@@ -5,19 +5,43 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Changed
+- pdiiif-lib: `convertManifest` now returns a `ConversionReport` with details
+  about the PDF generation process, including which images and OCR files failed
+  to download
+- pdiiif-lib: Be more obnoxious when retrying failed resource downloads, namely
+  retry on 4xx errors as well as 5xx
+
+### Added
+- pdiiif-lib: Added a `onNotification(notification: ProgressNotification)` API
+  through which errors/warnings that don't abort the PDF generation can be
+  displayed while the PDF is generating
+- pdiiif-api: Added a `notification` event type to inform users about errors/
+  warnings that don't abort the PDF generation
+- pdiiif-web: Show notifications for errors/warnings during PDF generation
+
+### Fixed
+- pdiiif-lib: Fix compatibility with Node.js versions >=20
+- pdiiif-lib: Fix broken PDFs when images fail to download
+- pdiiif-web: Fix premature download termination in Firefox >=102 when
+  the PDF generation process is very slow
+
+
 ## [0.1.8] - 2023-06-27
 
-## Fixed
+### Fixed
 - pdiiif-api: Fix bug when running in Node 20
 - pdiiif-lib: Fix version specifier
 
 ## [0.1.7] - 2023-06-22
 
-## Changed
+### Changed
 - docker: Updated image to Node 20 and Debian bookworm, rely on Puppeteer-provided
   Chrome version instead of downloading it from the Debian repository
 
-## Fixed
+### Fixed
 - pdiiif-lib: fetch polyfill for older Node.js versions works now
 - pdiiif-api: Exceptions are now properly logged
 
