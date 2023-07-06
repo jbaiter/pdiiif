@@ -1,6 +1,6 @@
 {
   "name": "pdiiif",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "Generate fully featured PDFs from IIIF manifests",
   "type": "module",
   "sideEffects": false,
