@@ -19,6 +19,7 @@ import Presentation2 from '@iiif/presentation-2';
 import { convertPresentation2 } from '@iiif/parser/presentation-2';
 import PQueue from 'p-queue';
 import events from 'events';
+import * as ocrParser from 'ocr-parser';
 
 import PDFGenerator from './pdf/generator.js';
 import {
@@ -41,7 +42,7 @@ import {
   fetchManifestJson,
 } from './download.js';
 import metrics from './metrics.js';
-import { isDefined, now } from './util.js';
+import { initializeSaxParser, isDefined, now, saxParserWasm } from './util.js';
 import log from './log.js';
 import {
   getI18nValue,
@@ -155,6 +156,13 @@ export interface ConvertOptions {
   /** Base directory in the polyglot ZIP archive. If not set, all resource
    * directories will be to-level in the archive. */
   polyglotZipBaseDir?: string;
+  /** Custom loader callback that fetches the WASM binary for the `sax-wasm`
+   *  dependency (v2.2.4). By default, the dependency will be loaded from
+   *  `https://unpkg.com/sax-wasm/dist/sax-wasm.wasm`. Override if you want
+   *  to provide your own payload. Loader will not be called if {@link initialize}
+   *  from `ocr-parser` has been called before.
+   */
+  saxWasmLoader?: () => Promise<Uint8Array>;
 }
 
 /** Parameters for size estimation */
@@ -615,6 +623,10 @@ export async function convertManifest(
     coverPageEndpoint,
     polyglotZipPdf,
     polyglotZipBaseDir,
+    saxWasmLoader = async () =>
+      fetch(`https://unpkg.com/sax-wasm@${ocrParser.SAX_WASM_VERSION}/lib/sax-wasm.wasm`)
+        .then((res) => res.arrayBuffer())
+        .then((buf) => new Uint8Array(buf)),
   }: ConvertOptions
 ): Promise<ConversionReport | ConversionReportWithData> {
   // Prevent warning when running in Node.js
@@ -687,6 +699,23 @@ export async function convertManifest(
   const labels = canvases.map((canvas) =>
     canvas.label ? getI18nValue(canvas.label, languagePreference, '; ') : ''
   );
+
+  // Initialize XML parsers
+  if (!saxParserWasm || !ocrParser.isInitialized()) {
+    if (!saxParserWasm) {
+      const wasm = await saxWasmLoader();
+      initializeSaxParser(wasm);
+    }
+    if (!ocrParser.isInitialized()) {
+      await ocrParser.initialize(() => Promise.resolve(saxParserWasm!));
+      ocrParser.setupLogging({
+        debug: log.debug.bind(log),
+        info: log.info.bind(log),
+        warn: log.warn.bind(log),
+        error: log.error.bind(log),
+      });
+    }
+  }
 
   // Fetch images concurrently, within limits specified by user
   log.debug(`Setting up queue with ${concurrency} concurrent canvas fetches.`);

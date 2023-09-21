@@ -1,3 +1,5 @@
+export let saxParserWasm: Uint8Array | null = null;
+
 /** Get a timestamp in milliseconds, prefereably high-resolution */
 export function now(): number {
   if (typeof window !== 'undefined' && window.performance) {
@@ -27,4 +29,12 @@ export function crc32(data: Uint8Array): number {
     c = CRC_TABLE[(c & 255) ^ data[i]] ^ (c >>> 8);
   }
   return ~c;
+}
+
+export function runningInNode(): boolean {
+  return typeof process !== 'undefined' && typeof process.versions?.node !== 'undefined';
+}
+
+export function initializeSaxParser(parserWasm: Uint8Array): void {
+  saxParserWasm = parserWasm;
 }

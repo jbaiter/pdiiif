@@ -1,14 +1,5 @@
-/*
-import { TextEncoder, TextDecoder } from 'util'
-(global as any).TextEncoder = TextEncoder;
-(global as any).TextDecoder = TextDecoder;
-*/
-import jsdom from 'jsdom';
-import createDOMPurify, { DOMPurifyI } from 'dompurify';
-import CSSColor from 'color';
-
-import { PdfDictionary } from './common';
-import { Annotation } from '../iiif';
+import { PdfDictionary } from './common.js';
+import { Annotation } from '../iiif.js';
 import {
   BoxSelector,
   SelectorStyle,
@@ -17,6 +8,8 @@ import {
 } from '@iiif/vault-helpers/annotation-targets';
 import { PointSelector } from '@iiif/presentation-3';
 import Color from 'color';
+import { SAXParser, SaxEventType, Text } from 'sax-wasm';
+import { textEncoder } from './util.js';
 
 const ALLOWED_CSS_RULES = [
   'text-align',
@@ -47,34 +40,14 @@ function sanitizeCssForPdf(styleAttrib: string): string {
   return out.join('; ');
 }
 
-let DOMPurify: DOMPurifyI;
-let dummyDoc: Document;
-if (typeof window === 'undefined') {
-  const window = new jsdom.JSDOM('').window as unknown;
-  dummyDoc = (window as Window).document;
-  DOMPurify = createDOMPurify(window as Window);
-} else {
-  DOMPurify = createDOMPurify(window);
-  dummyDoc = window.document;
-}
-DOMPurify.addHook('uponSanitizeAttribute', (node, data) => {
-  if (data.attrName !== 'style') {
-    return;
-  }
-  data.attrValue = sanitizeCssForPdf(data.attrValue);
-});
-
-function htmlToPdfRichText(html: string): string {
-  return DOMPurify.sanitize(html, {
-    ALLOWED_TAGS: ['p', 'b', 'i', 'span'],
-    ALLOWED_ATTR: ['style'],
-  });
-}
-
 function htmlToPlainText(html: string): string {
-  const elem = dummyDoc.createElement('div');
-  elem.innerHTML = html;
-  return elem.textContent ?? elem.innerText;
+  const parser = new SAXParser(SaxEventType.Text, { highWaterMark: 1024 });
+  const txt: string[] = [];
+  parser.eventHandler = (ev, data) => {
+    txt.push((data as Text).value);
+  }
+  parser.write(textEncoder.encode(html));
+  return txt.join('').trim();
 }
 
 function toPdfRect(
@@ -99,26 +72,7 @@ function toPdfRect(
 }
 
 function cssColorToRgb(cssColor: string): [number, number, number] | null {
-  // NodeJS: Use color-convert
-  if (typeof Color !== 'undefined') {
-    return Color(cssColor).rgb().array() as [number, number, number];
-  }
-  // Codepath for browser: Use the DOM, it knows how to parse colors (-:
-  const dummyElem = window.document.createElement('div');
-  dummyElem.style.background = cssColor;
-  dummyElem.style.display = 'none';
-  // Need to add the element to the actual DOM to have the style computed...
-  document.appendChild(dummyElem);
-  const rgb = window.getComputedStyle(dummyElem).backgroundColor;
-  document.removeChild(dummyElem);
-  const match = RGB_PAT.exec(rgb);
-  if (!match) {
-    console.warn(`Failed to convert CSS color to RGB: ${cssColor}`);
-    return null;
-  }
-  return ['r', 'g', 'b'].map((col) =>
-    parseInt(match.groups?.[col] ?? '0', 10)
-  ) as [number, number, number];
+  return Color(cssColor).rgb().array() as [number, number, number];
 }
 
 function cssLengthToPdfUserspace(

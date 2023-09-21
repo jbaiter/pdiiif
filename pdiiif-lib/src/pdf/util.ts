@@ -6,32 +6,26 @@ import nodeCrypto from 'crypto';
 import { StartCanvasInfo } from '../download.js';
 import { PdfDictionary } from './common.js';
 import log from '../log.js';
+import { runningInNode } from '../util.js';
 
 // Browsers have native encoders/decoders in the global namespace, use these
 export let textEncoder: TextEncoder | util.TextEncoder;
 export let textDecoder: TextDecoder | util.TextDecoder;
-if (typeof window !== 'undefined' && window.TextEncoder && window.TextDecoder) {
-  textEncoder = new window.TextEncoder();
-  textDecoder = new window.TextDecoder();
+if (typeof TextEncoder !== 'undefined' && typeof TextDecoder !== 'undefined') {
+  textEncoder = new TextEncoder();
+  textDecoder = new TextDecoder();
 } else {
   textEncoder = new util.TextEncoder();
   textDecoder = new util.TextDecoder();
 }
 
 // If running in node, use the web compatible crypto implementation
-let crypto: Crypto;
-if (nodeCrypto) {
-  try {
-    crypto = nodeCrypto.webcrypto as Crypto;
-  } catch {
-    // For use in vite dev environment where `nodeCrypto` is a Proxy object
-    // NOTE: Can't use import.meta.env here because it's not available in commonjs modules
-    crypto = window.crypto;
-  }
+let cryptoImpl: Crypto;
+if (runningInNode()) {
+  cryptoImpl = nodeCrypto.webcrypto as Crypto;
 } else {
-  crypto = window.crypto;
+  cryptoImpl = crypto;
 }
-
 
 export const IS_BIG_ENDIAN = (() => {
   const array = new Uint8Array(4);
@@ -47,7 +41,9 @@ export interface TocItem {
 
 export function getNumChildren(itm: TocItem): number {
   const children = itm.children ?? [];
-  return children.length + children.map(getNumChildren).reduce((a, b) => a + b, 0);
+  return (
+    children.length + children.map(getNumChildren).reduce((a, b) => a + b, 0)
+  );
 }
 
 export function randomData(length: number): Uint8Array {
@@ -55,8 +51,8 @@ export function randomData(length: number): Uint8Array {
     length = 2 ** 16;
   }
   const buf = new Uint8Array(length);
-  if (crypto !== undefined) {
-    crypto.getRandomValues(buf);
+  if (cryptoImpl !== undefined) {
+    cryptoImpl.getRandomValues(buf);
   } else {
     const u32View = new Uint32Array(buf.buffer);
     for (let i = 0; i < u32View.length; i++) {
@@ -72,8 +68,8 @@ export async function tryDeflateStream(
   const data =
     pdfStream instanceof Uint8Array ? pdfStream : textEncoder.encode(pdfStream);
   let compressed: Uint8Array;
-  if (typeof window !== 'undefined') {
-    if (typeof (window as any).CompressionStream === 'undefined') {
+  if (!runningInNode()) {
+    if (typeof CompressionStream === 'undefined') {
       // Browser doesn't support CompressionStream API, try to use the JS implementation
       try {
         let bytes: Uint8Array;
@@ -85,17 +81,19 @@ export async function tryDeflateStream(
         compressed = zlibSync(bytes);
         return Promise.resolve({
           stream: compressed,
-          dict: { Length: compressed.length, Filter: '/FlateDecode' }
+          dict: { Length: compressed.length, Filter: '/FlateDecode' },
         });
       } catch (err) {
-        log.warn(`Failed to use JS deflate implementation, data will be written uncompressed: ${err}`);
+        log.warn(
+          `Failed to use JS deflate implementation, data will be written uncompressed: ${err}`
+        );
         return Promise.resolve({
           stream: pdfStream,
           dict: { Length: pdfStream.length },
         });
       }
     }
-    const compStream = new (window as any).CompressionStream('deflate');
+    const compStream = new CompressionStream('deflate');
     const c = new Blob([data]).stream().pipeThrough(compStream);
     compressed = new Uint8Array(await new Response(c).arrayBuffer());
   } else {

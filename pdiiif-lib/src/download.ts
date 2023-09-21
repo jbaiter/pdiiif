@@ -1,24 +1,22 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { Mutex } from 'async-mutex';
 import {
-  AnnotationNormalized,
   CanvasNormalized,
-  ContentResource,
   ExternalWebResource,
   FragmentSelector,
   IIIFExternalWebResource,
   ImageService,
   ImageService3,
-  InternationalString,
   ManifestNormalized,
   RangeNormalized,
   Reference,
   Selector,
   Service,
 } from '@iiif/presentation-3';
+import { OcrPage } from 'ocr-parser';
 import nodeFetch from 'node-fetch';
 
-import { OcrPage, fetchAndParseText } from './ocr.js';
+import { OcrPageWithMarkup, fetchAndParseText } from './ocr.js';
 import metrics from './metrics.js';
 import log from './log.js';
 import {
@@ -36,7 +34,7 @@ import { isDefined } from './util.js';
 // fetch for node
 let fetchImpl: typeof fetch;
 if (typeof fetch === 'undefined') {
-  fetchImpl = nodeFetch as typeof fetch;
+  fetchImpl = (nodeFetch as unknown) as typeof fetch;
 } else {
   fetchImpl = fetch;
 }
@@ -270,7 +268,7 @@ export function isImageFetchFailure(obj: CanvasImageData | ImageFetchFailure): o
 /** All the data relevant for the canvas: images and text */
 export type CanvasData = {
   canvas: Reference<'Canvas'>;
-  text?: OcrPage;
+  text?: OcrPageWithMarkup;
   images: CanvasImage[];
   annotations: Annotation[];
   ppi?: number;
@@ -550,10 +548,12 @@ export async function fetchCanvasData(
     }
   }
   let text;
-  try {
-    text = await fetchAndParseText(canvas, undefined);
-  } catch (err) {
-    log.warn(`Failed to fetch text for canvas ${canvas.id}: ${err}`);
+  if (!sizeOnly) {
+    try {
+      text = await fetchAndParseText(canvas, undefined);
+    } catch (err) {
+      log.warn(`Failed to fetch text for canvas ${canvas.id}: ${err}`);
+    }
   }
   return {
     canvas,

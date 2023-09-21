@@ -1,6 +1,8 @@
 import type { Histogram } from 'prom-client';
 import prometheus from 'prom-client';
 
+import { runningInNode } from './util.js';
+
 type Metrics =
   | {
       pageGenerationDuration: Histogram<string>;
@@ -13,7 +15,7 @@ type Metrics =
 let metrics: Metrics;
 
 // Prometheus metrics are only defined when running in node
-if (typeof window === 'undefined') {
+if (runningInNode()) {
   metrics = {
     pageGenerationDuration: new prometheus.Histogram({
       name: 'pdiiif_page_generation_duration_seconds',

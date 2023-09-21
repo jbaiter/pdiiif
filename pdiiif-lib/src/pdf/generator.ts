@@ -7,6 +7,7 @@
 import dedent from 'dedent-js';
 import { Manifest } from '@iiif/presentation-3';
 import { Manifest as ManifestV2 } from '@iiif/presentation-2';
+import { OcrLine } from 'ocr-parser';
 
 import {
   Metadata,
@@ -22,9 +23,9 @@ import {
 } from './common.js';
 import { TocItem, textEncoder, randomData, tryDeflateStream } from './util.js';
 import { ArrayReader, Writer } from '../io.js';
+import { OcrPageWithMarkup } from '../ocr.js';
 import PdfImage from './image.js';
 import { PdfParser } from './parser.js';
-import { OcrPage, OcrSpan } from '../ocr.js';
 import pdiiifVersion from '../version.js';
 import log from '../log.js';
 import { CanvasImage, ImageFetchFailure, StartCanvasInfo, isImageFetchFailure } from '../download.js';
@@ -781,7 +782,7 @@ export default class PDFGenerator {
     }: { width: number; height: number },
     images: (CanvasImage | ImageFetchFailure)[],
     annotations: Annotation[],
-    ocrText?: OcrPage,
+    ocrText?: OcrPageWithMarkup,
     ppi = 300
   ): Promise<void> {
     if (!this._pagesStarted) {
@@ -1013,7 +1014,7 @@ export default class PDFGenerator {
    *                     Version 2.0, January 2004
    *                  http://www.apache.org/licenses/
    */
-  _renderOcrText(ocr: OcrPage, unitScale: number): string {
+  _renderOcrText(ocr: OcrPageWithMarkup, unitScale: number): string {
     // TODO: Handle changes in writing direction!
     // TODO: Handle baselines, at least the simple ``cx+d` skewed-line-type, proper polyline support
     //       requires a per-character transformation matrix, which is a bit much for the current
@@ -1114,7 +1115,7 @@ export default class PDFGenerator {
   }
 
   renderOcrLine(
-    line: OcrSpan,
+    line: OcrLine,
     lineIdx: number,
     unitScale: number,
     pageHeight: number,
@@ -1143,12 +1144,12 @@ export default class PDFGenerator {
     ops.push(`${scaleX} ${shearX} ${shearY} ${scaleY} ${xPos} ${yPos} Tm`);
     let xOld = 0;
     let yOld = 0;
-    for (const word of line.spans) {
+    // TODO: What to do if non-word line content?
+    for (const word of line.words) {
       if (!word.text) {
         continue;
       }
-      if (word.isExtra || !word.width) {
-        // TODO: What to do if word.isExtra?
+      if (!word.width) {
         continue;
       }
       // Position drawing with relative moveto
