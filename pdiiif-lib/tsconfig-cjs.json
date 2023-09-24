@@ -9,7 +9,7 @@
     "target": "es2022",
     "esModuleInterop": true,
     "resolveJsonModule": true,
-    "lib": ["ES2022", "DOM.Iterable"]
+    "lib": ["ES2022", "DOM", "DOM.Iterable"]
   },
   "include": [
     "src/**/*.ts",
