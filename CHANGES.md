@@ -5,7 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.8] - 2023-07-06
+## [0.2.0] - 2023-09-26
+
+### Changed
+- pdiiif-lib: A DOM implementation is no longer required, wich makes it possible
+  to use pdiiif from a Worker or Service Worker
+
+### Fixed
+- pdiiif-lib: Fixed broken CommonJS build
+
+## [0.1.9] - 2023-07-06
 
 ### Changed
 - pdiiif-lib: `convertManifest` now returns a `ConversionReport` with details
