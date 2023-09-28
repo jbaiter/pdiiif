@@ -1,11 +1,7 @@
 {
   "compilerOptions": {
-    "declaration": true,
-    "declarationMap": true,
     "module": "es2022",
     "moduleResolution": "node",
-    "outDir": "lib/esm",
-    "declarationDir": "lib/types",
     "rootDir": "src",
     "strict": true,
     "strictNullChecks": true,
@@ -13,7 +9,7 @@
     "resolveJsonModule": true,
     "esModuleInterop": true,
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "sourceMap": true,
+    "sourceMap": true
   },
   "include": [
     "src/**/*.ts",
