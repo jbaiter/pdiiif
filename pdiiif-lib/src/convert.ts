@@ -31,7 +31,7 @@ import {
 } from './io.js';
 import { TocItem } from './pdf/util.js';
 import { getLicenseInfo } from './res/licenses.js';
-import { getTextSeeAlso } from './ocr.js';
+import { getOcrReferences } from './ocr.js';
 import pdiiifVersion from './version.js';
 import {
   fetchCanvasData,
@@ -695,7 +695,7 @@ export async function convertManifest(
   const canvases = vault.get<CanvasNormalized>(
     manifest.items.filter((c) => canvasPredicate(c.id))
   );
-  const hasText = !!canvases.find((c) => !!getTextSeeAlso(c));
+  const hasText = !!canvases.find((c) => !!getOcrReferences(c));
   const labels = canvases.map((canvas) =>
     canvas.label ? getI18nValue(canvas.label, languagePreference, '; ') : ''
   );

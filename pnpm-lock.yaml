@@ -190,8 +190,8 @@ importers:
         specifier: ^3.3.1
         version: 3.3.1
       ocr-parser:
-        specifier: ^0.2.3
-        version: 0.2.3
+        specifier: ^0.2.4
+        version: 0.2.4
       p-queue:
         specifier: ^7.3.4
         version: 7.3.4
@@ -280,8 +280,6 @@ importers:
       typescript:
         specifier: ^5.1.3
         version: 5.1.3
-
-  pdiiif-lib/lib/commonjs: {}
 
   pdiiif-web:
     dependencies:
@@ -6818,8 +6816,8 @@ packages:
     resolution: {integrity: sha512-lgHwxlxV1qIg1Eap7LgIeoBWIMFibOjbrYPIPJZcI1mmGAI2m3lNYpK12Y+GBdPQ0U1hRwSord7GIaawz962qQ==}
     dev: false
 
-  /ocr-parser@0.2.3:
-    resolution: {integrity: sha512-QN1R2qRCMAYiIMSfSe9p9kTMQ/tc13FHuGkU+HjwlNMn+ebqbSoj4OgylADigNaL6mz6OVFGkhab5HJzBRPFEw==}
+  /ocr-parser@0.2.4:
+    resolution: {integrity: sha512-xMaN6kspxqAEvRfG+bduxZW2xQz3UvN0hsTzhjz4YTmZg5Q78+0aIZsNMEwCsmee6/9qQ1Cu2Czh2qzn4u+mlQ==}
     dependencies:
       sax-wasm: 2.2.4
     dev: false

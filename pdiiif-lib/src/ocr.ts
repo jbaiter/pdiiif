@@ -130,15 +130,16 @@ export async function fetchAnnotationResource(url: string): Promise<any> {
   return resp.json();
 }
 
-/** Retrieve a supported 'seeAlso' resource from a Canvas, if present.
+/** Retrieve a supported OCR references from a Canvas' `seeAlso` or `rendering`, if present.
  *
  * 'Supported' currently means external ALTO or hOCR markup.
  */
-export function getTextSeeAlso(
+export function getOcrReferences(
   canvas: CanvasNormalized
 ): ExternalWebResourceWithProfile | undefined {
-  const seeAlsos = vault.get<ContentResource>(canvas.seeAlso);
-  return seeAlsos
+  const refs = vault.get<ContentResource>(canvas.seeAlso);
+  refs.push(...vault.get<ContentResource>(canvas.rendering));
+  return refs
     .filter(isExternalWebResourceWithProfile)
     .find((r) => isAlto(r) || isHocr(r));
 }
@@ -150,17 +151,17 @@ export async function fetchAndParseText(
   // TODO: Annotations are a major PITA due to all the indirection and multiple
   //       levels of fetching of external resources that might be neccessary,
   //       save for later once text rendering is properly done.
-  const seeAlso = getTextSeeAlso(canvas);
-  if (seeAlso) {
+  const ocrRefs = getOcrReferences(canvas);
+  if (ocrRefs) {
     const stopMeasuring = metrics?.ocrFetchDuration.startTimer({
-      ocr_host: new URL(seeAlso.id!).host,
+      ocr_host: new URL(ocrRefs.id!).host,
     });
     let markup;
     try {
-      markup = await fetchOcrMarkup(seeAlso.id!);
+      markup = await fetchOcrMarkup(ocrRefs.id!);
       stopMeasuring?.({
         status: 'success',
-        limited: rateLimitRegistry.isLimited(seeAlso.id!).toString(),
+        limited: rateLimitRegistry.isLimited(ocrRefs.id!).toString(),
       });
       if (!markup) {
         return undefined;
@@ -168,12 +169,12 @@ export async function fetchAndParseText(
     } catch (err) {
       stopMeasuring?.({
         status: 'error',
-        limited: rateLimitRegistry.isLimited(seeAlso.id!).toString(),
+        limited: rateLimitRegistry.isLimited(ocrRefs.id!).toString(),
       });
       throw err;
     }
     return (
-      (await parseOcr(seeAlso.id!, markup, {
+      (await parseOcr(ocrRefs.id!, markup, {
         width: canvas.width,
         height: canvas.height,
       })) ?? undefined

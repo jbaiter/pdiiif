@@ -7,7 +7,7 @@
 import dedent from 'dedent-js';
 import { Manifest } from '@iiif/presentation-3';
 import { Manifest as ManifestV2 } from '@iiif/presentation-2';
-import { OcrLine } from 'ocr-parser';
+import { OcrPage, OcrBlock, OcrParagraph, OcrLine, OcrWord } from 'ocr-parser';
 
 import {
   Metadata,
@@ -28,7 +28,12 @@ import PdfImage from './image.js';
 import { PdfParser } from './parser.js';
 import pdiiifVersion from '../version.js';
 import log from '../log.js';
-import { CanvasImage, ImageFetchFailure, StartCanvasInfo, isImageFetchFailure } from '../download.js';
+import {
+  CanvasImage,
+  ImageFetchFailure,
+  StartCanvasInfo,
+  isImageFetchFailure,
+} from '../download.js';
 import { Annotation, CanvasInfo, getI18nValue } from '../iiif.js';
 import {
   buildCentralFileDirectory,
@@ -447,7 +452,8 @@ export default class PDFGenerator {
     refName?: string,
     stream?: Uint8Array | string
   ): PdfObject {
-    const isObject = (x: unknown): x is object => typeof x === 'object' && x !== null;
+    const isObject = (x: unknown): x is object =>
+      typeof x === 'object' && x !== null;
     if (stream) {
       if (!isObject(val)) {
         throw new Error(
@@ -646,7 +652,7 @@ export default class PDFGenerator {
                 : undefined
             )
             .filter((x) => x !== undefined)
-            .flat() as PdfArray
+            .flat() as PdfArray,
         })
       );
     }
@@ -814,10 +820,7 @@ export default class PDFGenerator {
 
     const contentOps: string[] = [];
     const optionalGroupIds: { [imgId: string]: string } = {};
-    for (const [
-      idx,
-      image,
-    ] of images.entries()) {
+    for (const [idx, image] of images.entries()) {
       if (isImageFetchFailure(image)) {
         continue;
       }
@@ -873,7 +876,8 @@ export default class PDFGenerator {
           continue;
         }
         // FIXME: This is broken for the layers example!
-        optionalGroupObjectNums[imageId] = imageObjectNums.slice(-1)[0] + idx + 1;
+        optionalGroupObjectNums[imageId] =
+          imageObjectNums.slice(-1)[0] + idx + 1;
       }
     }
     const pageResources = (page.data as PdfDictionary)
@@ -932,10 +936,7 @@ export default class PDFGenerator {
 
     if (images.some((i) => i?.choiceInfo?.optional)) {
       log.debug('Creating optional content groups for page');
-      for (const [
-        idx,
-        img,
-      ] of images.entries()) {
+      for (const [idx, img] of images.entries()) {
         const imageId = `/Im${idx + 1}`;
         if (!img?.choiceInfo) {
           continue;
@@ -1025,91 +1026,55 @@ export default class PDFGenerator {
     ops.push('3 Tr'); // Use "invisible ink" (no fill, no stroke)
     const pageObjNum = this._nextObjNo - 1;
     let lineIdx = 0;
-    if (ocr.blocks) {
-      for (const block of ocr.blocks) {
-        const blockEntry: StructTreeEntry = {
+    const entries: StructTreeEntry[] = [];
+    const handleChild = (
+      child: OcrPage | OcrBlock | OcrParagraph | OcrLine,
+      parent?: StructTreeEntry
+    ) => {
+      if (child.type === 'block') {
+        entries.push({
           type: 'Sect',
           children: [],
           pageObjNum,
           mcs: [],
-        };
-        for (const paragraph of block.paragraphs) {
-          const paragraphEntry: StructTreeEntry = {
-            type: 'P',
-            children: [],
-            pageObjNum,
-            mcs: [],
-          };
-          for (const line of paragraph.lines) {
-            ops.push(
-              ...this.renderOcrLine(
-                line,
-                lineIdx,
-                unitScale,
-                pageHeight,
-                pageObjNum
-              )
-            );
-            paragraphEntry.children.push({
-              type: 'Span',
-              children: [],
-              pageObjNum,
-              mcs: [lineIdx],
-            });
-            lineIdx++;
-          }
-          blockEntry.children.push(paragraphEntry);
-        }
-        this._strucTree.push(blockEntry);
-      }
-    } else if (ocr.paragraphs) {
-      for (const paragraph of ocr.paragraphs) {
-        const paragraphEntry: StructTreeEntry = {
+        });
+      } else if (child.type === 'paragraph') {
+        entries.push({
           type: 'P',
           children: [],
           pageObjNum,
           mcs: [],
-        };
-        for (const line of paragraph.lines) {
-          ops.push(
-            ...this.renderOcrLine(
-              line,
-              lineIdx,
-              unitScale,
-              pageHeight,
-              pageObjNum
-            )
-          );
-          paragraphEntry.children.push({
-            type: 'Span',
-            children: [],
-            pageObjNum,
-            mcs: [lineIdx],
-          });
-          lineIdx++;
+        });
+        if (parent) {
+          parent.children.push(entries.slice(-1)[0]);
         }
-        this._strucTree.push(paragraphEntry);
-      }
-    } else if (ocr.lines) {
-      for (const line of ocr.lines) {
+      } else if (child.type === 'line') {
         ops.push(
           ...this.renderOcrLine(
-            line,
+            child,
             lineIdx,
             unitScale,
             pageHeight,
             pageObjNum
           )
         );
-        this._strucTree.push({
-          type: 'Span',
-          children: [],
-          pageObjNum,
-          mcs: [lineIdx],
-        });
+        if (parent) {
+          parent.children.push({
+            type: 'Span',
+            children: [],
+            pageObjNum,
+            mcs: [lineIdx],
+          });
+        }
         lineIdx++;
+        return;
       }
-    }
+      for (const grandchild of child.children) {
+        handleChild(grandchild, entries.slice(-1)[0]);
+      }
+    };
+    handleChild(ocr);
+    this._strucTree.push(...entries);
     ops.push('ET');
     return ops.join('\n');
   }

@@ -24,7 +24,7 @@ import {
 } from '@iiif/vault-helpers';
 import { ImageServiceLoader as ImageServiceLoader_ } from '@atlas-viewer/iiif-image-api';
 
-import { getTextSeeAlso } from './ocr.js';
+import { getOcrReferences } from './ocr.js';
 import log from './log.js';
 
 const PURPOSE_ORDER = ['commenting', 'describing', 'tagging', 'no-purpose'];
@@ -226,7 +226,7 @@ export function getCanvasAnnotations(canvas: CanvasNormalized): Annotation[] {
  */
 export function getCanvasInfo(canvas: CanvasNormalized): CanvasInfo {
   const imageInfos = getImageInfos(canvas);
-  const text = getTextSeeAlso(canvas);
+  const text = getOcrReferences(canvas);
   return {
     canvas: { id: canvas.id, type: 'Canvas' },
     images: imageInfos,
