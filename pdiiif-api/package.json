@@ -1,6 +1,6 @@
 {
   "name": "pdiiif-server",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "type": "module",
   "scripts": {
     "build": "tsc --build",
@@ -37,8 +37,7 @@
     "@types/handlebars-helpers": "^0.5.3",
     "@types/jsbn": "^1.2.30",
     "@types/lodash-es": "^4.17.7",
-    "@types/node": "^16.18.34",
-    "@types/node-fetch": "^2.6.4",
+    "@types/node": "^20.0.0",
     "@types/puppeteer": "^7.0.4",
     "@types/qrcode-svg": "^1.1.1",
     "@types/sanitize-html": "^2.9.0",
@@ -71,7 +70,6 @@
     "ip-cidr": "^3.1.0",
     "lodash-es": "^4.17.21",
     "mnemonist": "^0.39.5",
-    "node-fetch": "^3.3.1",
     "p-queue": "7.3.4",
     "pdiiif": "workspace:^",
     "prom-client": "^14.2.0",
@@ -91,7 +89,7 @@
     }
   },
   "engines": {
-    "node": ">=16.15.0"
+    "node": ">=20.0.0"
   },
   "engineStrict": true,
   "files": [

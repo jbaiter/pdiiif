@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 /* eslint-disable complexity */
 /// Utilities for parsing OCR text from hOCR, ALTO and IIIF Annotations
-import nodeFetch from 'node-fetch';
 import {
   Annotation,
   AnnotationNormalized,
@@ -23,14 +22,6 @@ import {
   ExternalWebResourceWithProfile,
   vault,
 } from './iiif.js';
-
-// Fetch for node
-let fetchImpl: typeof fetch;
-if (typeof fetch === 'undefined') {
-  fetchImpl = nodeFetch as unknown as typeof fetch;
-} else {
-  fetchImpl = fetch;
-}
 
 export type OcrPageWithMarkup = OcrPage & {
   id: string;
@@ -112,7 +103,7 @@ const isHocr = (resource: ExternalWebResourceWithProfile) =>
 
 /** Wrapper around fetch() that returns the content as text */
 async function fetchOcrMarkup(url: string): Promise<string | undefined> {
-  const resp = await fetchImpl(url);
+  const resp = await fetch(url);
   if (resp.status === 404) {
     return undefined;
   }

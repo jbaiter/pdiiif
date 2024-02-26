@@ -1,6 +1,6 @@
 {
   "name": "pdiiif-web",
-  "version": "0.2.2",
+  "version": "0.2.4",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -33,7 +33,7 @@
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^2.4.1",
     "@tsconfig/svelte": "^4.0.1",
-    "@types/node": "^18.16.16",
+    "@types/node": "^20.0.0",
     "@types/streamsaver": "^2.0.1",
     "@types/web": "^0.0.99",
     "@types/wicg-file-system-access": "^2020.9.6",

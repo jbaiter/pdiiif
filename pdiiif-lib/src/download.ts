@@ -13,8 +13,6 @@ import {
   Selector,
   Service,
 } from '@iiif/presentation-3';
-import { OcrPage } from 'ocr-parser';
-import nodeFetch from 'node-fetch';
 
 import { OcrPageWithMarkup, fetchAndParseText } from './ocr.js';
 import metrics from './metrics.js';
@@ -30,14 +28,6 @@ import {
   ImageInfo,
 } from './iiif.js';
 import { isDefined } from './util.js';
-
-// fetch for node
-let fetchImpl: typeof fetch;
-if (typeof fetch === 'undefined') {
-  fetchImpl = (nodeFetch as unknown) as typeof fetch;
-} else {
-  fetchImpl = fetch;
-}
 
 /// In absence of more detailed information (from physical dimensions service), use this resolution
 const FALLBACK_PPI = 300;
@@ -110,7 +100,7 @@ export async function fetchRespectfully(
   try {
     do {
       // Don't catch network errors, let them bubble up
-      resp = await fetchImpl(url, init);
+      resp = await fetch(url, init);
       if (resp.ok) {
         break;
       }
@@ -569,7 +559,7 @@ export async function fetchCanvasData(
  *  and Content-Negotiation for IIIFv3 */
 export async function fetchManifestJson(manifestUrl: string): Promise<any> {
   try {
-    const resp = await fetchImpl(manifestUrl, {
+    const resp = await fetch(manifestUrl, {
       headers: {
         Accept: MANIFEST_ACCEPT_HEADER
       }
@@ -579,7 +569,7 @@ export async function fetchManifestJson(manifestUrl: string): Promise<any> {
     // Check if fetching failed due to CORS by downgrading the request to a
     // 'simple' request by removing the `Accept` header, which makes the
     // request CORS-unsafe due to double quotes and the colon in the URL
-    const resp = await fetchImpl(manifestUrl);
+    const resp = await fetch(manifestUrl);
     return await resp.json();
   }
 }

@@ -2,7 +2,6 @@ import fs from 'fs';
 import https from 'https';
 import express, { Express, Response } from 'express';
 import bodyParser from 'body-parser';
-import fetch from 'node-fetch';
 import { range, maxBy } from 'lodash-es';
 import acceptLanguageParser from 'accept-language-parser';
 import cors from 'cors';

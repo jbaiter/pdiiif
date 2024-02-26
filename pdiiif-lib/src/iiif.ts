@@ -1,4 +1,3 @@
-import nodeFetch from 'node-fetch';
 import {
   InternationalString,
   ManifestNormalized,
@@ -33,14 +32,6 @@ const PURPOSE_LABELS: { [purpose: string]: string } = {
   describing: 'Description',
   tagging: 'Tags',
 };
-
-// Fetch for node
-let fetchImpl: typeof fetch;
-if (typeof fetch === 'undefined') {
-  fetchImpl = nodeFetch as typeof fetch;
-} else {
-  fetchImpl = fetch;
-}
 
 export const vault = globalVault() as Vault;
 
@@ -86,7 +77,7 @@ export function getI18nValue(
  */
 class ImageServiceLoader extends ImageServiceLoader_ {
   async fetch(input: RequestInfo, init?: RequestInit): Promise<Response> {
-    return fetchImpl(input as any, init as any) as any;
+    return fetch(input as any, init as any) as any;
   }
 }
 
@@ -168,7 +159,7 @@ export async function fetchFullImageService(
   serviceRef: ImageService
 ): Promise<ImageService> {
   const serviceUrl = `${serviceRef['@id'] ?? serviceRef.id}/info.json`;
-  const resp = await fetchImpl(serviceUrl);
+  const resp = await fetch(serviceUrl);
   const res = await resp.json();
   return res as ImageService;
 }
