@@ -12,7 +12,7 @@ if (!Uint8Array.prototype.findLastIndex) {
       if (predicate(this[l], l, this)) return l;
     }
     return -1;
-  }
+  };
 }
 
 const ESCAPE_CHARS: Record<string, string> = {
@@ -147,9 +147,13 @@ function isDigit(c: string): boolean {
   return !isNaN(parseInt(c, 10));
 }
 
-/** Check if a character is a hexadecimal digit ([0-9A-F])  */
+/** Check if a character is a hexadecimal digit ([0-9a-fA-F])  */
 function isHex(c: number): boolean {
-  return (c >= 0x30 && c <= 0x39) || (c >= 0x41 && c <= 0x46);
+  return (
+    (c >= 0x30 && c <= 0x39) ||
+    (c >= 0x41 && c <= 0x46) ||
+    (c >= 0x61 && c <= 0x66)
+  );
 }
 
 /** Parse a PDF "value", which can be one of:
@@ -592,7 +596,7 @@ export class PdfValueParser {
  *
  * Currently only supports discovering page objects and annotation objects, as well
  * as obtaining arbitrary objects given the object number and generation.
-*/
+ */
 export class PdfParser {
   private reader: Reader;
   private objectOffsets: Array<number>;
@@ -605,7 +609,7 @@ export class PdfParser {
   /** Construct a new parser from a Reader.
    *
    * Used instead of the constructor to allow for async initialization.
-  */
+   */
   static async parse(reader: Reader): Promise<PdfParser> {
     const trailerBuf = new Uint8Array(1024);
     const pdfSize = await reader.size();
@@ -675,7 +679,7 @@ export class PdfParser {
   ) {
     this.reader = reader;
     this.objectOffsets = objOffsets;
-    this.sortedOffsets = [...objOffsets].sort((a, b,) => a - b);
+    this.sortedOffsets = [...objOffsets].sort((a, b) => a - b);
     this.objGenerations = objGenerations;
     this.catalogNum = (trailerDict.Root as PdfRef).refObj;
     this.infoNum = (trailerDict.Info as PdfRef).refObj;
