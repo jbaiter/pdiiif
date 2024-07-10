@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.5] - 2024-07-10
+
+### Fixed
+- pdiiif-lib: Parse lowercase hex strings when parsing PDFs, fixes coverpage
+  integration from react-pdf sourced PDFs. Many thanks to @fstoe from UB Leipzig
+  for discovering and fixing the bug.
+
+## [0.2.4] - 2024-02-26
+
+### Changed
+- Updated minimum Node.js version to 20 due to stabilization of built-in `fetch`
+
+## [0.2.3] - 2023-10-06
+
+### Fixed
+- pdiiif-lib: Fix regression in OCR handling, detect OCR in `rendering` field
+
+## [0.2.2] - 2023-10-06
+
+### Fixed
+- pdiiif-lib: Made coverpage metadata extraction more robust
+
+## [0.2.1] - 2023-09-30
+
+### Fixed
+- pdiiif-lib: Fix broken ALTO XML parsing
+
 ## [0.2.0] - 2023-09-26
 
 ### Changed
