@@ -123,6 +123,21 @@ export type GeneratorParams = {
   zipBaseDir?: string;
 };
 
+/** Streaming PDF generator based on a IIIF manifest.
+ *
+ * This class is responsible for generating a PDF document based on a IIIF manifest.
+ * It is designed to be used in a streaming fashion, i.e. it can start writing the PDF
+ * before all the resources have been loaded and thus does not require a huge amount
+ * of memory. On the flipside, this makes the code a lot more complex, since we need
+ * to keep track of the PDF's internal state and write objects in the correct order.
+ * Another complication is that we want to write out the catalog and page tree first
+ * to allow viewers to quickly display the first page, which requires a bunch of
+ * complicated pre-allocation of objects.
+ *
+ * FIXME: Can't we just write the pages first and then the catalog and page tree at
+ *        the end of the file? Would make things *A LOT* easier and less complex and
+ *        error-prone.
+ */
 export default class PDFGenerator {
   // Keep track of how many bytes have been written so far
   _offset = 0;
@@ -167,7 +182,11 @@ export default class PDFGenerator {
   private _zipCatalog?: Array<CentralDirectoryFileSpec>;
   private _zipBaseDir?: string;
   private _readingDirection: 'right-to-left' | 'left-to-right';
+  // FIXME: Overlap with _objRefs, should be unified
+  private _deferredReferences = new Map<string, PdfRef>();
 
+  /** Just basic setup of state, real setup is done in setup()
+      method since we need to call a bunch of async stuff */
   constructor({
     writer,
     metadata,
@@ -206,12 +225,15 @@ export default class PDFGenerator {
     this._addObject(pdfMetadata, 'Info');
   }
 
+  /** Set up the basic PDF document, creating neccessary objects.  */
   async setup(): Promise<void> {
+    // Add the catalog object
     const catalog: PdfDictionary = {
       Type: '/Catalog',
     };
     this._addObject(catalog, 'Catalog');
 
+    // Pages Dictionary, will be updated later
     const pagesObj = this._addObject(
       {
         Type: '/Pages',
@@ -221,6 +243,7 @@ export default class PDFGenerator {
     );
     catalog.Pages = makeRef(pagesObj);
 
+    // Indicate that our PDF contains structure information, attached to the text layer
     if (this._hasText) {
       catalog.MarkInfo = {
         Type: '/MarkInfo',
@@ -229,6 +252,8 @@ export default class PDFGenerator {
     }
 
     if (this._outline.length > 0) {
+      // If we have an outline, display the ToC by default in PDF viewers and set up
+      // the required objects
       catalog.PageMode = '/UseOutlines';
       const outlines: PdfDictionary = {
         Type: '/Outlines',
@@ -248,16 +273,21 @@ export default class PDFGenerator {
         prev = childObj;
       }
     } else {
+      // Otherwise, display the thumbnails in PDF viewers
       catalog.PageMode = '/UseThumbs';
     }
+
+    // Adjust reading direction to RTL if neccessary
     catalog.ViewerPreferences = {
       Direction: this._readingDirection === 'right-to-left' ? '/R2L' : '/L2R',
     };
+
     if (this._hasText) {
       await this._setupHiddenTextFont();
     }
   }
 
+  /** Set up neccessary fonts for the hidden text layer. */
   async _setupHiddenTextFont(): Promise<void> {
     const typeZeroFont = this._addObject(
       {
@@ -284,6 +314,7 @@ export default class PDFGenerator {
       makeRef(typeTwoFont),
     ];
 
+    // Set up character id to glyph id mapping
     const cidtoGidMapData = new Uint8Array(128 * 1024);
     for (let i = 0; i < cidtoGidMapData.length; i++) {
       cidtoGidMapData[i] = i % 2 ? 1 : 0;
@@ -292,6 +323,9 @@ export default class PDFGenerator {
     const cidToGidMap = this._addObject(comp.dict, undefined, comp.stream);
     (typeTwoFont.data as PdfDictionary).CIDToGIDMap = makeRef(cidToGidMap);
 
+    // Set up character code to unicode codepoint mapping
+    // Effectively an identity mapping, since in our font every character code
+    // exactly corresponds to the unicode codepoint
     const cmapStream = dedent`
       /CIDInit /ProcSet findresource begin
         12 dict begin
@@ -323,6 +357,7 @@ export default class PDFGenerator {
     );
     (typeZeroFont.data as PdfDictionary).ToUnicode = makeRef(cmap);
 
+    // Set up the font descriptor for our hidden text font
     const fontDesc = this._addObject({
       Type: '/FontDescriptor',
       FontName: '/GlyphLessFont',
@@ -348,6 +383,7 @@ export default class PDFGenerator {
     (fontDesc.data as PdfDictionary).FontFile2 = makeRef(fontDataObj);
   }
 
+  /** Register embedded OCR files in the PDF's catalog object. */
   _registerEmbeddedFilesInCatalog() {
     const catalog = this._objects[this._objRefs.Catalog.refObj]
       .data as PdfDictionary;
@@ -380,6 +416,32 @@ export default class PDFGenerator {
     }
   }
 
+  /** Create a PdfRef whose value is deferred, i.e. will be set at a later stage.
+   *
+   * Useful for bidirectional references.
+   *
+   * Prevents serialization of objects containing this reference as long as the
+   * value is not set.
+   *
+   * @param key A unique key to identify the reference
+   */
+  _makeDeferredReference(key: string): PdfRef {
+    if (!this._deferredReferences.has(key)) {
+      // Placeholder reference
+      const ref = makeRef(-1);
+      this._deferredReferences.set(key, ref);
+    }
+    return this._deferredReferences.get(key)!;
+  }
+
+  /** Add items to the PDF's outline, based on the passed TocItem tree.
+   *
+   * @param itm The item we want to add to the outline
+   * @param parent The parent outline item
+   * @param prev The preceding sibling outline item, if present
+   * @returns A tuple containing the object reference of the added outline item and the number
+   *         of children outline items that were created
+   */
   _addOutline(
     itm: TocItem,
     parent: PdfObject,
@@ -387,6 +449,7 @@ export default class PDFGenerator {
   ): [PdfObject, number] {
     let dest: PdfArray;
     if (typeof itm.startCanvas === 'string') {
+      // Simple case, just linke to a whole canvas/page
       const destCanvasIdx = this._canvasInfos.findIndex(
         (ci) => ci.canvas.id === itm.startCanvas
       );
@@ -397,6 +460,7 @@ export default class PDFGenerator {
       }
       dest = [destCanvasIdx, '/Fit'];
     } else {
+      // More complex: link to a specific region on a canvas
       const canvasId = itm.startCanvas.id;
       const unitScale = 72 / itm.startCanvas.ppi;
       const rect = itm.startCanvas.position;
@@ -417,6 +481,7 @@ export default class PDFGenerator {
         unitScale * (height - (rect.y + rect.height)), // top,
       ];
     }
+
     const rec: PdfDictionary = {
       Title: `( ${itm.label} )`,
       Parent: makeRef(parent),
@@ -430,7 +495,9 @@ export default class PDFGenerator {
       rec.Prev = makeRef(prev);
       (prev.data as PdfDictionary).Next = makeRef(obj);
     }
+
     if (itm.children?.length) {
+      // Recursively add children
       let prev: PdfObject | undefined;
       rec.Count = 0;
       for (const [idx, child] of itm.children.entries()) {
@@ -447,6 +514,13 @@ export default class PDFGenerator {
     return [obj, (rec.Count as number) ?? 0];
   }
 
+  /** Add a new object to the PDF document.
+   *
+   * @param val A PDF value, can be any of the supported types.
+   * @param refName An optional name to reference the object by.
+   * @param stream An optional stream to attach to the object, value must be adictionary in this case
+   * @returns The created object
+   */
   _addObject(
     val: PdfValue,
     refName?: string,
@@ -479,6 +553,12 @@ export default class PDFGenerator {
 
   /** Clone an object from a foreign PDF into the current PDF, adjusting
    *  the encountered indirect object references.
+   *
+   * @param parser PdfParser instance for the PDF the object is from
+   * @param obj The object to transplant into our document
+   * @param seenObjects A map of object numbers to known references, used to avoid
+   *                    infinite recursion
+   * @returns A reference to the transplanted object
    */
   private async _transplantObject(
     parser: PdfParser,
@@ -531,10 +611,10 @@ export default class PDFGenerator {
     //       a /StructParents key, check for the /StructTreeRoot key in
     //       the catalog, and then transplant that to our _strucTree
     //       and _pageMCIDs structures. Quite the handful!!
-    //
     return (await handleValue(ref)) as PdfRef;
   }
 
+  /** Insert cover pages from another PDF into our document. */
   async insertCoverPages(pdfData: ArrayBuffer): Promise<void> {
     if (this._pagesStarted) {
       throw 'Cover pages must be inserted before writing the first regular page';
@@ -559,13 +639,19 @@ export default class PDFGenerator {
     return;
   }
 
+  /** Embed a file resource in the PDF.
+   *
+   * @param filename The filename for the embedded resource
+   * @param description A description of the file
+   * @param mimeType The MIME type of the file
+   * @param data The data to embed
+   */
   private async _embedResource(
-    id: string,
     filename: string,
     description: string,
     mimeType: string,
     data: string
-  ) {
+  ): Promise<void> {
     // TODO: Add check that the file is actually pre-registered in
     //       the catalog!
     const fileSpec: PdfDictionary = {
@@ -614,6 +700,10 @@ export default class PDFGenerator {
     this._addObject(embeddedFile, undefined, maybeCompressed.stream);
   }
 
+  /** Embed the IIIF Manifest JSON in the PDF.
+   *
+   * @param manifestJson The IIIF (v2 or v3) Manifest to embed
+   */
   private async _embedManifest(
     manifestJson: ManifestV2 | Manifest
   ): Promise<void> {
@@ -629,7 +719,6 @@ export default class PDFGenerator {
       manifestMime += `;profile="${manifestJson['@context']}"`;
     }
     await this._embedResource(
-      '@id' in manifestJson ? manifestJson['@id'] : manifestJson.id,
       'manifest.json',
       'IIIF Manifest this PDF is based on',
       manifestMime,
@@ -637,6 +726,9 @@ export default class PDFGenerator {
     );
   }
 
+  /** Once all setup is complete and we begin rendering pages into the document,
+   *  we need to finalize the PDF header with the remaining information.
+   */
   async finalizePdfHeader(): Promise<void> {
     const catalog = this._objects[this._objRefs.Catalog.refObj]
       .data as PdfDictionary;
@@ -695,6 +787,7 @@ export default class PDFGenerator {
       );
     }
 
+    // Register the optional content groups, if present
     if (this._canvasInfos.some((ci) => ci.images.some((i) => i.choiceInfo))) {
       // We're *very* explicit with the visibility of the various OCGs to
       // ensure as broad a viewer support as possible (especially pdf.js
@@ -739,7 +832,9 @@ export default class PDFGenerator {
       };
     }
 
+    // Set the initial view of the PDF
     if (typeof this._initialCanvas === 'string') {
+      // ...to a whole page
       catalog.OpenAction = [
         makeRef(
           this.getCanvasObjectNumber(
@@ -750,6 +845,7 @@ export default class PDFGenerator {
         ),
       ];
     } else if (this._initialCanvas) {
+      // ...to a specific region on a page
       const unitScale = 72 / this._initialCanvas.ppi;
       const rect = this._initialCanvas.position;
       const { width, height } = this._initialCanvas.dimensions;
@@ -780,6 +876,17 @@ export default class PDFGenerator {
     }
   }
 
+  /** Render a new page, based on a IIIF canvas, its associated annotations and OCR text.
+   *
+   * @param canvasId The ID of the canvas to render
+   * @param width The width of the canvas in pixels
+   * @param height The height of the canvas in pixels
+   * @param images The images to render on the canvas
+   * @param annotations The annotations to render on the canvas
+   * @param ocrText The OCR text to render on the canvas
+   * @param ppi The resolution of the canvas in pixels per inch, used to determine the physical
+   *            size of the PDF page. Assumes 300ppi by default.
+   */
   async renderPage(
     canvasId: string,
     {
@@ -796,6 +903,7 @@ export default class PDFGenerator {
       await this.finalizePdfHeader();
       this._pagesStarted = true;
     }
+
     // Factor to multiply pixels by to get equivalent PDF units (72 pdf units === 1 inch)
     const unitScale = 72 / ppi;
     const pageDict: PdfDictionary = {
@@ -806,11 +914,13 @@ export default class PDFGenerator {
         ProcSet: ['/PDF', '/Text', '/ImageB', '/ImageI', '/ImageC'],
       },
     };
+
     if (this._hasText) {
       pageDict.StructParents = this._nextStructParentId;
       this._pageParentIds.set(this._nextObjNo, this._nextStructParentId);
       this._nextStructParentId++;
     }
+
     if (ocrText && this._objRefs.Type0Font) {
       (pageDict.Resources as PdfDictionary).Font = {
         'f-0-0': this._objRefs.Type0Font,
@@ -818,6 +928,7 @@ export default class PDFGenerator {
     }
     const page = this._addObject(pageDict);
 
+    // Draw images onto the page
     const contentOps: string[] = [];
     const optionalGroupIds: { [imgId: string]: string } = {};
     for (const [idx, image] of images.entries()) {
@@ -843,9 +954,11 @@ export default class PDFGenerator {
         contentOps.push('EMC');
       }
     }
+
     if (ocrText) {
       contentOps.push(this._renderOcrText(ocrText, unitScale));
     }
+
     log.debug('Trying to compress content stream.');
     const contentStreamComp = await tryDeflateStream(contentOps.join('\n'));
     const contentsObj = this._addObject(
@@ -855,45 +968,20 @@ export default class PDFGenerator {
     );
     (page.data as PdfDictionary).Contents = makeRef(contentsObj);
 
-    // Since we need the finalized page dictionary in order to determine
-    // the offset for the the local zip header, we pre-generate all the
-    // relevant information
-    const imageObjectNums = [...images.keys()].map((idx) => {
-      if (this._polyglot) {
-        return this._nextObjNo + idx * 2 + 1;
-      } else {
-        return this._nextObjNo + idx;
-      }
-    });
-    const optionalGroupObjectNums: { [imgId: string]: number } = {};
-    if (images.some((i) => i.choiceInfo?.optional)) {
-      for (const [idx, img] of images.entries()) {
-        if (isImageFetchFailure(img)) {
-          continue;
-        }
-        const imageId = `/Im${idx + 1}`;
-        if (!img.choiceInfo?.optional) {
-          continue;
-        }
-        // FIXME: This is broken for the layers example!
-        optionalGroupObjectNums[imageId] =
-          imageObjectNums.slice(-1)[0] + idx + 1;
-      }
-    }
+    // Register all resources for the page
     const pageResources = (page.data as PdfDictionary)
       .Resources as PdfDictionary;
     const xObjects: PdfDictionary = {};
     const properties: PdfDictionary = {};
-    for (const [idx, num] of imageObjectNums.entries()) {
-      if (isImageFetchFailure(images[idx])) {
+    for (const [idx, img] of images.entries()) {
+      if (isImageFetchFailure(img)) {
         continue;
       }
       const imageId = `/Im${idx + 1}`;
-      xObjects[imageId.substring(1)] = makeRef(num);
-      const ocgNum = optionalGroupObjectNums[imageId];
-      if (ocgNum !== undefined) {
+      xObjects[imageId.substring(1)] = this._makeDeferredReference(imageId);
+      if (img.choiceInfo?.optional) {
         const ocgId = optionalGroupIds[imageId];
-        properties[ocgId.substring(1)] = makeRef(ocgNum);
+        properties[ocgId.substring(1)] = this._makeDeferredReference(ocgId);
       }
     }
     pageResources.XObject = xObjects;
@@ -932,6 +1020,11 @@ export default class PDFGenerator {
       }
       this._nextObjNo += 1;
       this._objects.push(imageObj);
+
+      // Resolve deferred references to this image
+      const mainImageObj = imageObjs[0];
+      const imageId = `/Im${imgIdx + 1}`;
+      this._deferredReferences.get(imageId)!.refObj = mainImageObj.num;
     }
 
     if (images.some((i) => i?.choiceInfo?.optional)) {
@@ -946,7 +1039,8 @@ export default class PDFGenerator {
           this._addObject({});
           continue;
         }
-        optionalGroupObjectNums[imageId] = this._nextObjNo;
+        this._deferredReferences.get(optionalGroupIds[imageId])!.refObj =
+          this._nextObjNo;
         this._addObject({
           Type: '/OCG',
           Name: img.choiceInfo.label
@@ -959,6 +1053,8 @@ export default class PDFGenerator {
     }
 
     const canvasInfo = this._canvasInfos[canvasIdx];
+
+    // Embed OCR text, if present
     if (ocrText?.markup) {
       const canvasIdx = this._canvasInfos.findIndex(
         (ci) => ci.canvas.id === canvasId
@@ -971,7 +1067,6 @@ export default class PDFGenerator {
       }
 
       await this._embedResource(
-        ocrText.id,
         filename,
         `OCR for canvas #${canvasIdx}`,
         ocrText.mimeType,
@@ -979,7 +1074,7 @@ export default class PDFGenerator {
       );
     } else if (canvasInfo.ocr) {
       // Canvas Info says we have OCR, but none was passed, possible
-      // when he OCR doesn't have CORS or fetching failed for another reason
+      // when the OCR doesn't have CORS or fetching failed for another reason
       // Add two empty objects so object references are still valid
       this._addObject({});
       this._addObject({});
@@ -1079,6 +1174,7 @@ export default class PDFGenerator {
     return ops.join('\n');
   }
 
+  /** Get PDF instructions to render a single line of OCR text. */
   renderOcrLine(
     line: OcrLine,
     lineIdx: number,
@@ -1156,6 +1252,7 @@ export default class PDFGenerator {
     return ops;
   }
 
+  /** How many bytes have we written to the output so far? */
   get bytesWritten(): number {
     return this._offset;
   }
@@ -1169,6 +1266,7 @@ export default class PDFGenerator {
     );
   }
 
+  /** How many objects are needed to render the canvas at the given index? */
   getObjectsPerCanvas(canvasIdx: number): number {
     const { images, ocr, numAnnotations } = this._canvasInfos[canvasIdx];
     let numObjects =
@@ -1193,6 +1291,7 @@ export default class PDFGenerator {
     return numObjects;
   }
 
+  /** Get the object number for the canvas at the given index. */
   getCanvasObjectNumber(canvasIdx: number): number {
     let num = this._firstPageObjectNum!;
     for (const [idx] of this._canvasInfos.entries()) {
@@ -1204,6 +1303,7 @@ export default class PDFGenerator {
     throw new Error(`Canvas #${canvasIdx} not found.`);
   }
 
+  /** Flush remaining data to output. */
   async _flush(): Promise<void> {
     if (this._offsets.length === 0) {
       log.debug('Writing PDF header');
@@ -1219,6 +1319,7 @@ export default class PDFGenerator {
     this._objects = [];
   }
 
+  /** Get the serialized size in bytes of a PDF object. */
   _getSerializedSize(
     { num, data, stream }: PdfObject,
     untilStreamStart = false
@@ -1245,6 +1346,7 @@ export default class PDFGenerator {
     return size;
   }
 
+  /** Serialize a PDF object to the output. */
   async _serializeObject(obj: PdfObject): Promise<void> {
     this._offsets.push(this._offset);
     const { num, data, stream } = obj;
@@ -1260,6 +1362,7 @@ export default class PDFGenerator {
     await this._write('\nendobj\n');
   }
 
+  /** Write data to the output. */
   async _write(data: Uint8Array | string): Promise<void> {
     if (this._writer === undefined) {
       throw new Error(
@@ -1273,6 +1376,7 @@ export default class PDFGenerator {
     await this._writer.write(data);
   }
 
+  /** Write the PDF objects required for the structure tree */
   async _writeStructureTree(): Promise<void> {
     const parentRoot: PdfDictionary = {
       Nums: [],
@@ -1335,6 +1439,11 @@ export default class PDFGenerator {
     await this._flush();
   }
 
+  /** Finish writing the PDF and close the writer.
+   *
+   * Writes XRef table, trailer and EOF marker to the output.
+   * Also adds ZIP central directory if polyglot PDF is enabled.
+   */
   async end(): Promise<void> {
     if (!this._writer) {
       return;
@@ -1401,6 +1510,10 @@ export default class PDFGenerator {
     this._writer = undefined;
   }
 
+  /** Insert a 'dummy' PDF object that isn't referenced anywhere, but which
+   *  contains the data neccessary to expose the following object's data as a
+   *  file in the ZIP archive.
+   */
   private _insertZipHeaderDummyObject({
     filename,
     data,

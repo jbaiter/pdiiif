@@ -137,6 +137,9 @@ export function serialize(value: PdfValue, dictIndent = 0): string {
   } else if (Array.isArray(value)) {
     return `[${value.map((v) => serialize(v, dictIndent + 1)).join(' ')}]`;
   } else if (value instanceof PdfRef) {
+    if (value.refObj === -1) {
+      throw new Error('Cannot serialize a deferred object reference');
+    }
     return `${value.refObj} 0 R`;
   } else if ({}.toString.call(value) === '[object Object]') {
     const outsideIndent = ' '.repeat(PDF_INDENTATION * dictIndent);
