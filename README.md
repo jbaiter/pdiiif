@@ -72,7 +72,7 @@ of the recipe support in pdiiif:
 <details>
 <summary><strong>Basic Recipes</strong> (4 of 6 supported)</summary>
 
-- [x] [Simplest Manifest - Single Image File](https://iiif.io/api/cookbook/recipe/0001-mvm-image/): Partial, only for JPEG images, **Cookbook example doesn't work** due to use of PNG
+- [x] [Simplest Manifest - Single Image File](https://iiif.io/api/cookbook/recipe/0001-mvm-image/): Partial, only for JPEG and PNG images. 
 - [ ] [Simplest Manifest - Audio](https://iiif.io/api/cookbook/recipe/0002-mvm-audio/): NO, PDF has support for audio, but support in pdiiif unlikely, unless there is substantial demand for it
 - [ ] [Simplest Manifest - Video](https://iiif.io/api/cookbook/recipe/0003-mvm-video/): NO, PDF has support for video, but support in pdiiif unlikely, unless there is substantial demand for it
 - [x] [Support Deep Viewing with Basic Use of a IIIF Image Service](https://iiif.io/api/cookbook/recipe/0005-image-service/): YES, Deep Viewing isn't useful in PDF, but IIIF Image Services are fully supported
@@ -114,7 +114,7 @@ of the recipe support in pdiiif:
 <details>
 <summary><strong>Image Recipes</strong> (6 of 6 supported)</summary>
 
-- [x] [Simplest Manifest - Single Image File](https://iiif.io/api/cookbook/recipe/0001-mvm-image/): Partial, only for JPEG images, **Cookbook example doesn't work** due to use of PNG
+- [x] [Simplest Manifest - Single Image File](https://iiif.io/api/cookbook/recipe/0001-mvm-image/): Partial, only for JPEG and PNG images
 - [x] [Image and Canvas with Differing Dimensions](https://iiif.io/api/cookbook/recipe/0004-canvas-size/): YES
 - [x] [Support Deep Viewing with Basic Use of a IIIF Image Service](https://iiif.io/api/cookbook/recipe/0005-image-service/): YES, Deep Viewing isn't useful in PDF, but IIIF Image Services are fully supported
 - [x] [Simple Manifest - Book](https://iiif.io/api/cookbook/recipe/0009-book-1/): YES

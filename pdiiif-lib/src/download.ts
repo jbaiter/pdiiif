@@ -335,11 +335,11 @@ async function fetchCanvasImage(
     if (ppi) {
       ppi = ppi * (sizeInfo.width / imgService.width!);
     }
-  } else if (image.id && image.format === 'image/jpeg') {
+  } else if (image.id && ['image/jpeg', 'image/png'].indexOf(image.format ?? 'unknown') >= 0) {
     imageUrl = image.id;
   } else {
     log.error(
-      `No JPEG image identifier for resource ${image.id} could be found!`
+      `No JPEG or PNG image identifier for resource ${image.id} could be found!`
     );
     return null;
   }

@@ -70,7 +70,6 @@ export function getI18nValue(
   }
 }
 
-
 /** Custom image loader to deal with browser + node intercompatibility.
  *
  * Used for the thumbnail helper.
@@ -86,11 +85,8 @@ const thumbHelper = createThumbnailHelper(vault, {
 });
 
 // A few helpers to deal with painting annotations
-export const {
-  getPaintables,
-  getAllPaintingAnnotations,
-  extractChoices
-} = createPaintingAnnotationsHelper(vault);
+export const { getPaintables, getAllPaintingAnnotations, extractChoices } =
+  createPaintingAnnotationsHelper(vault);
 
 /** Determine best thumbnail image for the manifest. */
 export async function getThumbnail(
@@ -143,7 +139,6 @@ export function isPhysicalDimensionService(
   );
 }
 
-
 /** Check if a IIIF Image endpoint supports arbitrary downscaling. */
 export function supportsScaling(profile: ImageProfile): boolean {
   if (typeof profile === 'string') {
@@ -169,7 +164,7 @@ export type ImageInfo = {
   resource: (ExternalWebResource | IIIFExternalWebResource) & { type: 'Image' };
   // Where to draw on the corresponding canvas
   x: number;
-  y: number
+  y: number;
   // At what size to draw on the canvas?
   width: number;
   height: number;
@@ -177,13 +172,14 @@ export type ImageInfo = {
   nativeWidth?: number;
   nativeHeight?: number;
   ppi?: number;
+  format?: 'jpeg' | 'png' | 'unsupported';
   choiceInfo?: {
     enabled: boolean;
     optional: boolean;
     visibleByDefault: boolean;
     label?: InternationalString;
-  }
-}
+  };
+};
 
 /** Information about a canvas that can be obtained without
  *  fetching any external resources */
@@ -205,7 +201,7 @@ export function getCanvasAnnotations(canvas: CanvasNormalized): Annotation[] {
     .filter((a) =>
       Array.isArray(a.motivation)
         ? a.motivation.find((m) => PURPOSE_LABELS[m] !== undefined) !==
-        undefined
+          undefined
         : PURPOSE_LABELS[a.motivation ?? 'invalid'] !== undefined
     )
     .map((a) => parseAnnotation(a, []))
@@ -391,7 +387,12 @@ export function checkCompatibility(
 }
 
 /** Parse a IIIF target specification */
-export function parseTarget(targetStr: string): { x: number; y: number, width: number, height: number } {
+export function parseTarget(targetStr: string): {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+} {
   const [canvasId, fragment] = targetStr.split('#xywh=');
   if (fragment) {
     const [x, y, width, height] = fragment
@@ -405,13 +406,33 @@ export function parseTarget(targetStr: string): { x: number; y: number, width: n
   }
 }
 
+export function getImageFormat(
+  image: ExternalWebResource | IIIFExternalWebResource
+): 'jpeg' | 'png' | 'unsupported' | undefined {
+  if (image.format === 'image/jpeg') {
+    return 'jpeg';
+  } else if (image.format === 'image/png') {
+    return 'png';
+  } else if (image.format === undefined) {
+    if (image.id?.endsWith('.jpg') || image.id?.endsWith('.jpeg')) {
+      return 'jpeg';
+    } else if (image.id?.endsWith('.png')) {
+      return 'png';
+    }
+  } else {
+    return 'unsupported';
+  }
+}
+
 /** Get information about images on a Canvas. */
 export function getImageInfos(canvas: CanvasNormalized): ImageInfo[] {
   const imageInfos: ImageInfo[] = [];
   const paintingAnnos = getAllPaintingAnnotations(canvas);
   for (const anno of paintingAnnos) {
     if (typeof anno.target !== 'string') {
-      log.error(`Annotation ${anno.id} has a non-string target, currently not supported.`);
+      log.error(
+        `Annotation ${anno.id} has a non-string target, currently not supported.`
+      );
       continue;
     }
     const target = parseTarget(anno.target);
@@ -422,8 +443,12 @@ export function getImageInfos(canvas: CanvasNormalized): ImageInfo[] {
         continue;
       }
       imageInfos.push({
-        resource: resource as (ExternalWebResource | IIIFExternalWebResource) & { type: 'Image' },
+        resource: resource as (
+          | ExternalWebResource
+          | IIIFExternalWebResource
+        ) & { type: 'Image' },
         ...target,
+        format: getImageFormat(resource),
         nativeWidth: (resource as any).width as number | undefined,
         nativeHeight: (resource as any).height as number | undefined,
       });
@@ -442,7 +467,9 @@ export function getImageInfos(canvas: CanvasNormalized): ImageInfo[] {
       continue;
     }
     imageInfos.push({
-      resource: resource as (ExternalWebResource | IIIFExternalWebResource) & { type: 'Image' },
+      resource: resource as (ExternalWebResource | IIIFExternalWebResource) & {
+        type: 'Image';
+      },
       // FIXME: Can't choice images have a location and rendering dimensions?
       x: 0,
       y: 0,
@@ -450,12 +477,13 @@ export function getImageInfos(canvas: CanvasNormalized): ImageInfo[] {
       height: canvas.height,
       nativeWidth: (resource as any).width as number | undefined,
       nativeHeight: (resource as any).height as number | undefined,
+      format: getImageFormat(resource),
       choiceInfo: {
         enabled: choiceItem.selected ?? false,
         optional: true,
         label: (resource as any).label,
         visibleByDefault: choiceItem.selected ?? false,
-      }
+      },
     });
   }
 

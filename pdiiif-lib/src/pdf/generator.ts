@@ -24,7 +24,7 @@ import {
 import { TocItem, textEncoder, randomData, tryDeflateStream } from './util.js';
 import { ArrayReader, Writer } from '../io.js';
 import { OcrPageWithMarkup } from '../ocr.js';
-import PdfImage from './image.js';
+import PdfImage, { JPEGImage, PNGImage } from './image.js';
 import { PdfParser } from './parser.js';
 import pdiiifVersion from '../version.js';
 import log from '../log.js';
@@ -227,7 +227,7 @@ export default class PDFGenerator {
 
   /** Set up the basic PDF document, creating neccessary objects.  */
   async setup(): Promise<void> {
-    // Add the catalog object
+    // Add the catalog object, will be updated later
     const catalog: PdfDictionary = {
       Type: '/Catalog',
     };
@@ -1005,26 +1005,46 @@ export default class PDFGenerator {
       }
       const imageData = new Uint8Array(img.data!);
       const image = PdfImage.open(imageData);
-      // TODO: Currently we only support JPEG, if we expand to other
-      //       file types we need to consider multiple objects pe rimage
-      const imageObj = image.toObjects(this._nextObjNo)[0];
-      if (this._polyglot) {
-        const imgPreambleSize = this._getSerializedSize(imageObj, true);
-        const filename = `img/canvas-${canvasIdx}-${imgIdx}.jpg`;
-        this._insertZipHeaderDummyObject({
-          filename,
-          data: imageData,
-          bytesUntilActualData: imgPreambleSize,
-        });
-        imageObj.num = this._nextObjNo;
+
+      const imageObjs = image.toObjects(
+        // Account for local zip header object if polyglot Zip-PDF is enabled
+        this._polyglot ? this._nextObjNo + 1 : this._nextObjNo
+      );
+
+      if (img.format !== 'jpeg' && image instanceof JPEGImage) {
+        // We calculated with 3 objects for this image, since it was either identified
+        // as PNG or we did not have a format in the manifest. So we need to add empty
+        // dummy objects to keep the object numbers in sync.
+        let objNum = imageObjs.slice(-1)[0].num;
+        for (let i = 0; imageObjs.length < 3; i++) {
+          imageObjs.push({ num: objNum++ });
+        }
       }
-      this._nextObjNo += 1;
-      this._objects.push(imageObj);
 
       // Resolve deferred references to this image
       const mainImageObj = imageObjs[0];
       const imageId = `/Im${imgIdx + 1}`;
       this._deferredReferences.get(imageId)!.refObj = mainImageObj.num;
+
+      if (this._polyglot) {
+        if (image instanceof JPEGImage) {
+          const imgPreambleSize = this._getSerializedSize(mainImageObj, true);
+          const filename = `img/canvas-${canvasIdx}-${imgIdx}.jpg`;
+          this._insertZipHeaderDummyObject({
+            filename,
+            data: imageData,
+            bytesUntilActualData: imgPreambleSize,
+          });
+        } else {
+          // Polyglot PDF is not possible for PNG images, since PNGs are not stored
+          // as-is in the PDF, but can be split and stored across multiple objects
+          // To keep our pre-calculated object numbers valid, we need to insert an
+          // empty dummy object in place of the local zip header
+          this._addObject({});
+        }
+      }
+      imageObjs.forEach((obj) => this._objects.push(obj));
+      this._nextObjNo = imageObjs.slice(-1)[0].num + 1;
     }
 
     if (images.some((i) => i?.choiceInfo?.optional)) {
@@ -1270,8 +1290,12 @@ export default class PDFGenerator {
   getObjectsPerCanvas(canvasIdx: number): number {
     const { images, ocr, numAnnotations } = this._canvasInfos[canvasIdx];
     let numObjects =
-      // 1 XObject per image
-      images.length +
+      // 1 XObject for JPEGs, 3 for PNGs or unknown formats
+      // The minority of PNGs actually need three XObjects, but we can't know
+      // that in advance and so we simply add empty dummy objects if we need less.
+      images
+        .map((img) => (img.format === 'jpeg' ? 1 : 3))
+        .reduce((a, b) => a + b, 0) +
       // Page dictionary and content
       2 +
       // 1 Optional Content Group per optional image
@@ -1283,6 +1307,8 @@ export default class PDFGenerator {
       // to expose as a file in the ZIP with a separate XObject that contains
       // the local ZIP header for that file. Currently this concerns the
       // images and the OCR data
+      // PNG images can't be embedded in the polyglot ZIP, so we simply add an
+      // empty object for each PNG image in place of the zip header object.
       numObjects = numObjects + images.length + (ocr ? 1 : 0);
     }
     if (ocr) {
