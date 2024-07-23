@@ -17,7 +17,6 @@ const manifest = await manifestResp.json();
 // Estimate how large a PDF will probably be given the parameters
 const estimatedSizeInBytes = await estimatePdfSize({
   manifestJson: manifest,
-  maxWidth: 1500,
 });
 
 // Get a writable handle to a file on the user's machine
@@ -43,12 +42,12 @@ if ((await handle.queryPermission({ mode: 'readwrite' })) !== 'granted') {
     manifest,
     webWritable,
     {
-      maxWidth: 1500,
       onProgress,
       coverPageEndpoint: 'https://pdiiif.jbaiter.de/api/coverpage'
     }
-  });
-}
+  )
+};
+
 ```
 
 ## API
@@ -140,11 +139,14 @@ and sampling a few pages. Returns the estimated file size in bytes.
 estimatePdfSize({
   /// The manifest to determine the PDF size for
   manifestJson: any;
-  /// Restrict the image size to include in the PDF. Only works with Level 2 Image API
-  /// services that allow arbitrary downscaling, the conversion will not perform
-  /// downscaling itself. For Level 1 endpoints, the closest available lower width
-  /// will be selected.
-  maxWidth?: number;
+  /** 
+   * Restrict the image size to include in the PDF by downscaling by a fixed factor.
+   * The value must be a number between 0.1 and 1.
+   * Only works with Level 2 Image API services that allow arbitrary downscaling, the
+   * conversion will not perform downscaling itself.
+   * For Level 1 endpoints, the closest available lower width will be selected.
+  */
+  scaleFactor?: number
   /// Set of canvas ids to include in PDF, or a predicate to filter canvas identifiers
   /// by. By default, all canvases are included in the PDF.
   filterCanvases?: readonly string[] | ((canvasId: string) => boolean);
