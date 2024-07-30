@@ -3,10 +3,12 @@
 /// Utilities for parsing OCR text from hOCR, ALTO and IIIF Annotations
 import {
   Annotation,
-  AnnotationNormalized,
-  CanvasNormalized,
   ContentResource,
 } from '@iiif/presentation-3';
+import {
+  AnnotationNormalized,
+  CanvasNormalized,
+} from '@iiif/presentation-3-normalized';
 import {
   parseAltoPages,
   parseHocrPages,
@@ -128,8 +130,8 @@ export async function fetchAnnotationResource(url: string): Promise<any> {
 export function getOcrReferences(
   canvas: CanvasNormalized
 ): ExternalWebResourceWithProfile | undefined {
-  const refs = vault.get<ContentResource>(canvas.seeAlso);
-  refs.push(...vault.get<ContentResource>(canvas.rendering));
+  const refs = vault.get<ContentResource>(canvas.seeAlso.map((r) => r.id));
+  refs.push(...vault.get<ContentResource>(canvas.rendering.map((r) => r.id)));
   return refs
     .filter(isExternalWebResourceWithProfile)
     .find((r) => isAlto(r) || isHocr(r));

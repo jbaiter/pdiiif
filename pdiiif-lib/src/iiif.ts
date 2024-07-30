@@ -1,26 +1,29 @@
 import {
   InternationalString,
-  ManifestNormalized,
   ExternalWebResource,
   IIIFExternalWebResource,
   ContentResource,
   ImageProfile,
   ImageService,
-  CanvasNormalized,
   Reference,
-  AnnotationPageNormalized,
-  AnnotationNormalized,
   Creator,
   Agent,
+  W3CAnnotationTarget,
 } from '@iiif/presentation-3';
-import { globalVault, Vault } from '@iiif/vault';
 import {
+  ManifestNormalized,
+  CanvasNormalized,
+  AnnotationPageNormalized,
+  AnnotationNormalized,
+} from '@iiif/presentation-3-normalized';
+import {
+  globalVault, Vault,
   buildLocaleString,
   createPaintingAnnotationsHelper,
   createThumbnailHelper,
   expandTarget,
   SupportedTarget,
-} from '@iiif/vault-helpers';
+} from '@iiif/helpers';
 import { ImageServiceLoader as ImageServiceLoader_ } from '@atlas-viewer/iiif-image-api';
 
 import { getOcrReferences } from './ocr.js';
@@ -271,7 +274,7 @@ export function parseAnnotation(
   }
   // TODO: i18n?
   const annoBody = anno.body.map((bodyRef) =>
-    vault.get<ContentResource>(bodyRef)
+    vault.get<ContentResource>(bodyRef.id)
   );
   const creatorNames: Array<string> = annoBody
     .map((body) => body.creator)
@@ -281,7 +284,11 @@ export function parseAnnotation(
     .map((body) => body.modified)
     .filter((v: string | undefined): v is string => v !== undefined)
     .map((v: string) => new Date(v).getTime());
-  const target = expandTarget(anno.target);
+  if (typeof anno.target === 'string') {
+    return;
+  }
+  const targets = vault.get<Exclude<W3CAnnotationTarget, string>>(anno.target.map(t => t.id));
+  const target = expandTarget(targets);
   const markup = buildAnnotationMarkup(annoBody);
   if (!markup) {
     // TODO: Log?
@@ -377,7 +384,7 @@ export function checkCompatibility(
     const paintingResources = vault
       .get<AnnotationPageNormalized>(canvas.items)
       .flatMap((ap) => vault.get<AnnotationNormalized>(ap.items))
-      .flatMap((a) => vault.get<ContentResource>(a.body));
+      .flatMap((a) => vault.get<ContentResource>(a.body.map(b => b.id)));
     const nonPaintingAnnos = manifest.annotations;
     // TODO: Check if canvas has an image
     // TODO: Check if every painting annotation is an image with a JPEG available
@@ -437,7 +444,7 @@ export function getImageInfos(canvas: CanvasNormalized): ImageInfo[] {
     }
     const target = parseTarget(anno.target);
 
-    const body = vault.get<ContentResource>(anno.body);
+    const body = vault.get<ContentResource>(anno.body.map(b => b.id));
     for (const resource of body) {
       if (resource.type !== 'Image') {
         continue;

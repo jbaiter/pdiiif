@@ -12,7 +12,7 @@
     type OptimizationParams,
     type ConvertOptions,
   } from 'pdiiif';
-  import { getValue } from '@iiif/vault-helpers';
+  import { getValue } from '@iiif/helpers';
   import streamSaver from 'streamsaver';
 
   import { fetchManifestInfo, type ManifestInfo } from './iiif';
@@ -30,7 +30,7 @@
     getMaximumBlobSize,
     supportsStreamsaver,
   } from './util';
-  import type { CanvasNormalized } from '@iiif/presentation-3';
+  import type { CanvasNormalized } from '@iiif/presentation-3-normalized';
 
   export let apiEndpoint: string = 'http://localhost:31337/api';
   export let coverPageEndpoint: string = `${apiEndpoint}/coverpage`;

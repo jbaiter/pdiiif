@@ -3,20 +3,23 @@ import type { Writable } from 'stream';
 import {
   Manifest,
   RangeItems,
-  ManifestNormalized,
-  CanvasNormalized,
-  RangeNormalized,
   Reference,
   IIIFExternalWebResource,
   ContentResource,
   Service,
   ImageService,
-  AnnotationNormalized,
-  ResourceProviderNormalized,
   Annotation as IIIF3Annotation,
 } from '@iiif/presentation-3';
+import {
+  ManifestNormalized,
+  CanvasNormalized,
+  RangeNormalized,
+  AnnotationNormalized,
+  ResourceProviderNormalized,
+  NormalizedRangeItemSchemas,
+} from '@iiif/presentation-3-normalized';
 import Presentation2 from '@iiif/presentation-2';
-import { convertPresentation2 } from '@iiif/parser/presentation-2';
+import { upgrade as convertPresentation2 } from '@iiif/parser/upgrader';
 import PQueue from 'p-queue';
 import events from 'events';
 import * as ocrParser from 'ocr-parser';
@@ -305,8 +308,7 @@ export async function estimatePdfSize({
   }
 
   const canvases = vault.get<CanvasNormalized>(
-    manifest.items.filter((c) => canvasPredicate(c.id))
-  );
+    manifest.items.filter(c => canvasPredicate(c.id)).map(c => c.id));
 
   // Select some representative canvases that are close to the mean in terms
   // of their pixel area to avoid small images distorting the estimate too much
@@ -418,9 +420,9 @@ async function buildOutlineFromRanges(
   const canvasIds = canvases.map((canvas) => canvas.id);
 
   // We have to recurse, this small closure handles each node in the tree
-  const isCanvas = (ri: RangeItems): ri is Reference<'Canvas'> =>
+  const isCanvas = (ri: RangeItems | NormalizedRangeItemSchemas): ri is Reference<'Canvas'> =>
     typeof ri !== 'string' && ri.type === 'Canvas';
-  const isRange = (ri: RangeItems): ri is Reference<'Range'> =>
+  const isRange = (ri: RangeItems | NormalizedRangeItemSchemas): ri is Reference<'Range'> =>
     typeof ri !== 'string' && ri.type == 'Range';
 
   const seenRanges: Set<string> = new Set();
@@ -433,10 +435,10 @@ async function buildOutlineFromRanges(
     // Double filtering with `isCanvas` is necessary because of TS limitations
     const firstCanvas = range.items
       .filter(isCanvas)
-      .filter((c) => canvasIds.indexOf(c.id) >= 0)
+      .filter((c) => canvasIds.indexOf(c.id!) >= 0)
       .filter(isCanvas)
       .sort((a, b) =>
-        canvasIds.indexOf(a.id) > canvasIds.indexOf(b.id) ? -1 : 1
+        canvasIds.indexOf(a.id!) > canvasIds.indexOf(b.id!) ? -1 : 1
       )[0];
     const rangeLabel = getI18nValue(
       range.label ?? '<untitled>',
@@ -465,7 +467,7 @@ async function buildOutlineFromRanges(
     }
     return {
       label: rangeLabel,
-      startCanvas,
+      startCanvas: startCanvas!,
       children,
     };
   };
@@ -617,7 +619,7 @@ async function getCoverPagePdf(
   const thumbUrl = await getThumbnail(manifest, 512);
   if (thumbUrl) {
     params.thumbnail = { url: thumbUrl };
-    const manifestThumb = vault.get<ContentResource>(manifest.thumbnail)[0];
+    const manifestThumb = vault.get<ContentResource>(manifest.thumbnail.map(t => t.id))[0];
     if (manifestThumb && 'type' in manifestThumb) {
       params.thumbnail.iiifImageService = (
         manifestThumb as IIIFExternalWebResource
@@ -987,7 +989,7 @@ export async function convertManifest(
         const normalized = await Promise.all(
           externalAnnotations.map((a) => {
             if (!('id' in a)) {
-              a = convertPresentation2(a) as IIIF3Annotation;
+              a = convertPresentation2(a) as unknown as IIIF3Annotation;
             }
             return vault.load<AnnotationNormalized>(a.id, a);
           })

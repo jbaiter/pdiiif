@@ -9,14 +9,15 @@ import promBundle from 'express-prom-bundle';
 import * as Sentry from '@sentry/node';
 import * as Tracing from '@sentry/tracing';
 import {
+  ContentResource,
+} from '@iiif/presentation-3';
+import {
   AnnotationNormalized,
   AnnotationPageNormalized,
   CanvasNormalized,
-  ContentResource,
   ManifestNormalized,
-} from '@iiif/presentation-3';
-import { globalVault, Vault } from '@iiif/vault';
-import { buildLocaleString } from '@iiif/vault-helpers';
+} from '@iiif/presentation-3-normalized';
+import {  globalVault, Vault, buildLocaleString } from '@iiif/helpers';
 import { convertManifest, ProgressNotification, ProgressStatus } from 'pdiiif';
 
 import {
@@ -315,7 +316,7 @@ app.get(
       .get<CanvasNormalized>(manifest.items)
       .flatMap((c) => vault.get<AnnotationPageNormalized>(c.items))
       .flatMap((ap) => vault.get<AnnotationNormalized>(ap.items))
-      .flatMap((a) => vault.get<ContentResource>(a.body))
+      .flatMap((a) => vault.get<ContentResource>(a.body.map(b => b.id)))
       .map((r) => r.id)
       .filter((i: string | undefined): i is string => i !== undefined)
       // We'll just assume that the identifier of the content resource

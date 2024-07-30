@@ -1,13 +1,14 @@
 import type {
+  ContentResource,
+  IIIFExternalWebResource,
+} from '@iiif/presentation-3';
+import type {
   ManifestNormalized,
   CanvasNormalized,
   AnnotationPageNormalized,
   AnnotationNormalized,
-  ContentResource,
-  IIIFExternalWebResource,
-} from '@iiif/presentation-3';
-import { globalVault, Vault } from '@iiif/vault';
-import { createThumbnailHelper, getValue } from '@iiif/vault-helpers';
+} from '@iiif/presentation-3-normalized'
+import { globalVault, Vault,  createThumbnailHelper, getValue } from '@iiif/helpers';
 import {
   supportsCustomSizes,
   getImageServices,
@@ -36,7 +37,7 @@ export async function fetchManifestInfo(
   const images = canvases
     .flatMap((c) => vault.get<AnnotationPageNormalized>(c.items))
     .flatMap((ap) => vault.get<AnnotationNormalized>(ap.items))
-    .flatMap((a) => vault.get<ContentResource>(a.body))
+    .flatMap((a) => vault.get<ContentResource>(a.body.map(b => b.id)))
     .flatMap((r) => {
       if ((r as any).type === 'Choice') {
         return vault.get<ContentResource>(

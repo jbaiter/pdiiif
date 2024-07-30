@@ -5,7 +5,7 @@ import {
   SelectorStyle,
   SupportedSelector,
   SvgSelector,
-} from '@iiif/vault-helpers/annotation-targets';
+} from '@iiif/helpers';
 import { PointSelector } from '@iiif/presentation-3';
 import Color from 'color';
 import { SAXParser, SaxEventType, Text } from 'sax-wasm';

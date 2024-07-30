@@ -1,18 +1,20 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { Mutex } from 'async-mutex';
 import {
-  CanvasNormalized,
   ExternalWebResource,
   FragmentSelector,
   IIIFExternalWebResource,
   ImageService,
   ImageService3,
-  ManifestNormalized,
-  RangeNormalized,
   Reference,
   Selector,
   Service,
 } from '@iiif/presentation-3';
+import {
+  CanvasNormalized,
+  ManifestNormalized,
+  RangeNormalized,
+} from '@iiif/presentation-3-normalized'
 
 import { OcrPageWithMarkup, fetchAndParseText } from './ocr.js';
 import metrics from './metrics.js';
@@ -472,10 +474,10 @@ export async function fetchStartCanvasInfo(
     }
     canvasId = ident;
     fragment = `xywh=${selectorStr}`;
-  } else if (startRef.type === 'Canvas') {
+  } else if (startRef.type === 'SpecificResource') {
     return startRef.id;
   } else {
-    const selector = vault.get<Selector>(startRef);
+    const selector = vault.get<Exclude<Selector, string>>(startRef.id!);
     if (typeof selector === 'string' || selector.type !== 'FragmentSelector') {
       log.warn(
         `Unsupported selector type, cannot determine start canvas for ${resource.id}`
