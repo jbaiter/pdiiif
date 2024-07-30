@@ -6,10 +6,11 @@
   import {
     convertManifest,
     estimatePdfSize,
-    type ConversionReportWithData,
     type Estimation,
     type ProgressStatus,
     type ProgressNotification,
+    type OptimizationParams,
+    type ConvertOptions,
   } from 'pdiiif';
   import { getValue } from '@iiif/vault-helpers';
   import streamSaver from 'streamsaver';
@@ -29,11 +30,12 @@
     getMaximumBlobSize,
     supportsStreamsaver,
   } from './util';
+  import type { CanvasNormalized } from '@iiif/presentation-3';
 
   export let apiEndpoint: string = 'http://localhost:31337/api';
   export let coverPageEndpoint: string = `${apiEndpoint}/coverpage`;
   export let initialManifestUrl: string | null = null;
-  export let onError: ((err: ErrorIcon) => void) | undefined = undefined;
+  export let onError: ((err: Error) => void) | undefined = undefined;
 
   // We use a self-hosted MITM page for the streamsaver service worker
   // to avoid GDPR issues.
@@ -50,6 +52,7 @@
   let scaleFactor = 1;
   let notifyWhenDone = false;
   let canvasIdentifiers: string[] | undefined = undefined;
+  let optimizationConfig: OptimizationParams | undefined = undefined;
 
   // Validation state
   let manifestUrlIsValid: boolean | undefined;
@@ -63,6 +66,7 @@
   let manifestInfo: ManifestInfo | undefined;
   let infoPromise: Promise<ManifestInfo | void> | undefined;
   let estimatePromise: Promise<Estimation> | undefined;
+  let sampledCanvases: CanvasNormalized[] | undefined;
 
   // Only relevant for client-side generation
   let abortController: AbortController | undefined;
@@ -92,10 +96,16 @@
       manifestUrlIsValid = false;
     } else {
       manifestUrlIsValid = true;
-      onValidManifestUrl();
     }
   } else if (manifestInput) {
     resetState();
+  }
+
+  $: if (manifestUrlIsValid) {
+    scaleFactor;
+    canvasIdentifiers;
+    optimizationConfig;
+    updateEstimate();
   }
 
   // Show notification if file system api is available
@@ -127,20 +137,26 @@
     manifestInfo = undefined;
     infoPromise = undefined;
     estimatePromise = undefined;
+    sampledCanvases = undefined;
     scaleFactor = 1;
+    optimizationConfig = undefined;
   }
 
-  function onValidManifestUrl() {
+  function updateEstimate() {
     // No async/await, since we need to keep a reference to the promise around
     infoPromise = fetchManifestInfo(manifestUrl)
       .then((info) => {
         manifestInfo = info;
         estimatePromise = estimatePdfSize({
           manifest: manifestInfo.manifest.id,
-          filterCanvases: canvasIdentifiers,
+          filterCanvases:
+            sampledCanvases !== undefined
+              ? sampledCanvases.map((c) => c.id)
+              : canvasIdentifiers,
           concurrency: 4,
           scaleFactor,
           numSamples: 8,
+          optimization: optimizationConfig,
         }).then((estimation) => {
           if (!estimation.corsSupported) {
             // Show a warning if the Image API endpoint does not support CORS
@@ -149,6 +165,7 @@
               message: $_('errors.cors'),
             });
           }
+          sampledCanvases = estimation.sampleCanvases;
           return estimation;
         });
         return info;
@@ -207,18 +224,18 @@
     try {
       manifestResp = await fetch(manifestUrl);
     } catch (err) {
-      onError?.(err);
+      onError?.(err as Error);
       addNotification({
         type: 'error',
         message: $_('errors.manifest_fetch', {
-          values: { manifestUrl, errorMsg: err.message },
+          values: { manifestUrl, errorMsg: (err as Error).message },
         }),
       });
       return;
     }
     const manifestJson = await manifestResp.json();
 
-    let cleanLabel = getValue(manifestInfo.label).substring(0, 200); // Limit file name length
+    let cleanLabel = getValue(manifestInfo!.label).substring(0, 200); // Limit file name length
     if (cleanLabel.endsWith('.')) {
       // Prevent duplicate period characters in filename
       cleanLabel = cleanLabel.substring(0, cleanLabel.length - 1);
@@ -270,7 +287,7 @@
       'abort',
       async () => {
         try {
-          await webWritable.abort();
+          await webWritable?.abort();
         } catch {
           // NOP
         }
@@ -279,14 +296,14 @@
       { once: true }
     );
     try {
-      const res = await convertManifest(manifestJson, webWritable, {
+      const params: ConvertOptions = {
         filterCanvases: canvasIdentifiers,
         concurrency: 4,
         languagePreference: window.navigator.languages,
-        onProgress: (status) => {
+        onProgress: (status: ProgressStatus) => {
           currentProgress = status;
         },
-        onNotification: (msg) => {
+        onNotification: (msg: ProgressNotification) => {
           let i18nKey: string = msg.code;
           if (
             msg.code === 'image-download-failure' &&
@@ -305,14 +322,13 @@
         abortController,
         coverPageEndpoint,
         scaleFactor,
+        optimization: optimizationConfig,
         polyglotZipPdf: true,
         polyglotZipBaseDir: cleanLabel,
-      });
-      pdfFinished = true;
-      if (!webWritable) {
-        const objectURL = URL.createObjectURL(
-          (res as ConversionReportWithData).data
-        );
+      };
+      if (webWritable === undefined) {
+        const res = await convertManifest(manifestJson, webWritable, params);
+        const objectURL = URL.createObjectURL(res.data);
         const link = document.createElement('a');
         link.download = `${cleanLabel}.pdf`;
         link.rel = 'noopener';
@@ -320,14 +336,17 @@
         // Clean up blob/object URL after 40 seconds
         setTimeout(() => URL.revokeObjectURL(objectURL), 40 * 1000);
         link.dispatchEvent(new MouseEvent('click'));
+      } else {
+        await convertManifest(manifestJson, webWritable, params);
       }
+      pdfFinished = true;
     } catch (err) {
       console.error(err);
-      onError?.(err);
+      onError?.(err as Error);
       addNotification({
         type: 'error',
         message: $_('errors.pdf_failure', {
-          values: { errorMsg: err.message },
+          values: { errorMsg: (err as Error).message },
         }),
       });
       currentProgress = undefined;
@@ -370,7 +389,7 @@
     const promise: Promise<void> = new Promise((resolve) =>
       progressSource.addEventListener('progress', (evt) => {
         queueState = undefined;
-        currentProgress = JSON.parse((evt as any).data);
+        currentProgress = JSON.parse((evt as any).data) as ProgressStatus;
         const isDone =
           currentProgress.pagesWritten === currentProgress.totalPages &&
           currentProgress.bytesPushed === currentProgress.estimatedFileSize;
@@ -381,7 +400,9 @@
       })
     );
     progressSource.addEventListener('notification', (evt) => {
-      const notification = JSON.parse((evt as any).data) as ProgressNotification;
+      const notification = JSON.parse(
+        (evt as any).data
+      ) as ProgressNotification;
       let i18nKey: string = notification.code;
       if (
         notification.code === 'image-download-failure' &&
@@ -412,11 +433,14 @@
       }
     });
     const params: Record<string, string> = { manifestUrl, progressToken };
-    if (canvasIdentifiers?.length) {
-      params.canvasNos = buildCanvasFilterString(
+    if (canvasIdentifiers?.length && manifestInfo) {
+      const filterString = buildCanvasFilterString(
         manifestInfo.canvasIds,
         canvasIdentifiers
       );
+      if (filterString) {
+        params.canvasNos = filterString;
+      }
     }
     window.open(`${pdfEndpoint}?${new URLSearchParams(params)}`);
     await promise;
@@ -428,7 +452,7 @@
     pdfFinished = false;
     let promise: Promise<void>;
     let generateOnClient: boolean;
-    const { size: sizeEstimate, corsSupported } = await estimatePromise;
+    const { size: sizeEstimate, corsSupported } = (await estimatePromise)!;
     if (!corsSupported) {
       generateOnClient = false;
     } else if (supportsFilesystemAPI || supportsStreamsaver()) {
@@ -481,7 +505,7 @@
 
   async function cancelGeneration(): Promise<void> {
     cancelRequested = true;
-    abortController.abort();
+    abortController?.abort();
     addNotification({
       type: 'info',
       message: $_('notifications.cancel'),
@@ -551,7 +575,9 @@
       <Settings
         bind:scaleFactor
         bind:canvasIdentifiers
+        bind:optimizationConfig
         {manifestInfo}
+        {estimatePromise}
         disabled={currentProgress && !pdfFinished}
       />
     {/if}
@@ -567,10 +593,10 @@
           currentProgress={{
             current: queueState
               ? queueState.initial - queueState.current
-              : currentProgress.bytesWritten,
+              : currentProgress?.bytesWritten ?? 0,
             total: queueState
               ? queueState.initial
-              : currentProgress.estimatedFileSize ?? Number.MAX_SAFE_INTEGER,
+              : currentProgress?.estimatedFileSize ?? Number.MAX_SAFE_INTEGER,
           }}
         >
           <span>
@@ -578,7 +604,7 @@
               {$_('queue_position', {
                 values: { pos: queueState.current },
               })}
-            {:else if currentProgress.estimatedFileSize}
+            {:else if currentProgress?.estimatedFileSize}
               {(currentProgress.bytesWritten / (1024 * 1024)).toFixed(1)}MiB / ~{(
                 currentProgress.estimatedFileSize /
                 (1024 * 1024)
@@ -645,9 +671,3 @@
     </div>
   </div>
 </div>
-
-<style global lang="postcss">
-  @tailwind base;
-  @tailwind components;
-  @tailwind utilities;
-</style>

@@ -34,7 +34,12 @@
     },
     "settings": {
         "img_width": "Image size",
-        "canvases": "Pages"
+        "canvases": "Pages",
+        "optimization": "Optimization",
+        "optimization_none": "None",
+        "optimization_mozjpeg": "MozJPEG (high quality, low file size, a bit slower)",
+        "optimization_browser": "Browser Canvas (medium quality, slightly lower file size, very fast)",
+        "quality": "Quality"
     },
     "links": {
         "source": "Source Code",
@@ -42,6 +47,7 @@
         "problem": "Report a problem"
     },
     "estimated_pdf_size": "Estimated PDF size",
+    "optimized_size": "{sizePercent}% of original size",
     "queue_position": "Queue position: {pos}",
     "number_of_pages": "pages",
     "unload_warning": "Leaving this page will terminate the current download. Are you sure you want to close this page?"

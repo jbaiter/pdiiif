@@ -279,10 +279,12 @@ export type CanvasImage = ImageInfo & CanvasImageData;
 export type CanvasImageData = {
   data?: ArrayBuffer;
   numBytes: number;
+  format: 'jpeg' | 'png';
   corsAvailable: boolean;
   ppi?: number;
   nativeWidth?: number;
   nativeHeight?: number;
+  downscaled?: boolean;
 };
 
 /** Options for fetching image */
@@ -324,6 +326,7 @@ async function fetchCanvasImage(
   }
   let ppi: number | undefined;
   let imageUrl: string;
+  let downscaled = false;
   if (imgService) {
     if (!imgService.width) {
       imgService = await fetchFullImageService(imgService);
@@ -334,6 +337,9 @@ async function fetchCanvasImage(
     ppi = getPointsPerInch(imgService.service ?? []) ?? undefined;
     if (ppi) {
       ppi = ppi * (sizeInfo.width / imgService.width!);
+    }
+    if (sizeInfo.width < imgService.width!) {
+      downscaled = true;
     }
   } else if (image.id && ['image/jpeg', 'image/png'].indexOf(image.format ?? 'unknown') >= 0) {
     imageUrl = image.id;
@@ -347,6 +353,7 @@ async function fetchCanvasImage(
   let data: ArrayBuffer | undefined;
   let numBytes: number;
   let corsAvailable = true;
+  let format: 'jpeg' | 'png' | null = null;
   const stopMeasuring = metrics?.imageFetchDuration.startTimer({
     iiif_host: new URL(imageUrl).host,
   });
@@ -366,6 +373,13 @@ async function fetchCanvasImage(
     }
     numBytes = Number.parseInt(imgResp.headers.get('Content-Length') ?? '-1');
     data = sizeOnly && numBytes >= 0 ? undefined : await imgResp.arrayBuffer();
+    if (imgResp.headers.get('Content-Type')?.startsWith('image/jpeg')) {
+      format = 'jpeg';
+    } else if (imgResp.headers.get('Content-Type')?.startsWith('image/png')) {
+      format = 'png';
+    } else {
+      throw new Error('Unsupported image content type', { cause: { type: 'content-type' } });
+    }
     if (numBytes < 0) {
       numBytes = data?.byteLength ?? -1;
     }
@@ -408,6 +422,8 @@ async function fetchCanvasImage(
     ppi,
     numBytes,
     corsAvailable,
+    format: format!,
+    downscaled,
   };
 }
 
@@ -461,14 +477,14 @@ export async function fetchStartCanvasInfo(
   } else {
     const selector = vault.get<Selector>(startRef);
     if (typeof selector === 'string' || selector.type !== 'FragmentSelector') {
-      console.warn(
+      log.warn(
         `Unsupported selector type, cannot determine start canvas for ${resource.id}`
       );
       return;
     }
     const fragSel = selector as FragmentSelector;
     if (fragSel.conformsTo !== 'http://www.w3.org/TR/media-frags/') {
-      console.warn(
+      log.warn(
         `Unsupported selector type, cannot determine start canvas for ${resource.id} (fragment selector type was ${fragSel.conformsTo})`
       );
       return;
@@ -476,7 +492,7 @@ export async function fetchStartCanvasInfo(
     canvasId = fragSel.value;
   }
   if (!fragment || !canvasId) {
-    console.error(
+    log.error(
       `Couldn't parse either canvas identifier or selector for ${resource.id} start canvas.`
     );
     return;

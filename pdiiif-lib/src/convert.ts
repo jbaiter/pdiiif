@@ -52,6 +52,11 @@ import {
   parseAnnotation,
   Annotation,
 } from './iiif.js';
+import {
+  initialize,
+  OptimizationParams,
+  optimizeImage,
+} from './optimization.js';
 
 /** Progress information for rendering a progress bar or similar UI elements. */
 export interface ProgressStatus {
@@ -163,6 +168,15 @@ export interface ConvertOptions {
    *  from `ocr-parser` has been called before.
    */
   saxWasmLoader?: () => Promise<Uint8Array>;
+  /** Custom loader callback that fetches the WASM binary for the `@jsquash/jpeg`
+   * dependency (v1.4.0). By default the dependency will be loaded from
+   * `https://unpkg.com/@jsquash/jpeg@1.4.0/codec/enc/mozjpeg_enc.wasm`. Override
+   * if you want to provide your own payload. Loader will not be called if
+   * {@link optimization} is not set to use the `mozjpeg` method.
+   */
+  mozjpegWasmLoader?: () => Promise<Uint8Array>;
+  /** Parameters for optimizing the images for size by re-encoding them to JPEGs. */
+  optimization?: OptimizationParams;
 }
 
 /** Parameters for size estimation */
@@ -182,6 +196,23 @@ export interface EstimationParams {
   numSamples?: number;
   /** Number of maximum concurrent IIIF Image API requests to be performed, defaults to 1 */
   concurrency?: number;
+  /** Parameters for optimizing the images for size by re-encoding them to JPEGs. */
+  optimization?: OptimizationParams;
+  /** Custom loader callback that fetches the WASM binary for the `sax-wasm`
+   *  dependency (v2.2.4). By default, the dependency will be loaded from
+   *  `https://unpkg.com/sax-wasm/dist/sax-wasm.wasm`. Override if you want
+   *  to provide your own payload. Loader will not be called if {@link initialize}
+   *  from `ocr-parser` has been called before.
+   */
+  saxWasmLoader?: () => Promise<Uint8Array>;
+  /** Custom loader callback that fetches the WASM binary for the `@jsquash/jpeg`
+   * dependency (v1.4.0). By default the dependency will be loaded from
+   * `https://unpkg.com/@jsquash/jpeg@1.4.0/codec/enc/mozjpeg_enc.wasm`. Override
+   * if you want to provide your own payload. Loader will not be called if
+   * {@link optimization} is not set to use the `mozjpeg` method.
+   */
+  mozjpegWasmLoader?: () => Promise<Uint8Array>;
+  /** Parameters for optimizing the images for size by re-encoding them to JPEGs. */
 }
 
 export type Estimation = {
@@ -189,29 +220,43 @@ export type Estimation = {
   size: number;
   /** If CORS is enabled for all of the images referenced in the sample canvases */
   corsSupported: boolean;
+  /** Image data for a sample image, present when optimization is enabled. */
+  sampleImageData?: Uint8Array;
+  /** Image MIME type for a sample image, present when optimization is enabled. */
+  sampleImageMimeType?: string;
+  /** How large is the PDF after the image optimization, compared to the unoptimized images?  */
+  optimizationResult?: number;
+  /** Canvases that were used for estimating */
+  sampleCanvases: CanvasNormalized[];
+};
 
-}
-
-function getCanvasesForSampling(canvases: CanvasNormalized[], numSamples: number): CanvasNormalized[] {
+function getCanvasesForSampling(
+  canvases: CanvasNormalized[],
+  numSamples: number
+): CanvasNormalized[] {
   if (canvases.length <= numSamples) {
     return canvases;
   }
-  const meanPixels = canvases.reduce(
-    (x, { width, height }) => x + width * height, 0) / canvases.length;
+  const meanPixels =
+    canvases.reduce((x, { width, height }) => x + width * height, 0) /
+    canvases.length;
   const candidateCanvases = canvases.filter(
     (c) => Math.abs(meanPixels - c.width * c.height) <= 0.25 * meanPixels
   );
   if (candidateCanvases.length <= numSamples) {
     return candidateCanvases;
   }
-  const sampleCanvases: CanvasNormalized[] = []
+  const sampleCanvases: CanvasNormalized[] = [];
   while (sampleCanvases.length < numSamples) {
-    const candidate = candidateCanvases[Math.floor(Math.random() * candidateCanvases.length)]
+    const candidate =
+      candidateCanvases[Math.floor(Math.random() * candidateCanvases.length)];
     if (sampleCanvases.indexOf(candidate) < 0) {
-      sampleCanvases.push(candidate)
+      sampleCanvases.push(candidate);
     }
   }
-  return sampleCanvases;
+  return sampleCanvases.sort(
+    (a, b) => canvases.indexOf(a) - canvases.indexOf(b)
+  );
 }
 
 /** Estimate the final size of the PDF for a given manifest.
@@ -227,6 +272,17 @@ export async function estimatePdfSize({
   scaleFactor,
   filterCanvases = () => true,
   numSamples = 8,
+  optimization,
+  saxWasmLoader = async () =>
+    fetch(
+      `https://unpkg.com/sax-wasm@${ocrParser.SAX_WASM_VERSION}/lib/sax-wasm.wasm`
+    )
+      .then((res) => res.arrayBuffer())
+      .then((buf) => new Uint8Array(buf)),
+  mozjpegWasmLoader = async () =>
+    fetch('https://unpkg.com/@jsquash/jpeg@1.4.0/codec/enc/mozjpeg_enc.wasm')
+      .then((res) => res.arrayBuffer())
+      .then((buf) => new Uint8Array(buf)),
 }: EstimationParams): Promise<Estimation> {
   let manifestId;
   if (typeof inputManifest === 'string') {
@@ -263,27 +319,84 @@ export async function estimatePdfSize({
     (sum, canvas) => sum + canvas.width * canvas.height,
     0
   );
+
+  const saxWasm = await saxWasmLoader?.();
+  if (saxWasm) {
+    initializeSaxParser(saxWasm);
+  }
+
   const queue = new PQueue({ concurrency });
   const canvasData = await Promise.all(
     sampleCanvases.map((c) =>
       queue.add(async () => {
         const info = getCanvasInfo(c);
-        return fetchCanvasData(c, info.images, { scaleFactor, sizeOnly: true });
+        return fetchCanvasData(c, info.images, {
+          scaleFactor,
+          sizeOnly: optimization === undefined,
+        });
       })
     )
   );
+
+  let optimizationResult: number | undefined;
+  // FIXME: Only do this if we've not already initialized
+  if (optimization) {
+    if (optimization.method === 'mozjpeg') {
+      await initialize(await mozjpegWasmLoader!());
+    }
+    const images = canvasData
+      .filter((c): c is CanvasData => c !== undefined)
+      .flatMap((c) => c.images);
+    const originalSize = images.reduce(
+      (sum, img) => sum + img.data!.byteLength,
+      0
+    );
+    await Promise.all(
+      images.map(async (img) => {
+        const optimized = await optimizeImage({
+          imageData: new Uint8Array(img.data!),
+          imageFormat:
+            (img.format as 'jpeg' | 'png') === 'jpeg'
+              ? 'image/jpeg'
+              : 'image/png',
+          ...optimization,
+        });
+        img.data = optimized.jpegData.buffer;
+        img.format = 'jpeg';
+      })
+    );
+    const optimizedSize = images.reduce(
+      (sum, img) => sum + img.data!.byteLength,
+      0
+    );
+    optimizationResult = optimizedSize / originalSize;
+  }
+
   const corsSupported = canvasData
     .filter(isDefined<CanvasData>)
     .flatMap((c) => c.images)
-    .every(i => i.corsAvailable);
+    .every((i) => i.corsAvailable);
   const sampleBytes = canvasData
     .filter(isDefined<CanvasData>)
     .flatMap((c) => c.images)
-    .reduce((size: number, data) => size + (data?.numBytes ?? 0), 0);
+    .reduce(
+      (size: number, img) => size + (img?.data?.byteLength ?? img.numBytes),
+      0
+    );
+  const sampleImages = canvasData
+    .filter(isDefined<CanvasData>)
+    .flatMap((c) => c.images);
+  const sampleImage = sampleImages[0];
   const bpp = sampleBytes / samplePixels;
   return {
     size: bpp * totalCanvasPixels,
     corsSupported,
+    sampleImageData: sampleImage.data
+      ? new Uint8Array(sampleImage.data)
+      : undefined,
+    sampleImageMimeType: sampleImage.format,
+    sampleCanvases,
+    optimizationResult
   };
 }
 
@@ -320,9 +433,11 @@ async function buildOutlineFromRanges(
     // Double filtering with `isCanvas` is necessary because of TS limitations
     const firstCanvas = range.items
       .filter(isCanvas)
-      .filter(c => canvasIds.indexOf(c.id) >= 0)
+      .filter((c) => canvasIds.indexOf(c.id) >= 0)
       .filter(isCanvas)
-      .sort((a, b) => canvasIds.indexOf(a.id) > canvasIds.indexOf(b.id) ? -1 : 1)[0];
+      .sort((a, b) =>
+        canvasIds.indexOf(a.id) > canvasIds.indexOf(b.id) ? -1 : 1
+      )[0];
     const rangeLabel = getI18nValue(
       range.label ?? '<untitled>',
       languagePreference,
@@ -356,28 +471,29 @@ async function buildOutlineFromRanges(
   };
 
   let tocRanges = vault.get<RangeNormalized>(manifest.structures);
-  const topRange = tocRanges.find(r => (r.behavior as string[]).indexOf("top") >= 0);
+  const topRange = tocRanges.find(
+    (r) => (r.behavior as string[]).indexOf('top') >= 0
+  );
   // If there's a 'top' range, only use that as the single top-level ToC node
   if (topRange) {
     tocRanges = [topRange];
   }
 
   return (
-    (
-      await Promise.all(tocRanges.map(handleTocRange)
-      )
-    ).filter(isDefined<TocItem>) ?? []
+    (await Promise.all(tocRanges.map(handleTocRange))).filter(
+      isDefined<TocItem>
+    ) ?? []
   );
 }
 
 export type ProgressMessageCode =
-  'generate-cover-page' |
-  'generate-pages' |
-  'finishing';
+  | 'generate-cover-page'
+  | 'generate-pages'
+  | 'finishing';
 
 export type ProgressNotification =
-  ImageDownloadFailureNotification |
-  OcrDownloadFailureNotification;
+  | ImageDownloadFailureNotification
+  | OcrDownloadFailureNotification;
 
 export type ImageDownloadFailureNotification = {
   code: 'image-download-failure';
@@ -386,13 +502,13 @@ export type ImageDownloadFailureNotification = {
   numTotal: number;
   details: {
     [imageUrl: string]: string;
-  }
-}
+  };
+};
 export type OcrDownloadFailureNotification = {
   code: 'ocr-download-failure';
   canvasIndex: number;
   ocrUrl: string;
-}
+};
 
 /** Tracks PDF generation progress and various statistics related to that. */
 class ProgressTracker {
@@ -583,13 +699,13 @@ export type ConversionReport = {
     numTotal: number;
     details: {
       [imageUrl: string]: string;
-    }
+    };
   }>;
   failedOcr?: Array<{
     canvasIndex: number;
     ocrUrl: string;
   }>;
-}
+};
 
 export type ConversionReportWithData = ConversionReport & { data: Blob };
 
@@ -623,14 +739,21 @@ export async function convertManifest(
     coverPageEndpoint,
     polyglotZipPdf,
     polyglotZipBaseDir,
+    optimization,
     saxWasmLoader = async () =>
-      fetch(`https://unpkg.com/sax-wasm@${ocrParser.SAX_WASM_VERSION}/lib/sax-wasm.wasm`)
+      fetch(
+        `https://unpkg.com/sax-wasm@${ocrParser.SAX_WASM_VERSION}/lib/sax-wasm.wasm`
+      )
+        .then((res) => res.arrayBuffer())
+        .then((buf) => new Uint8Array(buf)),
+    mozjpegWasmLoader = async () =>
+      fetch('https://unpkg.com/@jsquash/jpeg@1.4.0/codec/enc/mozjpeg_enc.wasm')
         .then((res) => res.arrayBuffer())
         .then((buf) => new Uint8Array(buf)),
   }: ConvertOptions
 ): Promise<ConversionReport | ConversionReportWithData> {
   // Prevent warning when running in Node.js
-  if (typeof process !== "undefined") {
+  if (typeof process !== 'undefined') {
     events.setMaxListeners(100, abortController.signal);
   }
   let writer: Writer;
@@ -669,7 +792,7 @@ export async function convertManifest(
   let manifestJson: Manifest | Presentation2.Manifest;
   if (typeof inputManifest === 'string') {
     manifestId = inputManifest;
-    manifestJson = await fetchManifestJson(manifestId) as
+    manifestJson = (await fetchManifestJson(manifestId)) as
       | Manifest
       | Presentation2.Manifest;
   } else {
@@ -725,13 +848,30 @@ export async function convertManifest(
   });
   const canvasInfos = canvases.map(getCanvasInfo);
   const canvasFuts = canvases.map((c, idx) => {
-    return queue.add(() => {
+    return queue.add(async () => {
       const info = canvasInfos[idx];
-      return fetchCanvasData(c, info.images, {
+      const canvasData = await fetchCanvasData(c, info.images, {
         scaleFactor,
         ppiOverride: ppi,
         abortSignal: abortController.signal,
       });
+      // TODO: If downscaling was not possible due to lack of IIIF Image API support,
+      //       we should force an optimization pass with a lower resolution.
+      if (optimization) {
+        await Promise.all(
+          canvasData?.images.map(async (i) => {
+            const optimized = await optimizeImage({
+              imageData: new Uint8Array(i.data!),
+              imageFormat: i.format === 'jpeg' ? 'image/jpeg' : 'image/png',
+              ...optimization,
+            });
+            log.debug('main: Got optimized image', i.resource.id);
+            i.data = optimized.jpegData;
+            i.format = 'jpeg';
+          }) ?? []
+        );
+      }
+      return canvasData;
     });
   });
 
@@ -745,7 +885,7 @@ export async function convertManifest(
     metadata: pdfMetadata,
     canvasInfos: canvases.map((c, idx) => ({
       canvasIdx: idx,
-      ...canvasInfos[idx]
+      ...canvasInfos[idx],
     })),
     langPref: languagePreference,
     pageLabels: labels,
@@ -767,7 +907,7 @@ export async function convertManifest(
     countingWriter,
     pdfGen,
     onProgress,
-    onNotification,
+    onNotification
   );
   progress.emitProgress(0);
 
@@ -818,13 +958,14 @@ export async function convertManifest(
           details: Object.fromEntries(
             imageFailures.map((f) => [
               f.resource.id ?? '<unknown>',
-              f.cause instanceof Error ? f.cause.toString() : f.cause
-            ]))
+              f.cause instanceof Error ? f.cause.toString() : f.cause,
+            ])
+          ),
         };
         report.failedImages.push(reportData);
         progress.emitNotification({
           code: 'image-download-failure',
-          ...reportData
+          ...reportData,
         });
       }
       if (canvasInfo.ocr && !text?.markup) {
@@ -834,7 +975,7 @@ export async function convertManifest(
         const reportData = {
           canvasIndex: canvasIdx,
           ocrUrl: canvasInfo.ocr.id,
-        }
+        };
         report.failedOcr.push(reportData);
         progress.emitNotification({
           code: 'ocr-download-failure',
@@ -872,10 +1013,7 @@ export async function convertManifest(
       );
       stopMeasuring?.();
       progress.updatePixels(
-        images.reduce(
-          (acc, img) => acc + img.width * img.height,
-          0
-        ),
+        images.reduce((acc, img) => acc + img.width * img.height, 0),
         canvas.width * canvas.height
       );
       report.numPages++;
@@ -928,7 +1066,7 @@ export async function convertManifest(
 
   report.fileSizeBytes = countingWriter.bytesWritten;
   if (writer instanceof BlobWriter) {
-    return {...report, data: writer.blob };
+    return { ...report, data: writer.blob };
   } else {
     return report;
   }

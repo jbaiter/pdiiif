@@ -9,7 +9,10 @@
     "resolveJsonModule": true,
     "esModuleInterop": true,
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "sourceMap": true
+    "sourceMap": true,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "outDir": "./dist"
   },
   "include": [
     "src/**/*.ts",

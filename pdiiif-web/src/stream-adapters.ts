@@ -51,7 +51,7 @@ export class WritableAdapter extends Writable {
         })
         .catch((reason) => cb(reason));
     } catch (err) {
-      cb(err);
+      cb(err as Error | null);
     }
   }
 }

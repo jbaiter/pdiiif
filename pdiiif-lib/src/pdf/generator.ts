@@ -42,6 +42,7 @@ import {
 } from './pkzip.js';
 import { crc32 } from '../util.js';
 import { exportPdfAnnotation } from './annos.js';
+import { OptimizationParams } from '../optimization.js';
 
 const PRODUCER = `pdiiif v${pdiiifVersion}`;
 
@@ -121,6 +122,8 @@ export type GeneratorParams = {
   // Base directory name for the polyglot ZIP archive, if not set the resources will be
   // top-level in the archive
   zipBaseDir?: string;
+  // Optimize images to reduce size
+  optimization?: OptimizationParams;
 };
 
 /** Streaming PDF generator based on a IIIF manifest.
@@ -1477,7 +1480,7 @@ export default class PDFGenerator {
     /* FIXME: Disabled due to poor performance on large volumes and a strange
      *        interaction with streamsaver, where the PDF would be prematurely
      *        closed in the middle of writing out the structure tree.
-    console.debug("Writing structure tree");
+    log.debug("Writing structure tree");
     if (this._strucTree.length > 0) {
       await this._writeStructureTree();
     }

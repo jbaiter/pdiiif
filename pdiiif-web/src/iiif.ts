@@ -30,7 +30,7 @@ export async function fetchManifestInfo(
   manifestUrl: string
 ): Promise<ManifestInfo> {
   const manifestJson = await fetchManifestJson(manifestUrl);
-  const manifest = await vault.loadManifest(manifestUrl, manifestJson);
+  const manifest = (await vault.loadManifest(manifestUrl, manifestJson))!;
   const canvases = vault.get<CanvasNormalized>(manifest.items);
   const canvasIds = canvases.map((c) => c.id);
   const images = canvases

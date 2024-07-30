@@ -38,3 +38,18 @@ export function runningInNode(): boolean {
 export function initializeSaxParser(parserWasm: Uint8Array): void {
   saxParserWasm = parserWasm;
 }
+
+export function randomUUIDv4() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+    if (c !== 'x') {
+      return c;
+    }
+    const randomInteger = (Math.random() * 16) | 0;
+    const encoded = (randomInteger & 0x3) | 0x8;
+    return encoded.toString(16);
+  });
+}

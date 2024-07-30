@@ -32,10 +32,19 @@
               {#await estimatePromise}
                 {$_('estimated_pdf_size')}:
                 <Spinner />
-              {:then { size }}
+              {:then { size, optimizationResult }}
                 {#if size > 0}
                   {$_('estimated_pdf_size')}:
                   <strong>{(size / 1024 / 1024).toFixed(2)} MiB</strong>
+                  {#if optimizationResult !== undefined}
+                    <span class="block"
+                      >{$_('optimized_size', {
+                        values: {
+                          sizePercent: (optimizationResult * 100).toFixed(0),
+                        },
+                      })}</span
+                    >
+                  {/if}
                 {:else}
                   <strong>{$_('errors.estimate_failure')}</strong>
                 {/if}

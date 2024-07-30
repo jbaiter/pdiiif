@@ -44,7 +44,7 @@ export function buildCanvasFilterString(allIdentifiers: string[], filteredIdenti
     return undefined;
   }
   let parts = [];
-  let currentRange = [];
+  let currentRange: number[] = [];
   for (const ident of filteredIdentifiers) {
     const idx = allIdentifiers.indexOf(ident);
     if (currentRange.length < 2) {

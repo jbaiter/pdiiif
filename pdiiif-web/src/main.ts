@@ -1,4 +1,5 @@
 import { addMessages, init, getLocaleFromNavigator } from 'svelte-i18n';
+import './app.css';
 import App from './App.svelte';
 import de from '../locales/de.json';
 import en from '../locales/en.json';
@@ -54,6 +55,6 @@ if (!apiEndpoint) {
     : `${window.location.toString().replace(/\/?(?:\?.*)?$/g, '')}/api`;
 }
 
-render(document.getElementById('app'), {
+render(document.getElementById('app')!, {
   apiEndpoint,
 });

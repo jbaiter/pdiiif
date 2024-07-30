@@ -90,7 +90,8 @@ describe('PDF generation', () => {
             enabled: true,
             optional: false,
             visibleByDefault: true
-          }
+          },
+          format: 'jpeg',
         },
       ],
       [],

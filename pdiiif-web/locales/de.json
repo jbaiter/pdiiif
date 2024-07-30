@@ -34,7 +34,12 @@
     },
     "settings": {
         "img_width": "Bildgröße",
-        "canvases": "Seiten"
+        "canvases": "Seiten",
+        "optimization": "Optimierung",
+        "optimization_none": "Keine",
+        "optimization_mozjpeg": "MozJPEG (hohe Qualität, große Ersparnis, etwas langsamer)",
+        "optimization_browser": "Browser Canvas (mittlere Qualität, geringe Ersparnis, schnell)",
+        "quality": "Qualität"
     },
     "links": {
         "source": "Quelltext",
@@ -42,6 +47,7 @@
         "problem": "Probleme?"
     },
     "estimated_pdf_size": "Geschätzte Dateigröße",
+    "optimized_size": "{sizePercent}% von ursprünglicher Größe",
     "queue_position": "Warteschlagenposition: {pos}",
     "number_of_pages": "Seiten",
     "unload_warning": "Das Schließen der Seite wird den momentanen Download beenden. Sind Sie sicher dass Sie die Seite schließen möchten?"
