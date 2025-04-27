@@ -1,0 +1,4 @@
+packages:
+  - 'pdiiif-api'
+  - 'pdiiif-lib'
+  - 'pdiiif-web'
