@@ -30,4 +30,3 @@ EXPOSE ${CFG_PORT}
 # Set final working directory and command
 WORKDIR /home/pptruser/pdiiif/pdiiif-api
 CMD ["node", "dist/server.js"]
-
