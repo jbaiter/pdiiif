@@ -101,9 +101,7 @@ export class CoverPageGenerator {
 
   async start(): Promise<void> {
     this.browser = await puppeteer.launch({
-      product: 'chrome',
-      headless: 'new',
-      args: ['--font-render-hinting=none', '--force-color-profile=srgb'],
+      args: ['--font-render-hinting=none', '--force-color-profile=srgb', '--no-sandbox', '--disable-gpu'],
       executablePath: process.env.CFG_PUPPETEER_BROWSER_EXECUTABLE,
     });
     const tmpl = await fs.readFile(this.coverTemplatePath);
@@ -115,7 +113,7 @@ export class CoverPageGenerator {
     this.browser = undefined;
   }
 
-  async render(params: CoverPageParams): Promise<Buffer> {
+  async render(params: CoverPageParams): Promise<Uint8Array> {
     if (!this.browser || !this.coverPageTemplate) {
       throw 'CoverPageGenerator must be started before it can render cover pages.';
     }

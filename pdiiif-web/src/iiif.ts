@@ -8,14 +8,14 @@ import type {
   AnnotationPageNormalized,
   AnnotationNormalized,
 } from '@iiif/presentation-3-normalized'
-import { globalVault, Vault,  createThumbnailHelper, getValue } from '@iiif/helpers';
+import { Vault,  createThumbnailHelper, getValue } from '@iiif/helpers';
 import {
   supportsCustomSizes,
   getImageServices,
 } from '@atlas-viewer/iiif-image-api';
 import { fetchManifestJson } from 'pdiiif';
+import { vault } from 'pdiiif';
 
-const vault: Vault = globalVault();
 const thumbHelper = createThumbnailHelper(vault);
 
 export interface ManifestInfo {
@@ -30,7 +30,7 @@ export interface ManifestInfo {
 export async function fetchManifestInfo(
   manifestUrl: string
 ): Promise<ManifestInfo> {
-  const manifestJson = await fetchManifestJson(manifestUrl);
+  let manifestJson = await fetchManifestJson(manifestUrl);
   const manifest = (await vault.loadManifest(manifestUrl, manifestJson))!;
   const canvases = vault.get<CanvasNormalized>(manifest.items);
   const canvasIds = canvases.map((c) => c.id);

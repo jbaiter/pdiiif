@@ -152,6 +152,7 @@ let pool: WorkerPool<
   OptimizationParams | InitializationRequest,
   OptimizedImage | undefined
 > | null = null;
+let isInitialized = false;
 
 export function startWorkerPool(size = navigator.hardwareConcurrency): void {
   if (pool !== null) {
@@ -169,10 +170,16 @@ export function stopWorkerPool(): void {
   pool = null;
 }
 
-export async function initialize(mozjpegWasm: Uint8Array): Promise<void> {
+export async function initialize(wasmLoader: () => Promise<Uint8Array>): Promise<void> {
   if (pool === null) {
     startWorkerPool();
   }
+
+  if (isInitialized) {
+    return;
+  }
+
+  const mozjpegWasm = await wasmLoader();
   let promises: Promise<undefined>[] = [];
   for (let i = 0; i < pool!.size; i++) {
     promises.push(pool!.dispatch({ mozjpegWasm }) as Promise<undefined>);
@@ -180,6 +187,7 @@ export async function initialize(mozjpegWasm: Uint8Array): Promise<void> {
   log.debug('main: mozjpegWasm sent to workers');
   await Promise.all(promises);
   log.debug('main: workers initialized with MozJPEG encoder');
+  isInitialized = true;
 }
 
 export async function optimizeImage(

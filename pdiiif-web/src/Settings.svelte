@@ -127,6 +127,13 @@
     }
     return out;
   }
+
+  function handleQualityChange(event: Event) {
+    if (!(event.target instanceof HTMLInputElement)) {
+      return;
+    }
+    optimizationConfig!.quality = Number(event.target!.value);
+  }
 </script>
 
 <div class="mt-4 w-full flex justify-end h-full">
@@ -218,7 +225,8 @@
           min="1"
           max="100"
           step="1"
-          bind:value={optimizationConfig.quality}
+          value={optimizationConfig.quality}
+          on:change={handleQualityChange}
         />
         <span class="ml-2 mr-8">{optimizationConfig?.quality}</span>
       </label>

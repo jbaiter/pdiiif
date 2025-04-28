@@ -434,15 +434,20 @@ export function getImageFormat(
 /** Get information about images on a Canvas. */
 export function getImageInfos(canvas: CanvasNormalized): ImageInfo[] {
   const imageInfos: ImageInfo[] = [];
-  const paintingAnnos = getAllPaintingAnnotations(canvas);
+  const paintingAnnos = vault.get<AnnotationPageNormalized>(canvas.items)
+    .flatMap((ap) => vault.get<AnnotationNormalized>(ap.items));
   for (const anno of paintingAnnos) {
-    if (typeof anno.target !== 'string') {
-      log.error(
-        `Annotation ${anno.id} has a non-string target, currently not supported.`
-      );
+    const annoTarget = anno.target as any;
+    let target;
+    if (typeof annoTarget === 'string') {
+      target = parseTarget(annoTarget);
+    } else if (annoTarget.type === 'SpecificResource') {
+      target = parseTarget(annoTarget.source.id);
+    } else {
+      console.error(`Unsupported target type for annotation on canvas ${canvas.id}: '${annoTarget.type}'`);
       continue;
     }
-    const target = parseTarget(anno.target);
+
 
     const body = vault.get<ContentResource>(anno.body.map(b => b.id));
     for (const resource of body) {

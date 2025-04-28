@@ -172,8 +172,8 @@ export interface ConvertOptions {
    */
   saxWasmLoader?: () => Promise<Uint8Array>;
   /** Custom loader callback that fetches the WASM binary for the `@jsquash/jpeg`
-   * dependency (v1.4.0). By default the dependency will be loaded from
-   * `https://unpkg.com/@jsquash/jpeg@1.4.0/codec/enc/mozjpeg_enc.wasm`. Override
+   * dependency (v1.5.0). By default the dependency will be loaded from
+   * `https://unpkg.com/@jsquash/jpeg@1.5.0/codec/enc/mozjpeg_enc.wasm`. Override
    * if you want to provide your own payload. Loader will not be called if
    * {@link optimization} is not set to use the `mozjpeg` method.
    */
@@ -209,13 +209,14 @@ export interface EstimationParams {
    */
   saxWasmLoader?: () => Promise<Uint8Array>;
   /** Custom loader callback that fetches the WASM binary for the `@jsquash/jpeg`
-   * dependency (v1.4.0). By default the dependency will be loaded from
-   * `https://unpkg.com/@jsquash/jpeg@1.4.0/codec/enc/mozjpeg_enc.wasm`. Override
+   * dependency (v1.5.0). By default the dependency will be loaded from
+   * `https://unpkg.com/@jsquash/jpeg@1.5.0/codec/enc/mozjpeg_enc.wasm`. Override
    * if you want to provide your own payload. Loader will not be called if
    * {@link optimization} is not set to use the `mozjpeg` method.
    */
   mozjpegWasmLoader?: () => Promise<Uint8Array>;
-  /** Parameters for optimizing the images for size by re-encoding them to JPEGs. */
+  /** Pre-sampled list of canvases to use for estimating the size */
+  sampleCanvases?: CanvasNormalized[];
 }
 
 export type Estimation = {
@@ -283,9 +284,10 @@ export async function estimatePdfSize({
       .then((res) => res.arrayBuffer())
       .then((buf) => new Uint8Array(buf)),
   mozjpegWasmLoader = async () =>
-    fetch('https://unpkg.com/@jsquash/jpeg@1.4.0/codec/enc/mozjpeg_enc.wasm')
+    fetch('https://unpkg.com/@jsquash/jpeg@1.5.0/codec/enc/mozjpeg_enc.wasm')
       .then((res) => res.arrayBuffer())
       .then((buf) => new Uint8Array(buf)),
+  sampleCanvases
 }: EstimationParams): Promise<Estimation> {
   let manifestId;
   if (typeof inputManifest === 'string') {
@@ -316,15 +318,29 @@ export async function estimatePdfSize({
     (sum, canvas) => sum + canvas.width * canvas.height,
     0
   );
-  const sampleCanvases = getCanvasesForSampling(canvases, numSamples);
+  if (!sampleCanvases?.length) {
+    sampleCanvases = getCanvasesForSampling(canvases, numSamples);
+  }
   const samplePixels = sampleCanvases.reduce(
     (sum, canvas) => sum + canvas.width * canvas.height,
     0
   );
 
-  const saxWasm = await saxWasmLoader?.();
-  if (saxWasm) {
-    initializeSaxParser(saxWasm);
+  // Initialize XML parsers
+  if (!saxParserWasm || !ocrParser.isInitialized()) {
+    if (!saxParserWasm) {
+      const wasm = await saxWasmLoader();
+      initializeSaxParser(wasm);
+    }
+    if (!ocrParser.isInitialized()) {
+      await ocrParser.initialize(() => Promise.resolve(saxParserWasm!));
+      ocrParser.setupLogging({
+        debug: log.debug.bind(log),
+        info: log.info.bind(log),
+        warn: log.warn.bind(log),
+        error: log.error.bind(log),
+      });
+    }
   }
 
   const queue = new PQueue({ concurrency });
@@ -341,10 +357,9 @@ export async function estimatePdfSize({
   );
 
   let optimizationResult: number | undefined;
-  // FIXME: Only do this if we've not already initialized
   if (optimization) {
     if (optimization.method === 'mozjpeg') {
-      await initialize(await mozjpegWasmLoader!());
+      await initialize(mozjpegWasmLoader);
     }
     const images = canvasData
       .filter((c): c is CanvasData => c !== undefined)
@@ -681,7 +696,7 @@ async function getCoverPagePdf(
   } else if (endpoint) {
     const resp = await fetchRespectfully(endpoint, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json; charset=utf-8' },
       body: JSON.stringify(params),
     });
     const buf = await resp.arrayBuffer();
@@ -749,7 +764,7 @@ export async function convertManifest(
         .then((res) => res.arrayBuffer())
         .then((buf) => new Uint8Array(buf)),
     mozjpegWasmLoader = async () =>
-      fetch('https://unpkg.com/@jsquash/jpeg@1.4.0/codec/enc/mozjpeg_enc.wasm')
+      fetch('https://unpkg.com/@jsquash/jpeg@1.5.0/codec/enc/mozjpeg_enc.wasm')
         .then((res) => res.arrayBuffer())
         .then((buf) => new Uint8Array(buf)),
   }: ConvertOptions

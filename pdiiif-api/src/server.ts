@@ -139,8 +139,6 @@ if (fs.existsSync('../pdiiif-web/dist')) {
 } else {
   console.warn('Could not find pdiiif distribution bundle, will not be able to serve webapp!')
 }
-app.use(bodyParser.json());
-app.use(bodyParser.text());
 app.use(openApiMiddleware);
 app.use(
   cors({
@@ -398,8 +396,7 @@ app.get(
           onProgress,
           onNotification,
           coverPageCallback: async (params) => {
-            const buf = await coverPageGenerator.render(params);
-            return new Uint8Array(buf.buffer);
+            return await coverPageGenerator.render(params);
           },
           // Reduce chance of accidental DoS on image servers, two concurrent downloads per requested PDF
           concurrency: 2,
@@ -470,7 +467,7 @@ app.post(
     } = req.body as CoverPageParams;
 
     log.info('Generating cover page PDF for manifest', { manifestUrl });
-    const pdfBuf = await coverPageGenerator.render({
+    const pdfData = await coverPageGenerator.render({
       title,
       manifestUrl,
       metadata,
@@ -483,7 +480,7 @@ app.post(
       .status(200)
       .contentType('application/pdf')
       .header('Access-Control-Allow-Origin', '*')
-      .send(pdfBuf);
+      .send(Buffer.from(pdfData));
   },
   (err, _req, res, _next) => {
     log.info('Rejected cover page request due to validation errors:', {

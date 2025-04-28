@@ -149,14 +149,12 @@
         manifestInfo = info;
         estimatePromise = estimatePdfSize({
           manifest: manifestInfo.manifest.id,
-          filterCanvases:
-            sampledCanvases !== undefined
-              ? sampledCanvases.map((c) => c.id)
-              : canvasIdentifiers,
+          filterCanvases: canvasIdentifiers,
           concurrency: 4,
           scaleFactor,
           numSamples: 8,
           optimization: optimizationConfig,
+          sampleCanvases: sampledCanvases,
         }).then((estimation) => {
           if (!estimation.corsSupported) {
             // Show a warning if the Image API endpoint does not support CORS

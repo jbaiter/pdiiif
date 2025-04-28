@@ -41,7 +41,7 @@ function sanitizeCssForPdf(styleAttrib: string): string {
 }
 
 function htmlToPlainText(html: string): string {
-  const parser = new SAXParser(SaxEventType.Text, { highWaterMark: 1024 });
+  const parser = new SAXParser(SaxEventType.Text);
   const txt: string[] = [];
   parser.eventHandler = (ev, data) => {
     txt.push((data as Text).value);

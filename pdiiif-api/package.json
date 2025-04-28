@@ -38,7 +38,6 @@
     "@types/jsbn": "^1.2.30",
     "@types/lodash-es": "^4.17.7",
     "@types/node": "^20.0.0",
-    "@types/puppeteer": "^7.0.4",
     "@types/qrcode-svg": "^1.1.1",
     "@types/sanitize-html": "^2.9.0",
     "@types/wicg-file-system-access": "^2020.9.6",
@@ -74,7 +73,7 @@
     "p-queue": "7.3.4",
     "pdiiif": "workspace:^",
     "prom-client": "^14.2.0",
-    "puppeteer": "^20.5.0",
+    "puppeteer": "^24.7.2",
     "qrcode-svg": "^1.1.0",
     "sanitize-html": "^2.10.0",
     "winston": "^3.9.0"
