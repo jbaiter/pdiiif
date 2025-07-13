@@ -339,7 +339,7 @@ export default class PDFGenerator {
               /Ordering (UCS)
               /Supplement 0
             >> def
-            /CMapName /Adobe-Identify-UCS def
+            /CMapName /Identity-H def
             /CMapType 2 def
             1 begincodespacerange
             <0000> <FFFF>
