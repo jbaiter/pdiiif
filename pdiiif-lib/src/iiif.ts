@@ -28,6 +28,7 @@ import { ImageServiceLoader as ImageServiceLoader_ } from '@atlas-viewer/iiif-im
 
 import { getOcrReferences } from './ocr.js';
 import log from './log.js';
+import { fetchRespectfully } from './download.js';
 
 const PURPOSE_ORDER = ['commenting', 'describing', 'tagging', 'no-purpose'];
 const PURPOSE_LABELS: { [purpose: string]: string } = {
@@ -79,7 +80,7 @@ export function getI18nValue(
  */
 class ImageServiceLoader extends ImageServiceLoader_ {
   async fetch(input: RequestInfo, init?: RequestInit): Promise<Response> {
-    return fetch(input as any, init as any) as any;
+    return fetchRespectfully(input as any, init as any) as any;
   }
 }
 
@@ -149,17 +150,6 @@ export function supportsScaling(profile: ImageProfile): boolean {
   } else {
     return (profile.supports?.indexOf('sizeByWh') ?? -1) >= 0;
   }
-}
-
-/** Fetch the full IIIF Image service definition from
- * its info.json endpoint. */
-export async function fetchFullImageService(
-  serviceRef: ImageService
-): Promise<ImageService> {
-  const serviceUrl = `${serviceRef['@id'] ?? serviceRef.id}/info.json`;
-  const resp = await fetch(serviceUrl);
-  const res = await resp.json();
-  return res as ImageService;
 }
 
 export type ImageInfo = {

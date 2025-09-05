@@ -24,7 +24,6 @@ import {
   isPhysicalDimensionService,
   PhysicalDimensionService,
   supportsScaling,
-  fetchFullImageService,
   getCanvasAnnotations,
   Annotation,
   ImageInfo,
@@ -79,13 +78,21 @@ class RateLimitingRegistry {
 
 export const rateLimitRegistry = new RateLimitingRegistry();
 
+/** Tracks for which domains we need and safely can include credentials for */
+const includedCredentialsHosts = new Set<string>();
+
+/** Check if requests to the given host should include credentials */
+export function requestsShouldIncludeCredentials(host: string): boolean {
+  return includedCredentialsHosts.has(host);
+}
+
 /** A 'respectful' wrapper around `fetch` that tries to respect rate-limiting headers.
  *
  * Will also retry with exponential backoff in case of server errors.
  */
 export async function fetchRespectfully(
   url: string,
-  init?: RequestInit,
+  init: RequestInit = {},
   maxRetries = 3
 ): Promise<Response> {
   const { host } = new URL(url);
@@ -95,17 +102,31 @@ export async function fetchRespectfully(
   let numRetries = -1;
   let resp: Response | undefined;
   let waitMs = 5000;
-  let lastError: unknown;
+  let fetchOptions = { ...init };
+  if (includedCredentialsHosts.has(host)) {
+    fetchOptions.credentials = 'include';
+  }
   // If we're fetching from a rate-limited host, wait until there's no other fetch for it
   // going on
   const release = await rateLimitMutex?.acquire();
   try {
     do {
-      // Don't catch network errors, let them bubble up
-      resp = await fetch(url, init);
+      resp = await fetch(url, fetchOptions);
       if (resp.ok) {
+        if (fetchOptions.credentials === 'include') {
+          // If we successfully fetched with credentials, remember that for next request to that host
+          includedCredentialsHosts.add(host);
+        }
         break;
       }
+
+      if ((resp.status == 401 || resp.status == 403) && fetchOptions.credentials !== 'include') {
+        // Retry with included credentials and don't increment counter
+        fetchOptions.credentials = 'include';
+        continue;
+      }
+
+
       numRetries++;
 
       const retryAfter = resp?.headers.get('retry-after');
@@ -169,9 +190,6 @@ export async function fetchRespectfully(
       await new Promise((resolve) => setTimeout(resolve, waitMs + 100));
     }
     release?.();
-  }
-  if (!resp) {
-    throw lastError;
   }
   return resp;
 }
@@ -590,4 +608,15 @@ export async function fetchManifestJson(manifestUrl: string): Promise<any> {
     const resp = await fetch(manifestUrl);
     return await resp.json();
   }
+}
+
+/** Fetch the full IIIF Image service definition from
+ * its info.json endpoint. */
+export async function fetchFullImageService(
+  serviceRef: ImageService
+): Promise<ImageService> {
+  const serviceUrl = `${serviceRef['@id'] ?? serviceRef.id}/info.json`;
+  const resp = await fetch(serviceUrl);
+  const res = await resp.json();
+  return res as ImageService;
 }

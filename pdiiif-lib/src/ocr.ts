@@ -105,7 +105,7 @@ const isHocr = (resource: ExternalWebResourceWithProfile) =>
 
 /** Wrapper around fetch() that returns the content as text */
 async function fetchOcrMarkup(url: string): Promise<string | undefined> {
-  const resp = await fetch(url);
+  const resp = await fetchRespectfully(url);
   if (resp.status === 404) {
     return undefined;
   }
