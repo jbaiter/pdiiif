@@ -345,7 +345,7 @@ export default class PDFGenerator {
             <0000> <FFFF>
             endcodespacerange
             1 beginbfrange
-            <0000> <FFFE> <0000>
+            <0000> <FFFF> <0000>
             endbfrange
         endcmap
         CMapName currentdict /CMap defineresource pop
