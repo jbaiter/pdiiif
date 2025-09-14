@@ -1,4 +1,4 @@
-FROM ghcr.io/puppeteer/puppeteer:24.7.2
+FROM node:24-bookworm-slim
 
 ARG PDIIIF_SENTRY_DSN
 ARG PDIIIF_SENTRY_TUNNEL_ENDPOINT
@@ -6,21 +6,24 @@ ARG PDIIIF_SENTRY_TUNNEL_ENDPOINT
 ENV PDIIIF_SENTRY_DSN=${PDIIIF_SENTRY_DSN}
 ENV PDIIIF_SENTRY_TUNNEL_ENDPOINT=${PDIIIF_SENTRY_TUNNEL_ENDPOINT}
 
-WORKDIR /home/pptruser/pdiiif
 
-COPY --chown=pptruser:pptruser . .
-
-USER root
 RUN npm install -g pnpm
 
-USER pptruser
-RUN pnpm i && cd ./pdiiif-lib && \
-    pnpm run build && \
-    cd ../pdiiif-web && \
-    pnpm run build && \
-    cd ../pdiiif-api && \
-    pnpm run build && \
-    rm -rf ~/.pnpm-store
+RUN pnpx playwright install --with-deps --only-shell chromium
+
+WORKDIR /app
+
+COPY pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY pdiiif-api/package.json ./pdiiif-api/
+COPY pdiiif-lib/package.json ./pdiiif-lib/
+COPY pdiiif-web/package.json ./pdiiif-web/
+
+RUN pnpm i
+
+COPY . .
+
+RUN pnpm run -r build && \
+    rm -rf ~/.pnpm-store ~/.local/share/pnpm/store
 
 ENV CFG_PORT=8080
 ENV CFG_HOST=0.0.0.0
@@ -28,5 +31,5 @@ ENV CFG_HOST=0.0.0.0
 EXPOSE ${CFG_PORT}
 
 # Set final working directory and command
-WORKDIR /home/pptruser/pdiiif/pdiiif-api
+WORKDIR /app/pdiiif-api
 CMD ["node", "dist/server.js"]

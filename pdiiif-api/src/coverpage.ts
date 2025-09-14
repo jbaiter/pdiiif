@@ -1,7 +1,7 @@
 import path from 'path';
 import { PathLike, promises as fs } from 'fs';
 
-import puppeteer, { type Browser } from 'puppeteer';
+import { chromium, type Browser } from 'playwright';
 import Handlebars from 'handlebars';
 import QRCode from 'qrcode-svg';
 import sanitizeHtml from 'sanitize-html';
@@ -100,10 +100,7 @@ export class CoverPageGenerator {
   }
 
   async start(): Promise<void> {
-    this.browser = await puppeteer.launch({
-      args: ['--font-render-hinting=none', '--force-color-profile=srgb', '--no-sandbox', '--disable-gpu'],
-      executablePath: process.env.CFG_PUPPETEER_BROWSER_EXECUTABLE,
-    });
+    this.browser = await chromium.launch()
     const tmpl = await fs.readFile(this.coverTemplatePath);
     this.coverPageTemplate = Handlebars.compile(tmpl.toString('utf8'));
   }
@@ -183,6 +180,8 @@ export class CoverPageGenerator {
         throw 'aborted';
       }
       await page.setContent(html, { waitUntil: 'load', timeout: 30 * 1000 });
+      // @ts-ignore
+      await page.waitForFunction(() => document.fonts.ready);
       if (params.abortSignal?.aborted) {
         throw 'aborted';
       }
