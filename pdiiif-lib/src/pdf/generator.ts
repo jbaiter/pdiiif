@@ -938,7 +938,7 @@ export default class PDFGenerator {
       if (isImageFetchFailure(image)) {
         continue;
       }
-      const { x, y, width, height, choiceInfo } = image;
+      const { x, y, width, height, choiceInfo, crop } = image;
       const drawWidth = unitScale * width;
       const drawHeight = unitScale * height;
       const drawX = unitScale * x;
@@ -950,7 +950,25 @@ export default class PDFGenerator {
         optionalGroupIds[imageId] = ocId;
         contentOps.push(`/OC ${ocId} BDC`);
       }
-      contentOps.push(`q ${drawWidth} 0 0 ${drawHeight} ${drawX} ${drawY} cm`);
+
+      if (crop) {
+        // Clip to the target area and place the full image so that the 
+        // cropped part exactly fills it. The image space is a unit square 
+        // with the origin in the bottom left corner; the crop is relative 
+        // to the top left corner.
+        const fullWidth = drawWidth / crop.width;
+        const fullHeight = drawHeight / crop.height;
+        const fullX = drawX - crop.x * fullWidth;
+        const fullY = drawY - (1 - crop.y - crop.height) * fullHeight;
+        contentOps.push(
+          `q ${drawX} ${drawY} ${drawWidth} ${drawHeight} re W n`
+        );
+        contentOps.push(`${fullWidth} 0 0 ${fullHeight} ${fullX} ${fullY} cm`);
+      } else {
+        contentOps.push(
+          `q ${drawWidth} 0 0 ${drawHeight} ${drawX} ${drawY} cm`
+        );
+      }
       contentOps.push(`${imageId} Do`);
       contentOps.push('Q');
       if (choiceInfo?.optional) {
@@ -1095,7 +1113,7 @@ export default class PDFGenerator {
         ocrText.mimeType,
         ocrText.markup
       );
-    } else if (canvasInfo.ocr) {
+    } else if (canvasInfo?.ocr) {
       // Canvas Info says we have OCR, but none was passed, possible
       // when the OCR doesn't have CORS or fetching failed for another reason
       // Add two empty objects so object references are still valid
@@ -1398,10 +1416,11 @@ export default class PDFGenerator {
         'Cannot perform mutating operations on an already closed PDFGenerator.'
       );
     }
-    if (typeof data === 'string') {
-      data = textEncoder.encode(data);
-    }
-    this._offset += data.byteLength;
+    const bytes = typeof data === 'string' 
+      ? textEncoder.encode(data)
+      : data;
+
+    this._offset += bytes.byteLength;
     await this._writer.write(data);
   }
 
