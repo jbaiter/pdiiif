@@ -10,8 +10,8 @@
     "clean": "rm -rf dist",
     "watch": "vite build --watch",
     "format": "prettier -w ./src",
-    "lint": "eslint . --ext .ts && tsc --noemit",
-    "pretest": "tsc --noemit",
+    "lint": "eslint . --ext .ts && tsc --noemit --emitDeclarationOnly false",
+    "pretest": "tsc --noemit --emitDeclarationOnly false",
     "posttest": "eslint . --ext .ts",
     "prepack": "rm -rf dist && npm run build",
     "test": "jest"
@@ -62,7 +62,7 @@
     "@types/color": "^3.0.6",
     "@types/common-tags": "^1.8.4",
     "@types/jest": "^29.5.12",
-    "@types/node": "^20.14.12",
+    "@types/node": "~20.14.12",
     "@types/tmp": "^0.2.6",
     "@types/wicg-file-system-access": "^2020.9.8",
     "@typescript-eslint/eslint-plugin": "^5.62.0",
@@ -80,8 +80,8 @@
     "tmp": "^0.2.3",
     "ts-jest": "^29.2.3",
     "ts-node": "^10.9.2",
-    "typedoc": "^0.24.8",
-    "typescript": "^5.5.4",
+    "typedoc": "^0.28.20",
+    "typescript": "~5.5.4",
     "vite": "^5.3.5",
     "vite-plugin-dts": "4.0.0-beta.1"
   },
@@ -120,6 +120,9 @@
     "roots": [
       "<rootDir>/src"
     ],
+    "moduleNameMapper": {
+      "^(\\.{1,2}/.*)\\.js$": "$1"
+    },
     "setupFiles": [
       "<rootDir>/src/__tests__/setupJest.ts"
     ],

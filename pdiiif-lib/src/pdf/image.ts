@@ -240,14 +240,14 @@ export class PNGImage extends PdfImage {
       // SMask object and store it separately in the PDF.
       const [imageData, alphaChannelObj] = this.splitAlphaChannel(nextNum++);
       imgObj.stream = zlibSync(imageData);
-      imgDict.Length = imgObj.stream.length;
+      imgDict.Length = imgObj.stream?.length ?? 0;
       imgDict.SMask = makeRef(alphaChannelObj);
       out.push(alphaChannelObj);
     }
 
     if (isInterlaced && !dataDecoded && !imgObj.stream) {
       imgObj.stream = zlibSync(this.image.decodePixels());
-      imgDict.Length = imgObj.stream.length;
+      imgDict.Length = imgObj.stream?.length ?? 0;
     } else if (!imgObj.stream) {
       imgObj.stream = this.imgData;
       imgDict.Length = imgObj.stream.length;

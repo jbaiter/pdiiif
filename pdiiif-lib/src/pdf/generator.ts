@@ -1095,7 +1095,7 @@ export default class PDFGenerator {
         ocrText.mimeType,
         ocrText.markup
       );
-    } else if (canvasInfo.ocr) {
+    } else if (canvasInfo?.ocr) {
       // Canvas Info says we have OCR, but none was passed, possible
       // when the OCR doesn't have CORS or fetching failed for another reason
       // Add two empty objects so object references are still valid
