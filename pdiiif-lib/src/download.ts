@@ -423,9 +423,11 @@ async function fetchCanvasImage(
   let ppi: number | undefined;
   let imageUrl: string;
   let downscaled = false;
-  // The region is relative to the full image, so we always fetch the full image
-  // (also for Level 0 services, which cannot do arbitrary regions) and leave
-  // the cropping to the PDF generator.
+  // Note: the current implementation leaves the cropping to the PDF 
+  // generator. This simplifies the whole process and avoids problems with
+  // Level 0 services - at the expense of storing more image data in the PDF
+  // than would, strictily, be necessary (= the full image rather than just 
+  // the crop)
   let crop: CropRect | undefined;
   if (imgService) {
     if (!imgService.width) {
