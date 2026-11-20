@@ -174,6 +174,9 @@ export type ImageInfo = {
   // What is the image's size, if available?
   nativeWidth?: number;
   nativeHeight?: number;
+  // Only a part of the image is painted on the canvas, given as an IIIF Image API
+  // region (`x,y,w,h`, `pct:x,y,w,h` or `square`), see https://iiif.io/api/cookbook/recipe/0299-region/
+  region?: string;
   ppi?: number;
   format?: 'jpeg' | 'png' | 'unsupported';
   choiceInfo?: {
@@ -431,6 +434,78 @@ export function getImageFormat(
   }
 }
 
+type ImageResource = (ExternalWebResource | IIIFExternalWebResource) & {
+  type: 'Image';
+};
+
+/** Extract the image region from the selector(s) of a `SpecificResource`.
+ *
+ * Supports the `ImageApiSelector` and, for plain image resources, a media
+ * fragment `FragmentSelector` (`xywh=`). Returns an IIIF Image API region string.
+ */
+export function getRegionFromSelector(
+  selector: any // eslint-disable-line @typescript-eslint/explicit-module-boundary-types
+): string | undefined {
+  const selectors: any[] = Array.isArray(selector) ? selector : [selector];
+  for (const sel of selectors) {
+    if (!sel || typeof sel !== 'object') {
+      continue;
+    }
+    if (sel.type === 'ImageApiSelector') {
+      if (sel.rotation || sel.size || sel.quality || sel.format) {
+        log.warn(
+          'Only the region of an ImageApiSelector is supported, ignoring size, rotation, quality and format.'
+        );
+      }
+      if (typeof sel.region === 'string' && sel.region !== 'full') {
+        return sel.region;
+      }
+    } else if (
+      sel.type === 'FragmentSelector' &&
+      typeof sel.value === 'string' &&
+      sel.value.startsWith('xywh=')
+    ) {
+      // Media fragments: `xywh=[pixel:|percent:]x,y,w,h`, pixels are the default
+      const [, unit, coords] = sel.value.match(/^xywh=(?:(pixel|percent):)?(.+)$/) ?? [];
+      if (coords) {
+        return unit === 'percent' ? `pct:${coords}` : coords;
+      }
+    } else {
+      log.warn(`Unsupported selector type '${sel.type}', painting the whole image.`);
+    }
+  }
+  return undefined;
+}
+
+/** Resolve a painting annotation body to an image and the region painted from it.
+ *
+ * Handles both plain image bodies and `SpecificResource`s that select a part of an image.
+ * Bodies that are not images are ignored.
+ */
+function resolveImageBody(
+  bodyRef: any
+): { resource: ImageResource; region?: string } | undefined {
+  if (bodyRef?.type === 'SpecificResource') {
+    // Normalized specific resources are not in the vault, they stay inline
+    // and only reference their source.
+    const sourceId =
+      typeof bodyRef.source === 'string' ? bodyRef.source : bodyRef.source?.id;
+    const resource = sourceId ? vault.get<ContentResource>(sourceId) : null;
+    if (resource?.type !== 'Image') {
+      return;
+    }
+    return {
+      resource: resource as ImageResource,
+      region: getRegionFromSelector(bodyRef.selector),
+    };
+  }
+  const resource = bodyRef?.id ? vault.get<ContentResource>(bodyRef.id) : null;
+  if (resource?.type !== 'Image') {
+    return;
+  }
+  return { resource: resource as ImageResource };
+}
+
 /** Get information about images on a Canvas. */
 export function getImageInfos(canvas: CanvasNormalized): ImageInfo[] {
   const imageInfos: ImageInfo[] = [];
@@ -442,24 +517,38 @@ export function getImageInfos(canvas: CanvasNormalized): ImageInfo[] {
     if (typeof annoTarget === 'string') {
       target = parseTarget(annoTarget);
     } else if (annoTarget.type === 'SpecificResource') {
-      target = parseTarget(annoTarget.source.id);
+      // The parser normalizes `canvas#xywh=...` to a SpecificResource with a
+      // FragmentSelector, so the fragment has to be put back together.
+      const source = annoTarget.source;
+      const sourceId = typeof source === 'string' ? source : source.id;
+      const selectors: any[] = Array.isArray(annoTarget.selector)
+        ? annoTarget.selector
+        : [annoTarget.selector];
+      const fragment = selectors.find(
+        (s) => s?.type === 'FragmentSelector' && s.value?.startsWith('xywh=')
+      )?.value as string | undefined;
+      target = parseTarget(
+        fragment ? `${sourceId}#${fragment.replace('xywh=pixel:', 'xywh=')}` : sourceId
+      );
     } else {
       console.error(`Unsupported target type for annotation on canvas ${canvas.id}: '${annoTarget.type}'`);
       continue;
     }
 
 
-    const body = vault.get<ContentResource>(anno.body.map(b => b.id));
-    for (const resource of body) {
-      if (resource.type !== 'Image') {
+    for (const bodyRef of anno.body) {
+      const resolved = resolveImageBody(bodyRef);
+      if (!resolved) {
         continue;
       }
+      const { resource, region } = resolved;
       imageInfos.push({
         resource: resource as (
           | ExternalWebResource
           | IIIFExternalWebResource
         ) & { type: 'Image' },
         ...target,
+        ...(region ? { region } : {}),
         format: getImageFormat(resource),
         nativeWidth: (resource as any).width as number | undefined,
         nativeHeight: (resource as any).height as number | undefined,
