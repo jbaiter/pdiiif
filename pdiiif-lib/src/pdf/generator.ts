@@ -950,11 +950,12 @@ export default class PDFGenerator {
         optionalGroupIds[imageId] = ocId;
         contentOps.push(`/OC ${ocId} BDC`);
       }
+
       if (crop) {
-        // Only a part of the image is painted: Clip to the target area and place
-        // the full image so that the cropped part exactly fills it. The image
-        // space is a unit square with the origin in the bottom left corner,
-        // while the crop is relative to the top left corner.
+        // Clip to the target area and place the full image so that the 
+        // cropped part exactly fills it. The image space is a unit square 
+        // with the origin in the bottom left corner; the crop is relative 
+        // to the top left corner.
         const fullWidth = drawWidth / crop.width;
         const fullHeight = drawHeight / crop.height;
         const fullX = drawX - crop.x * fullWidth;
