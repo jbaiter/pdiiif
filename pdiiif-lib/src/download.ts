@@ -379,7 +379,6 @@ export type CanvasImageData = {
   nativeWidth?: number;
   nativeHeight?: number;
   downscaled?: boolean;
-  /// If set, only this part of the (full) image is painted on the canvas
   crop?: CropRect;
 };
 
