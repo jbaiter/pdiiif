@@ -517,7 +517,19 @@ export function getImageInfos(canvas: CanvasNormalized): ImageInfo[] {
     if (typeof annoTarget === 'string') {
       target = parseTarget(annoTarget);
     } else if (annoTarget.type === 'SpecificResource') {
-      target = parseTarget(annoTarget.source.id);
+      // The parser normalizes `canvas#xywh=...` to a SpecificResource with a
+      // FragmentSelector, so the fragment has to be put back together.
+      const source = annoTarget.source;
+      const sourceId = typeof source === 'string' ? source : source.id;
+      const selectors: any[] = Array.isArray(annoTarget.selector)
+        ? annoTarget.selector
+        : [annoTarget.selector];
+      const fragment = selectors.find(
+        (s) => s?.type === 'FragmentSelector' && s.value?.startsWith('xywh=')
+      )?.value as string | undefined;
+      target = parseTarget(
+        fragment ? `${sourceId}#${fragment.replace('xywh=pixel:', 'xywh=')}` : sourceId
+      );
     } else {
       console.error(`Unsupported target type for annotation on canvas ${canvas.id}: '${annoTarget.type}'`);
       continue;

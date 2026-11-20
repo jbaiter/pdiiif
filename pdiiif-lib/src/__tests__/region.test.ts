@@ -336,3 +336,29 @@ describe('Painting a cropped image into the PDF', () => {
     expect(content).not.toContain(' re W n');
   });
 });
+
+describe('Placement of images via the annotation target', () => {
+  it('should place regions and full images on the canvas as given by the xywh target', async () => {
+    const json = await fs.promises.readFile(
+      path.join(FIXTURES, 'region_target.json'),
+      'utf8'
+    );
+    const manifest = JSON.parse(json);
+    const loaded = await vault.loadManifest(manifest.id, manifest);
+    if (!loaded) {
+      throw new Error('Could not load the manifest');
+    }
+    const canvas = vault.get<CanvasNormalized>(loaded.items[0]);
+    const images = getImageInfos(canvas);
+    expect(images).toHaveLength(2);
+    expect(images[0]).toMatchObject({ x: 8, y: 1, width: 575, height: 903 });
+    expect(images[0].region).toBeUndefined();
+    expect(images[1]).toMatchObject({
+      x: 587,
+      y: 226,
+      width: 448,
+      height: 1396,
+      region: '224,156,369,1149',
+    });
+  });
+});

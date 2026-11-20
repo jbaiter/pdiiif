@@ -1,0 +1,58 @@
+{
+  "@context": "http://iiif.io/api/presentation/3/context.json",
+  "id": "http://localhost:5173/manifest/0001",
+  "type": "Manifest",
+  "label": { "en": ["Two images with targets"] },
+  "items": [
+    {
+      "id": "http://localhost:5173/manifest/0001/canvas/c1",
+      "type": "Canvas",
+      "width": 1041,
+      "height": 1634,
+      "items": [
+        {
+          "id": "http://localhost:5173/manifest/0001/canvas/c1/page/1",
+          "type": "AnnotationPage",
+          "items": [
+            {
+              "id": "http://localhost:5173/manifest/0001/canvas/c1/annotation/a1",
+              "type": "Annotation",
+              "motivation": "painting",
+              "body": {
+                "id": "https://example.org/iiif/1_1/full/full/0/default.jpg",
+                "type": "Image",
+                "height": 1634,
+                "width": 1041,
+                "format": "image/jpeg",
+                "service": [
+                  { "@id": "https://example.org/iiif/1_1", "@type": "ImageService2", "profile": "level0" }
+                ]
+              },
+              "target": "http://localhost:5173/manifest/0001/canvas/c1#xywh=8,1,575,903"
+            },
+            {
+              "id": "http://localhost:5173/manifest/0001/canvas/c1/annotation/a2",
+              "type": "Annotation",
+              "motivation": "painting",
+              "body": {
+                "type": "SpecificResource",
+                "source": {
+                  "id": "https://example.org/iiif/2_2/full/full/0/default.jpg",
+                  "type": "Image",
+                  "height": 1634,
+                  "width": 1041,
+                  "format": "image/jpeg",
+                  "service": [
+                    { "@id": "https://example.org/iiif/2_2", "@type": "ImageService2", "profile": "level0" }
+                  ]
+                },
+                "selector": { "type": "ImageApiSelector", "region": "224,156,369,1149" }
+              },
+              "target": "http://localhost:5173/manifest/0001/canvas/c1#xywh=587,226,448,1396"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
