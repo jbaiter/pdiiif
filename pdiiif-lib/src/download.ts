@@ -242,13 +242,6 @@ export type CropRect = {
   height: number;
 };
 
-/** Parse a comma-separated list of exactly four numbers. */
-function parseFourNumbers(str: string): number[] | undefined {
-  const parts = str.split(',');
-  const nums = parts.map((p) => (p.trim() === '' ? NaN : Number(p)));
-  return parts.length === 4 && nums.every(Number.isFinite) ? nums : undefined;
-}
-
 /** Convert an IIIF Image API region to a crop rectangle relative to the full image.
  *
  * @param region Region string (`x,y,w,h`, `pct:x,y,w,h`, `square` or `full`)
@@ -263,6 +256,13 @@ export function getCropRect(
   imageWidth?: number,
   imageHeight?: number
 ): CropRect | undefined {
+  // Region-string helper: parse a comma-separated list of four numbers.
+  const parseFourNumbers = (str: string): number[] | undefined => {
+    const parts = str.split(',');
+    const nums = parts.map((p) => (p.trim() === '' ? NaN : Number(p)));
+    return parts.length === 4 && nums.every(Number.isFinite) ? nums : undefined;
+  }
+
   const invalid = (reason: string) =>
     new Error(`Invalid image region '${region}': ${reason}`, {
       cause: { type: 'invalid-region' },
