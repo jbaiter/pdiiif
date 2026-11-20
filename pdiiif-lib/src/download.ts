@@ -231,6 +231,98 @@ export function getImageSize(
   };
 }
 
+/** A rectangle relative to the full image, all values are between 0 and 1.
+ *
+ * Relative values stay valid no matter at which size the image was fetched.
+ */
+export type CropRect = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+/** Parse a comma-separated list of exactly four numbers. */
+function parseFourNumbers(str: string): number[] | undefined {
+  const parts = str.split(',');
+  const nums = parts.map((p) => (p.trim() === '' ? NaN : Number(p)));
+  return parts.length === 4 && nums.every(Number.isFinite) ? nums : undefined;
+}
+
+/** Convert an IIIF Image API region to a crop rectangle relative to the full image.
+ *
+ * @param region Region string (`x,y,w,h`, `pct:x,y,w,h`, `square` or `full`)
+ * @param imageWidth Width of the full image in pixels, not needed for `pct:` regions
+ * @param imageHeight Height of the full image in pixels, not needed for `pct:` regions
+ * @returns The crop rectangle, `undefined` if the region covers the whole image or if it
+ *          cannot be determined because the image dimensions are unknown.
+ * @throws If the region is malformed or lies completely outside of the image.
+ */
+export function getCropRect(
+  region: string,
+  imageWidth?: number,
+  imageHeight?: number
+): CropRect | undefined {
+  const invalid = (reason: string) =>
+    new Error(`Invalid image region '${region}': ${reason}`, {
+      cause: { type: 'invalid-region' },
+    });
+  if (region === 'full') {
+    return undefined;
+  }
+  // All coordinates in percent of the full image
+  let x: number, y: number, w: number, h: number;
+  if (region.startsWith('pct:')) {
+    const pct = parseFourNumbers(region.substring(4));
+    if (!pct) {
+      throw invalid('expected four numbers');
+    }
+    [x, y, w, h] = pct.map((v) => v / 100);
+  } else {
+    if (!imageWidth || !imageHeight) {
+      log.warn(
+        `Cannot crop to region '${region}', image dimensions are unknown. Painting the whole image.`
+      );
+      return undefined;
+    }
+    if (region === 'square') {
+      const side = Math.min(imageWidth, imageHeight);
+      [x, y, w, h] = [
+        (imageWidth - side) / 2 / imageWidth,
+        (imageHeight - side) / 2 / imageHeight,
+        side / imageWidth,
+        side / imageHeight,
+      ];
+    } else {
+      const px = parseFourNumbers(region);
+      if (!px) {
+        throw invalid('expected four numbers');
+      }
+      [x, y, w, h] = [
+        px[0] / imageWidth,
+        px[1] / imageHeight,
+        px[2] / imageWidth,
+        px[3] / imageHeight,
+      ];
+    }
+  }
+  if (w <= 0 || h <= 0) {
+    throw invalid('width and height must be positive');
+  }
+  // Like the Image API, we only use the part of the region that lies inside the image
+  const x2 = Math.min(x + w, 1);
+  const y2 = Math.min(y + h, 1);
+  x = Math.max(x, 0);
+  y = Math.max(y, 0);
+  if (x >= x2 || y >= y2) {
+    throw invalid('region lies outside of the image');
+  }
+  if (x === 0 && y === 0 && x2 === 1 && y2 === 1) {
+    return undefined;
+  }
+  return { x, y, width: x2 - x, height: y2 - y };
+}
+
 /** Use a IIIF Physical Dimensions service to obtain the PPI for a canvas. */
 export function getPointsPerInch(services: Service[]): number | null {
   const physDimService = services.find(isPhysicalDimensionService) as
@@ -287,6 +379,8 @@ export type CanvasImageData = {
   nativeWidth?: number;
   nativeHeight?: number;
   downscaled?: boolean;
+  /// If set, only this part of the (full) image is painted on the canvas
+  crop?: CropRect;
 };
 
 /** Options for fetching image */
@@ -304,7 +398,8 @@ export type FetchImageOptions = {
 /** Download (or only determine size in bytes of) a canvas image. */
 async function fetchCanvasImage(
   image: IIIFExternalWebResource | ExternalWebResource,
-  { scaleFactor, abortSignal, sizeOnly = false }: FetchImageOptions
+  { scaleFactor, abortSignal, sizeOnly = false }: FetchImageOptions,
+  region?: string
 ): Promise<CanvasImageData | null> {
   // NOTE: Here be dragons, who'd have thought downloading an image
   //       could be so complicated?
@@ -329,6 +424,10 @@ async function fetchCanvasImage(
   let ppi: number | undefined;
   let imageUrl: string;
   let downscaled = false;
+  // The region is relative to the full image, so we always fetch the full image
+  // (also for Level 0 services, which cannot do arbitrary regions) and leave
+  // the cropping to the PDF generator.
+  let crop: CropRect | undefined;
   if (imgService) {
     if (!imgService.width) {
       imgService = await fetchFullImageService(imgService);
@@ -350,6 +449,15 @@ async function fetchCanvasImage(
       `No JPEG or PNG image identifier for resource ${image.id} could be found!`
     );
     return null;
+  }
+  if (region) {
+    // Prefer the dimensions from the image service, they define the coordinate
+    // system of the region.
+    crop = getCropRect(
+      region,
+      imgService?.width ?? (image as { width?: number }).width,
+      imgService?.height ?? (image as { height?: number }).height
+    );
   }
 
   let data: ArrayBuffer | undefined;
@@ -426,6 +534,7 @@ async function fetchCanvasImage(
     corsAvailable,
     format: format!,
     downscaled,
+    ...(crop ? { crop } : {}),
   };
 }
 
@@ -524,7 +633,7 @@ export async function fetchCanvasData(
   imageInfos: ImageInfo[],
   { scaleFactor, ppiOverride, abortSignal, sizeOnly = false }: FetchImageOptions
 ): Promise<CanvasData | undefined> {
-  const imagePromises = imageInfos.map(i => i.resource).map(r => fetchCanvasImage(r, { scaleFactor, abortSignal, sizeOnly }));
+  const imagePromises = imageInfos.map(i => fetchCanvasImage(i.resource, { scaleFactor, abortSignal, sizeOnly }, i.region));
   const results = await Promise.allSettled(imagePromises);
   const canvasImages = results
     .reduce((acc, x, idx) => {
